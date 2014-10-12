@@ -1,0 +1,33 @@
+allprojects {
+    apply plugin: 'eclipse'
+    apply plugin: 'idea'
+
+    repositories {
+        maven { url 'http://ec2-54-198-158-92.compute-1.amazonaws.com/content/groups/public/' }
+        mavenLocal()
+
+        flatDir {
+            dirs 'lib'
+        }
+    }
+
+}
+
+group = 'io.cozmic'
+
+subprojects {
+
+    apply plugin: 'maven'
+
+
+    group = rootProject.group
+    version = '1.0-SNAPSHOT'
+
+
+    defaultTasks = ['assemble']
+
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '1.5'
+}
