@@ -2,6 +2,9 @@
 .gradle
 .idea/
 .idea/**
+db/**
+journal/**
+timeout_log/**
 .classpath
 .project
 .settings
