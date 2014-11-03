@@ -1,6 +1,6 @@
 package io.cozmic.usher.test.integration;
 
-import io.cozmic.usher.Proxy;
+import io.cozmic.usher.core.ProxyTunnel;
 import org.junit.Test;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
@@ -18,7 +18,7 @@ public class NetProxyTimeoutIntegrationTests extends NetProxyBaseIntegrationTest
     @Override
     protected JsonObject getFakeConfig() {
         final JsonObject config = super.getFakeConfig();
-        config.putNumber("delay", Proxy.DEFAULT_TIMEOUT + 100);
+        config.putNumber("delay", ProxyTunnel.DEFAULT_TIMEOUT + 100);
         return config;
     }
 

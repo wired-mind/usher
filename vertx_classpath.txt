@@ -1,0 +1,7 @@
+src/main/resources
+bin
+out/production/usher
+out/test/usher
+build/deps
+build/classes
+

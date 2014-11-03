@@ -57,13 +57,17 @@ dependencies {
     // If you're creating Groovy compiled verticles you may need the following dependencies
     provided "org.codehaus.groovy:groovy-all:$groovyVersion"
     provided "io.vertx:lang-groovy:$groovyLangModVersion@jar"
+    compile "com.hazelcast:hazelcast-client:3.2.3"
+    compile 'org.crashub:vertx.shell:2.1.0'
+    compile "io.dropwizard.metrics:metrics-core:$metricsVersion"
     compile "com.lmax:disruptor:3.3.0"
     compile project(":usherprotocols")
     compile name: 'rocksdbjni'
     compile name: 'librocksdbjni', ext: 'jnilib'
 }
 
-test {
+
+test  {
     allJvmArgs = [ "-ea", "-server", "-d64", "-Xms2048m", "-Xmx4096m",  "-XX:PermSize=1024m", "-XX:MaxPermSize=2048m", "-Djava.library.path=/Volumes/Master/Users/chuck/Code/MadSwan/WiredMind/splitscnd/cozmic.io/usher/lib" ]
 }
 

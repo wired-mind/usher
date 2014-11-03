@@ -1,5 +1,15 @@
-// Example JSON config file
-
 {
-  "foo": "bar"
+    "proxy_config": {
+
+    },
+    "journaler_config": {
+        "db_path": "/Volumes/Master/Users/chuck/Code/MadSwan/WiredMind/splitscnd/cozmic.io/db"
+    },
+    "shell_config": {
+                            "crash.auth":"simple",
+                            "crash.auth.simple.username":"admin",
+                            "crash.auth.simple.password":"admin",
+                            "crash.ssh.port":2000
+    }
+
 }

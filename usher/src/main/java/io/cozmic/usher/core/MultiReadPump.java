@@ -1,35 +1,66 @@
 package io.cozmic.usher.core;
 
+import com.codahale.metrics.ConsoleReporter;
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
+import io.cozmic.usher.Start;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.impl.ConcurrentHashSet;
 import org.vertx.java.core.streams.ReadStream;
 import org.vertx.java.core.streams.WriteStream;
 
+import java.util.concurrent.TimeUnit;
+
+import static com.codahale.metrics.MetricRegistry.name;
+
 /**
  * Created by chuck on 10/2/14.
  */
 public class MultiReadPump {
 
+    private final Meter requests = Start.metrics.meter("requests");
+    private final Counter activeConnections = Start.metrics.counter(name(MultiReadPump.class, "active-connections"));
+
     private final ConcurrentHashSet<ReadStream<?>> readStreams = new ConcurrentHashSet<>();
-    private final WriteStream<?> writeStream;
+    private WriteStream<?> writeStream;
     private int pumped;
 
 
-    public static MultiReadPump createPump(WriteStream<?> ws) {
-        return new MultiReadPump(ws);
+    public static MultiReadPump createPump() {
+        return new MultiReadPump();
     }
 
-
-    public static MultiReadPump createPump(WriteStream<?> ws, int writeQueueMaxSize) {
-        return new MultiReadPump(ws, writeQueueMaxSize);
+    public int getConnectionCount() {
+        return readStreams.size();
     }
 
-    /**
-     * Set the write queue max size to {@code maxSize}
-     */
-    public MultiReadPump setWriteQueueMaxSize(int maxSize) {
-        this.writeStream.setWriteQueueMaxSize(maxSize);
+    public MultiReadPump setWriteStream(WriteStream<?> writeStream) {
+        this.writeStream = writeStream;
+
+        if (writeStream == null) {
+            for (ReadStream<?> readStream : readStreams) {
+                readStream.pause();
+            }
+            return this;
+        }
+
+        if (!writeStream.writeQueueFull()) {
+            for (ReadStream<?> readStream : readStreams) {
+                readStream.resume();
+            }
+        }
+        else {
+            writeStream.drainHandler(drainHandler);
+        }
+        return this;
+    }
+    public MultiReadPump setWriteStream(WriteStream<?> writeStream, int maxSize) {
+        this.setWriteStream(writeStream);
+        if (this.writeStream != null) {
+            this.writeStream.setWriteQueueMaxSize(maxSize);
+        }
         return this;
     }
 
@@ -37,8 +68,12 @@ public class MultiReadPump {
      * Start the Pump. The Pump can be started and stopped multiple times.
      */
     public MultiReadPump add(ReadStream<?> rs) {
+        activeConnections.inc();
         rs.dataHandler(dataHandler);
         readStreams.add(rs);
+        if (this.writeStream == null) {
+            rs.pause();
+        }
         return this;
     }
 
@@ -46,6 +81,7 @@ public class MultiReadPump {
      * Stop the Pump. The Pump can be started and stopped multiple times.
      */
     public MultiReadPump remove(ReadStream<?> rs) {
+        activeConnections.dec();
         if (readStreams.remove(rs)) {
             rs.dataHandler(null);
         }
@@ -69,6 +105,7 @@ public class MultiReadPump {
 
     private final Handler<Buffer> dataHandler = new Handler<Buffer>() {
         public void handle(Buffer buffer) {
+            requests.mark();
             writeStream.write(buffer);
             pumped += buffer.length();
             if (writeStream.writeQueueFull()) {
@@ -81,17 +118,10 @@ public class MultiReadPump {
         }
     };
 
-    /**
-     * Create a new {@code Pump} with the given {@code ReadStream} and {@code WriteStream}. Set the write queue max size
-     * of the write stream to {@code maxWriteQueueSize}
-     */
-    private MultiReadPump(WriteStream<?> ws, int maxWriteQueueSize) {
-        this(ws);
-        this.writeStream.setWriteQueueMaxSize(maxWriteQueueSize);
-    }
 
-    private MultiReadPump(WriteStream<?> ws) {
-        this.writeStream = ws;
+
+    private MultiReadPump() {
+
     }
 
 }

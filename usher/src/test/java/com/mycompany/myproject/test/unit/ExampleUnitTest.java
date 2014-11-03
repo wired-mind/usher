@@ -1,6 +1,6 @@
 package com.mycompany.myproject.test.unit;
 
-import io.cozmic.usher.NetProxy;
+
 import io.cozmic.usher.Proxy;
 import org.junit.Test;
 
@@ -27,7 +27,7 @@ public class ExampleUnitTest {
 
   @Test
   public void testVerticle() {
-    Proxy vert = new NetProxy();
+    Proxy vert = new Proxy();
 
     // Interrogate your classes directly....
 
