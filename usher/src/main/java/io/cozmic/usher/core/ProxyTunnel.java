@@ -1,9 +1,6 @@
 package io.cozmic.usher.core;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
-import io.cozmic.usher.Start;
+import com.codahale.metrics.*;
 import io.cozmic.usher.peristence.MessageEventProducer;
 import io.cozmic.usher.peristence.JournalingWriteStream;
 import io.cozmic.usherprotocols.core.CozmicPump;
@@ -29,13 +26,14 @@ import static com.codahale.metrics.MetricRegistry.name;
  * Created by chuck on 10/24/14.
  */
 public abstract class ProxyTunnel {
-    private final Timer responses = Start.metrics.timer(name(ProxyTunnel.class, "responses"));
-    private final Timer clientConnects = Start.metrics.timer(name(ProxyTunnel.class, "client-connects"));
-    private final Timer serviceConnects = Start.metrics.timer(name(ProxyTunnel.class, "service-connects"));
-    private final Counter inflightMessages = Start.metrics.counter(name(ProxyTunnel.class, "inflight-messages"));
-    private final Meter timeouts = Start.metrics.meter("timeouts");
-    private final Meter clientErrors = Start.metrics.meter("client-errors");
-    private final Meter serviceErrors = Start.metrics.meter("service-errors");
+    public static final MetricRegistry metrics = new MetricRegistry();
+    private final Timer responses = metrics.timer(name(ProxyTunnel.class, "responses"));
+    private final Timer clientConnects = metrics.timer(name(ProxyTunnel.class, "client-connects"));
+    private final Timer serviceConnects = metrics.timer(name(ProxyTunnel.class, "service-connects"));
+    private final Counter inflightMessages = metrics.counter(name(ProxyTunnel.class, "inflight-messages"));
+    private final Meter timeouts = metrics.meter("timeouts");
+    private final Meter clientErrors = metrics.meter("client-errors");
+    private final Meter serviceErrors = metrics.meter("service-errors");
     private final ConcurrentHashMap<String, Timer.Context> inflightTimers = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> messageTimeouts = new ConcurrentHashMap<>();
 
@@ -54,7 +52,15 @@ public abstract class ProxyTunnel {
     private final Integer proxyTimeout;
     private ServiceGateway serviceGateway;
 
-    public ProxyTunnel(Container container, Vertx vertx, final MessageEventProducer journalProducer, final MessageEventProducer timeoutLogProducer) {
+    static {
+        ConsoleReporter reporter = ConsoleReporter.forRegistry(metrics)
+                .convertRatesTo(TimeUnit.SECONDS)
+                .convertDurationsTo(TimeUnit.MILLISECONDS)
+                .build();
+        reporter.start(3, TimeUnit.SECONDS);
+    }
+
+    public ProxyTunnel(Container container, final Vertx vertx, final MessageEventProducer journalProducer, final MessageEventProducer timeoutLogProducer) {
         this.vertx = vertx;
         this.journalProducer = journalProducer;
         this.timeoutLogProducer = timeoutLogProducer;

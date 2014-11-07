@@ -3,18 +3,14 @@ package io.cozmic.usher;
 
 import com.codahale.metrics.ConsoleReporter;
 import com.codahale.metrics.MetricRegistry;
-import org.crsh.vfs.Path;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.file.impl.PathAdjuster;
-import org.vertx.java.core.impl.DefaultVertx;
 import org.vertx.java.core.impl.VertxInternal;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
-import java.io.File;
-import java.sql.Time;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Created by chuck on 10/23/14.
  */
 public class Start extends Verticle {
-    public static final MetricRegistry metrics = new MetricRegistry();
+
     public void start(final Future<Void> startedResult) {
 
         container.logger().info("Config: " + container.config().toString());
@@ -39,11 +35,7 @@ public class Start extends Verticle {
         }
         container.deployModule("org.crashub~vertx.shell~2.1.0", shellConfig, doneHandler);
 
-        ConsoleReporter reporter = ConsoleReporter.forRegistry(metrics)
-                .convertRatesTo(TimeUnit.SECONDS)
-                .convertDurationsTo(TimeUnit.MILLISECONDS)
-                .build();
-        reporter.start(3, TimeUnit.SECONDS);
+
     }
 
 

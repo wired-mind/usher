@@ -20,8 +20,8 @@ import static com.codahale.metrics.MetricRegistry.name;
  */
 public class MultiReadPump {
 
-    private final Meter requests = Start.metrics.meter("requests");
-    private final Counter activeConnections = Start.metrics.counter(name(MultiReadPump.class, "active-connections"));
+    private final Meter requests = ProxyTunnel.metrics.meter("requests");
+    private final Counter activeConnections = ProxyTunnel.metrics.counter(name(MultiReadPump.class, "active-connections"));
 
     private final ConcurrentHashSet<ReadStream<?>> readStreams = new ConcurrentHashSet<>();
     private WriteStream<?> writeStream;
