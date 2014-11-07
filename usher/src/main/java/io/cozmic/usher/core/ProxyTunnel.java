@@ -18,11 +18,8 @@ import org.vertx.java.core.streams.ReadStream;
 import org.vertx.java.core.streams.WriteStream;
 import org.vertx.java.platform.Container;
 
-import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
@@ -32,6 +29,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 public abstract class ProxyTunnel {
     public static final MetricRegistry metrics = new MetricRegistry();
     public static final int ONE_SECOND_IN_MILLIS = 1000;
+    public static final int BUCKET_SIZE = ONE_SECOND_IN_MILLIS / 10;
     public static final int STARTING_BUCKET_ID = 1;
     private final Timer responses = metrics.timer(name(ProxyTunnel.class, "responses"));
     private final Timer clientConnects = metrics.timer(name(ProxyTunnel.class, "client-connects"));
@@ -40,9 +38,10 @@ public abstract class ProxyTunnel {
     private final Meter timeouts = metrics.meter("timeouts");
     private final Meter clientErrors = metrics.meter("client-errors");
     private final Meter serviceErrors = metrics.meter("service-errors");
+    private final Meter responsesAlreadyTimedout = metrics.meter("responses-already-timedout");
     private final ConcurrentHashMap<String, Timer.Context> inflightTimers = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Double, ConcurrentHashMap<String, Message>> timeoutBuckets = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Double> messageTimeoutBucketMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, ConcurrentHashMap<String, Message>> timeoutBuckets = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> messageTimeoutBucketMap = new ConcurrentHashMap<>();
 
     public static final String DEFAULT_HOST = "localhost";
     public static final int DEFAULT_PORT = 2500;
@@ -106,20 +105,16 @@ public abstract class ProxyTunnel {
 
             }
         });
-
-
-
-
-
     }
 
-    protected double currentTimeoutBucketId() {
-        return STARTING_BUCKET_ID + (nearestSecondInMillis() % proxyTimeout);
+
+
+
+    //Round to bucket size (Decasecond in this case)
+    protected long currentTimeoutBucketId() {
+        return (long) (Math.ceil(System.currentTimeMillis() / BUCKET_SIZE) * BUCKET_SIZE);
     }
 
-    private double nearestSecondInMillis() {
-        return Math.ceil(System.currentTimeMillis() / ONE_SECOND_IN_MILLIS) * ONE_SECOND_IN_MILLIS;
-    }
 
     public void listen(final Handler<AsyncResult<Void>> handler) {
         netServer.listen(proxyPort, proxyHost, new Handler<AsyncResult<NetServer>>() {
@@ -191,27 +186,24 @@ public abstract class ProxyTunnel {
             multiReadPump = MultiReadPump.createPump();
             receivePump = CozmicPump.createPump();
 
-            for (double bucketId = STARTING_BUCKET_ID; bucketId < proxyTimeout; bucketId+=ONE_SECOND_IN_MILLIS) {
-                final ConcurrentHashMap<String, Message> timeoutBucket = new ConcurrentHashMap<>();
-                timeoutBuckets.put(bucketId, timeoutBucket);
-                //Start a timer for each bucket that lets us delay the start of the periodic timer set to the actual proxyTimeout
-                vertx.setTimer((long) bucketId, new Handler<Long>() {
-                    @Override
-                    public void handle(Long event) {
-//                        vertx.setPeriodic(proxyTimeout, new Handler<Long>() {
-//                            @Override
-//                            public void handle(Long event) {
-//                                for (String messageId : timeoutBucket.keySet()) {
-//                                    final Message message = timeoutBucket.get(messageId);
-//                                    receivePump.timeoutMessage(messageId);
-//                                    timeoutLogProducer.onData(message);
-//                                    timeouts.mark();
-//                                }
-//                            }
-//                        });
+
+            vertx.setPeriodic(BUCKET_SIZE, new Handler<Long>() {
+                @Override
+                public void handle(Long event) {
+                    final long currentTimeMillis = System.currentTimeMillis();
+                    for (Long timeoutBucketId : timeoutBuckets.keySet()) {
+                        if (timeoutBucketId < currentTimeMillis - proxyTimeout) {
+                            final ConcurrentHashMap<String, Message> timeoutBucket = timeoutBuckets.remove(timeoutBucketId);
+                            for (String messageId : timeoutBucket.keySet()) {
+                                final Message message = timeoutBucket.get(messageId);
+                                receivePump.timeoutMessage(messageId);
+                                timeoutLogProducer.onData(message);
+                                timeouts.mark();
+                            }
+                        }
                     }
-                });
-            }
+                }
+            });
 
         }
 
@@ -241,10 +233,14 @@ public abstract class ProxyTunnel {
                 public void handle(final Message message) {
                     inflightMessages.inc();
                     inflightTimers.put(message.getMessageId(), responses.time());
-                    final double currentTimeoutBucketId = currentTimeoutBucketId();
+                    final long currentTimeoutBucketId = currentTimeoutBucketId();
+
+                    if (!timeoutBuckets.containsKey(currentTimeoutBucketId)) {
+                        timeoutBuckets.put(currentTimeoutBucketId, new ConcurrentHashMap<String, Message>());
+                    }
                     final ConcurrentHashMap<String, Message> timeoutBucket = timeoutBuckets.get(currentTimeoutBucketId);
-//                    timeoutBucket.put(message.getMessageId(), message);
-//                    messageTimeoutBucketMap.put(message.getMessageId(), currentTimeoutBucketId);
+                    timeoutBucket.put(message.getMessageId(), message);
+                    messageTimeoutBucketMap.put(message.getMessageId(), currentTimeoutBucketId);
                 }
             });
             receivePump.responseHandler(new Handler<String>() {
@@ -288,10 +284,14 @@ public abstract class ProxyTunnel {
             if (context != null) {
                 context.stop();
             }
-            final Double timeoutBucketId = messageTimeoutBucketMap.remove(messageId);
+            final Long timeoutBucketId = messageTimeoutBucketMap.remove(messageId);
             if (timeoutBucketId != null) {
                 final ConcurrentHashMap<String, Message> timeoutBucket = timeoutBuckets.get(timeoutBucketId);
-                timeoutBucket.remove(messageId);
+                if (timeoutBucket != null) {
+                    timeoutBucket.remove(messageId);
+                } else {
+                    responsesAlreadyTimedout.mark();
+                }
             }
         }
 
@@ -321,4 +321,6 @@ public abstract class ProxyTunnel {
             );
         }
     }
+
+
 }
