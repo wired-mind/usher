@@ -1,6 +1,6 @@
 package io.cozmic.usher.test.integration;
 
-import io.cozmic.usher.TimeoutLogger;
+import io.cozmic.usher.PersistenceVerticle;
 import org.junit.Test;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
@@ -33,33 +33,26 @@ public class NetProxyIntegrationTests extends NetProxyBaseIntegrationTests {
 
                 @Override
                 public void handle(Void event) {
+                    testComplete();
 
-                    vertx.eventBus().send(TimeoutLogger.COUNT_ADDRESS, true, new Handler<Message<Integer>>() {
-                                @Override
-                                public void handle(Message<Integer> event) {
-
-                                    container.logger().info("Timeout log count is " + event.body());
-                                    testComplete();
-                                }
-                            });
 
 
                 }
             });
 
-        vertx.setPeriodic(5000, new Handler<Long>() {
-            @Override
-            public void handle(Long event) {
-                vertx.eventBus().send(TimeoutLogger.COUNT_ADDRESS, true, new Handler<Message<Integer>>() {
-                    @Override
-                    public void handle(Message<Integer> event) {
-
-                        container.logger().info("Timeout log count is " + event.body());
-
-                    }
-                });
-            }
-        });
+//        vertx.setPeriodic(5000, new Handler<Long>() {
+//            @Override
+//            public void handle(Long event) {
+//                vertx.eventBus().send(PersistenceVerticle.TIMEOUT_LOG_COUNT_ADDRESS, true, new Handler<Message<Integer>>() {
+//                    @Override
+//                    public void handle(Message<Integer> event) {
+//
+//                        container.logger().info("Timeout log count is " + event.body());
+//
+//                    }
+//                });
+//            }
+//        });
         }
 
     }
