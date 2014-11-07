@@ -1,6 +1,5 @@
 package io.cozmic.usher.peristence;
 import com.lmax.disruptor.EventHandler;
-import io.cozmic.usher.Journaler;
 import io.cozmic.usherprotocols.core.Message;
 import org.vertx.java.core.Vertx;
 
@@ -19,6 +18,6 @@ public class JournalEventHandler implements EventHandler<MessageEvent>
     public void onEvent(MessageEvent event, long sequence, boolean endOfBatch)
     {
         final Message message = event.getMessage();
-        vertx.eventBus().send(Journaler.ADDRESS, message.buildEnvelope());
+        vertx.eventBus().send(JournalRepository.ADDRESS, message.buildEnvelope());
     }
 }

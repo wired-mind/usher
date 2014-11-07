@@ -1,7 +1,7 @@
 package io.cozmic.usher.peristence;
 
 import com.lmax.disruptor.EventHandler;
-import io.cozmic.usher.TimeoutLogger;
+import io.cozmic.usher.PersistenceVerticle;
 import io.cozmic.usherprotocols.core.Message;
 import org.vertx.java.core.Vertx;
 
@@ -20,6 +20,6 @@ public class TimeoutMessageEventHandler implements EventHandler<MessageEvent>
     public void onEvent(MessageEvent event, long sequence, boolean endOfBatch)
     {
         final Message message = event.getMessage();
-        vertx.eventBus().send(TimeoutLogger.LOG_ADDRESS, message.buildEnvelope());
+        vertx.eventBus().send(PersistenceVerticle.TIMEOUT_LOG_ADDRESS, message.buildEnvelope());
     }
 }

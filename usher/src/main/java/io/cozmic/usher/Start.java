@@ -26,12 +26,10 @@ public class Start extends Verticle {
     public void start(final Future<Void> startedResult) {
 
         container.logger().info("Config: " + container.config().toString());
-        final Handler<AsyncResult<String>> doneHandler = prerequisitesReadyHandler(startedResult, 4);
+        final Handler<AsyncResult<String>> doneHandler = prerequisitesReadyHandler(startedResult, 3);
 
         final int instanceCountForRocksVerticles = 1; //Only one thread can access the rocksDB
-
-        container.deployWorkerVerticle(Journaler.class.getName(), container.config().getObject("journaler_config"), instanceCountForRocksVerticles, true, doneHandler);
-        container.deployWorkerVerticle(TimeoutLogger.class.getName(), container.config().getObject("timeout_logger_config"), instanceCountForRocksVerticles, true, doneHandler);
+        container.deployWorkerVerticle(PersistenceVerticle.class.getName(), container.config().getObject("persistence", new JsonObject()), instanceCountForRocksVerticles, true, doneHandler);
         container.deployVerticle(EchoChamber.class.getName(), doneHandler);
         final JsonObject shellConfig = container.config().getObject("shell_config");
         if (shellConfig != null) {
