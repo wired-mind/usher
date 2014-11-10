@@ -13,6 +13,9 @@ import io.cozmic.usherprotocols.core.Message;
 
 import java.nio.ByteBuffer;
 import java.util.Calendar;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by chuck on 10/31/14.
@@ -21,6 +24,7 @@ public class PersistenceVerticle extends Verticle {
     public static final String TIMEOUT_LOG_ADDRESS = "timeout-logger";
     public static final String JOURNAL_ADDRESS = "journal";
     public static final String TIMEOUT_LOG_COUNT_ADDRESS = "timeout-logger-count";
+    public static final String TIMEOUT_LOG_LIST_ADDRESS = "timeout-logger-list";
     private TimeoutLogRepository timeoutLogRepository;
     private JournalRepository journalRepository;
 
@@ -62,18 +66,34 @@ public class PersistenceVerticle extends Verticle {
             }
         });
 
-        vertx.eventBus().registerLocalHandler(TIMEOUT_LOG_COUNT_ADDRESS, new Handler<org.vertx.java.core.eventbus.Message>() {
+        vertx.eventBus().registerHandler(TIMEOUT_LOG_COUNT_ADDRESS, new Handler<org.vertx.java.core.eventbus.Message<String>>() {
             @Override
-            public void handle(org.vertx.java.core.eventbus.Message event) {
-
-                int count = 0;
+            public void handle(org.vertx.java.core.eventbus.Message<String> msg) {
+                container.logger().info("Received at " + TIMEOUT_LOG_COUNT_ADDRESS + " value: " + msg.body());
+                long count;
                 try {
                     count = timeoutLogRepository.getCount();
+                    vertx.eventBus().send(msg.body(), count);
                 } catch (RocksDBException e) {
                     container.logger().error(e);
                 }
-                finally {
-                    event.reply(count);
+            }
+        });
+
+        vertx.eventBus().registerHandler(TIMEOUT_LOG_LIST_ADDRESS, new Handler<org.vertx.java.core.eventbus.Message<String>>() {
+            @Override
+            public void handle(org.vertx.java.core.eventbus.Message<String> msg) {
+                container.logger().info("Received at " + TIMEOUT_LOG_LIST_ADDRESS + " value: " + msg.body());
+
+                try {
+                    Map<String, Message> messages = timeoutLogRepository.list();
+                    for (String messageId : messages.keySet()) {
+                        final Message message = messages.get(messageId);
+                        vertx.eventBus().send(msg.body(), String.format("MessageId: %s Message: %s\n\n", messageId, message.getBody().toString()));
+                    }
+
+                } catch (RocksDBException e) {
+                    container.logger().error(e);
                 }
             }
         });

@@ -1,9 +1,14 @@
 package io.cozmic.usher.peristence;
 
+import io.cozmic.usherprotocols.core.Message;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
+import org.vertx.java.core.buffer.Buffer;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by chuck on 11/4/14.
@@ -30,13 +35,28 @@ public class TimeoutLogRepository {
         db.put(key, value);
     }
 
-    public int getCount() throws RocksDBException {
-        int count = 0;
+    public long getCount() throws RocksDBException {
+        long count = 0;
         final RocksIterator iterator = db.newIterator();
         for (iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
             iterator.status();
             count++;
         }
         return count;
+    }
+
+    public ConcurrentHashMap<String, Message> list() throws RocksDBException {
+
+
+
+
+        final ConcurrentHashMap<String, Message> messages = new ConcurrentHashMap<>();
+        final RocksIterator iterator = db.newIterator();
+        for (iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
+            iterator.status();
+            final Message message = Message.fromEnvelope(new Buffer(iterator.value()));
+            messages.put(new String(iterator.key()), message);
+        }
+        return messages;
     }
 }
