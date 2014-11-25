@@ -64,12 +64,10 @@ dependencies {
     compile project(":usherprotocols")
     compile name: 'rocksdbjni'
     compile name: 'librocksdbjni', ext: 'jnilib'
+    compile 'com.google.guava:guava:18.0'
 }
 
 
-test  {
-    allJvmArgs = [ "-ea", "-server", "-d64", "-Xms2048m", "-Xmx4096m",  "-XX:PermSize=1024m", "-XX:MaxPermSize=2048m", "-Djava.library.path=/Volumes/Master/Users/chuck/Code/MadSwan/WiredMind/splitscnd/cozmic.io/usher/lib" ]
-}
 
 /*
 If you're uploading stuff to Maven, Gradle needs to generate a POM.

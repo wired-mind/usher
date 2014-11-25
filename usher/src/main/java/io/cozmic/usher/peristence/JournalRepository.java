@@ -1,33 +1,25 @@
 package io.cozmic.usher.peristence;
 
-import org.rocksdb.Options;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
+import io.cozmic.usherprotocols.core.Request;
+import org.rocksdb.*;
+
+import java.util.Map;
 
 /**
  * Created by chuck on 9/26/14.
  */
-public class JournalRepository {
-    public static final String ADDRESS = "journaler";
-    private Options options;
-    private RocksDB db;
-
+public class JournalRepository extends TimeSeqRepository {
 
     public JournalRepository(String dbPath) throws RocksDBException {
-        RocksDB.loadLibrary();
-        options = new Options().setCreateIfMissing(true);
-
-        // a factory method that returns a RocksDB instance
-        db = RocksDB.open(options, dbPath);
+        super(dbPath);
     }
 
-    public void dispose() {
-        if (db != null) db.close();
-        if (options != null) options.dispose();
+    public JournalRepository() throws RocksDBException {
+        super("journal");
     }
 
-    public void put(byte[] key, byte[] value) throws RocksDBException {
-        db.put(key, value);
-    }
+
+
+
 
 }

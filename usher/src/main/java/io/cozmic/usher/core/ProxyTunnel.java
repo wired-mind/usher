@@ -1,11 +1,11 @@
 package io.cozmic.usher.core;
 
 import com.codahale.metrics.*;
-import io.cozmic.usher.peristence.MessageEventProducer;
+import com.codahale.metrics.Counter;
+import io.cozmic.usher.peristence.ConnectionEventProducer;
+import io.cozmic.usher.peristence.RequestEventProducer;
 import io.cozmic.usher.peristence.JournalingWriteStream;
-import io.cozmic.usherprotocols.core.CozmicPump;
-import io.cozmic.usherprotocols.core.Message;
-import io.cozmic.usherprotocols.core.MessageReadStream;
+import io.cozmic.usherprotocols.core.*;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
@@ -18,6 +18,7 @@ import org.vertx.java.core.streams.ReadStream;
 import org.vertx.java.core.streams.WriteStream;
 import org.vertx.java.platform.Container;
 
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -40,7 +41,7 @@ public abstract class ProxyTunnel {
     private final Meter serviceErrors = metrics.meter("service-errors");
     private final Meter responsesAlreadyTimedout = metrics.meter("responses-already-timedout");
     private final ConcurrentHashMap<String, Timer.Context> inflightTimers = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, ConcurrentHashMap<String, Message>> timeoutBuckets = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, ConcurrentHashMap<String, Request>> timeoutBuckets = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> messageTimeoutBucketMap = new ConcurrentHashMap<>();
 
     public static final String DEFAULT_HOST = "localhost";
@@ -48,8 +49,9 @@ public abstract class ProxyTunnel {
     public static final int DEFAULT_TIMEOUT = 30000;
     public static final int ALWAYS_ATTEMPT_RECONNECT = -1;
     private final Vertx vertx;
-    private final MessageEventProducer journalProducer;
-    private final MessageEventProducer timeoutLogProducer;
+    private final ConnectionEventProducer connectionProducer;
+    private final RequestEventProducer journalProducer;
+    private final RequestEventProducer timeoutLogProducer;
     private NetServer netServer;
     private final NetClient netClient;
     private final Logger log;
@@ -63,11 +65,12 @@ public abstract class ProxyTunnel {
                 .convertRatesTo(TimeUnit.SECONDS)
                 .convertDurationsTo(TimeUnit.MILLISECONDS)
                 .build();
-        reporter.start(3, TimeUnit.SECONDS);
+        reporter.start(10, TimeUnit.SECONDS);
     }
 
-    public ProxyTunnel(Container container, final Vertx vertx, final MessageEventProducer journalProducer, final MessageEventProducer timeoutLogProducer) {
+    public ProxyTunnel(Container container, final Vertx vertx, final ConnectionEventProducer connectionProducer, final RequestEventProducer journalProducer, final RequestEventProducer timeoutLogProducer) {
         this.vertx = vertx;
+        this.connectionProducer = connectionProducer;
         this.journalProducer = journalProducer;
         this.timeoutLogProducer = timeoutLogProducer;
 
@@ -101,7 +104,9 @@ public abstract class ProxyTunnel {
                     }
                 });
 
-                serviceGateway.addSocketToPumps(sock, connectTimer);
+                String connectionId = UUID.randomUUID().toString();
+                final Connection connection = new Connection(sock, connectionId);
+                serviceGateway.addSocketToPumps(sock, connection, connectTimer);
 
             }
         });
@@ -164,7 +169,7 @@ public abstract class ProxyTunnel {
 
     protected abstract MessageReadStream<?> wrapWithMessageReader(NetSocket serviceSocket);
 
-    protected abstract ReadStream<?> wrapReadStream(NetSocket sock, CozmicPump receivePump);
+    protected abstract ReadStream<?> wrapReadStream(NetSocket sock, Connection connection, CozmicPump receivePump);
 
     public String getProxyHost() {
         return proxyHost;
@@ -193,11 +198,11 @@ public abstract class ProxyTunnel {
                     final long currentTimeMillis = System.currentTimeMillis();
                     for (Long timeoutBucketId : timeoutBuckets.keySet()) {
                         if (timeoutBucketId < currentTimeMillis - proxyTimeout) {
-                            final ConcurrentHashMap<String, Message> timeoutBucket = timeoutBuckets.remove(timeoutBucketId);
+                            final ConcurrentHashMap<String, Request> timeoutBucket = timeoutBuckets.remove(timeoutBucketId);
                             for (String messageId : timeoutBucket.keySet()) {
-                                final Message message = timeoutBucket.get(messageId);
+                                final Request request = timeoutBucket.get(messageId);
                                 receivePump.timeoutMessage(messageId);
-                                timeoutLogProducer.onData(message);
+                                timeoutLogProducer.onData(request);
                                 timeouts.mark();
                             }
                         }
@@ -228,19 +233,19 @@ public abstract class ProxyTunnel {
             final WriteStream<?> journalingServiceSocket = new JournalingWriteStream(serviceSocket, journalProducer);
             multiReadPump.setWriteStream(journalingServiceSocket);
             receivePump.setMessageReadStream(messageReadStream);
-            receivePump.inflightHandler(new Handler<Message>() {
+            receivePump.inflightHandler(new Handler<Request>() {
                 @Override
-                public void handle(final Message message) {
+                public void handle(final Request request) {
                     inflightMessages.inc();
-                    inflightTimers.put(message.getMessageId(), responses.time());
+                    inflightTimers.put(request.getMessageId(), responses.time());
                     final long currentTimeoutBucketId = currentTimeoutBucketId();
 
                     if (!timeoutBuckets.containsKey(currentTimeoutBucketId)) {
-                        timeoutBuckets.put(currentTimeoutBucketId, new ConcurrentHashMap<String, Message>());
+                        timeoutBuckets.put(currentTimeoutBucketId, new ConcurrentHashMap<String, Request>());
                     }
-                    final ConcurrentHashMap<String, Message> timeoutBucket = timeoutBuckets.get(currentTimeoutBucketId);
-                    timeoutBucket.put(message.getMessageId(), message);
-                    messageTimeoutBucketMap.put(message.getMessageId(), currentTimeoutBucketId);
+                    final ConcurrentHashMap<String, Request> timeoutBucket = timeoutBuckets.get(currentTimeoutBucketId);
+                    timeoutBucket.put(request.getMessageId(), request);
+                    messageTimeoutBucketMap.put(request.getMessageId(), currentTimeoutBucketId);
                 }
             });
             receivePump.responseHandler(new Handler<String>() {
@@ -286,7 +291,7 @@ public abstract class ProxyTunnel {
             }
             final Long timeoutBucketId = messageTimeoutBucketMap.remove(messageId);
             if (timeoutBucketId != null) {
-                final ConcurrentHashMap<String, Message> timeoutBucket = timeoutBuckets.get(timeoutBucketId);
+                final ConcurrentHashMap<String, Request> timeoutBucket = timeoutBuckets.get(timeoutBucketId);
                 if (timeoutBucket != null) {
                     timeoutBucket.remove(messageId);
                 } else {
@@ -305,8 +310,8 @@ public abstract class ProxyTunnel {
             this.connectedHandler = connectedHandler;
         }
 
-        public void addSocketToPumps(final NetSocket sock, final Timer.Context connectTimer) {
-            final ReadStream<?> readStream = wrapReadStream(sock, receivePump);
+        public void addSocketToPumps(final NetSocket sock, final Connection connection, final Timer.Context connectTimer) {
+            final ReadStream<?> readStream = wrapReadStream(sock, connection, receivePump);
             multiReadPump.add(readStream);
             sock.closeHandler(new Handler<Void>()
 
@@ -315,6 +320,8 @@ public abstract class ProxyTunnel {
                                   public void handle(Void event) {
                                       multiReadPump.remove(readStream);
                                       sock.drainHandler(null);
+                                      connection.setCloseTimestamp(System.currentTimeMillis());
+                                      connectionProducer.onData(connection);
                                       connectTimer.stop();
                                   }
                               }

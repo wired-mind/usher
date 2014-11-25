@@ -1,6 +1,7 @@
 package io.cozmic.usher.core;
 
-import io.cozmic.usher.peristence.MessageEventProducer;
+import io.cozmic.usher.peristence.ConnectionEventProducer;
+import io.cozmic.usher.peristence.RequestEventProducer;
 import io.cozmic.usherprotocols.core.*;
 import io.cozmic.usherprotocols.protocols.ConfigurablePacketSocket;
 import io.cozmic.usherprotocols.protocols.FixedLengthSocket;
@@ -24,13 +25,13 @@ public class NetProxyTunnel extends ProxyTunnel {
     private final JsonArray packetMap;
     private final int fixedSize;
 
-    public NetProxyTunnel(Container container, Vertx vertx, final MessageEventProducer journalProducer, final MessageEventProducer timeoutLogProducer) {
-        super(container, vertx, journalProducer, timeoutLogProducer);
+    public NetProxyTunnel(Container container, Vertx vertx, final ConnectionEventProducer connectionProducer, final RequestEventProducer journalProducer, final RequestEventProducer timeoutLogProducer) {
+        super(container, vertx, connectionProducer, journalProducer, timeoutLogProducer);
         packetMap = container.config().getArray("packet_map");
         fixedSize = container.config().getNumber("fixed_size", 4).intValue();
     }
 
-    protected ReadStream<?> wrapReadStream(final NetSocket sock, final CozmicPump receivePump) {
+    protected ReadStream<?> wrapReadStream(final NetSocket sock, final Connection connection, final CozmicPump receivePump) {
         TranslatingReadStream<?> translatingReadStream = null;
         if (packetMap != null) {
             translatingReadStream = new ConfigurablePacketSocket(sock, packetMap);
@@ -44,11 +45,9 @@ public class NetProxyTunnel extends ProxyTunnel {
             public void process(Buffer body, Handler<AsyncResult<Buffer>> resultHandler) {
                 final String messageId = UUID.randomUUID().toString();
 
-
-
-                final Message message = new Message(messageId, body);
-                receivePump.add(message, sock);
-                resultHandler.handle(new DefaultFutureResult<>(message.buildEnvelope()));
+                final Request request = new Request(messageId, connection.getConnectionId(), System.currentTimeMillis(), body);
+                receivePump.add(request, sock);
+                resultHandler.handle(new DefaultFutureResult<>(request.buildEnvelope()));
             }
         });
     }

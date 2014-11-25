@@ -1,7 +1,7 @@
 package io.cozmic.usher.peristence;
 
 
-import io.cozmic.usherprotocols.core.Message;
+import io.cozmic.usherprotocols.core.Request;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.streams.WriteStream;
@@ -12,9 +12,9 @@ import org.vertx.java.core.streams.WriteStream;
 public class JournalingWriteStream implements WriteStream<JournalingWriteStream> {
 
     private final WriteStream<?> writeStream;
-    private final MessageEventProducer producer;
+    private final RequestEventProducer producer;
 
-    public JournalingWriteStream(WriteStream<?> writeStream, MessageEventProducer producer) {
+    public JournalingWriteStream(WriteStream<?> writeStream, RequestEventProducer producer) {
         this.writeStream = writeStream;
         this.producer = producer;
     }
@@ -22,7 +22,7 @@ public class JournalingWriteStream implements WriteStream<JournalingWriteStream>
 
     @Override
     public JournalingWriteStream write(Buffer data) {
-        producer.onData(Message.fromEnvelope(data));
+        producer.onData(Request.fromEnvelope(data));
         writeStream.write(data);
         return this;
     }

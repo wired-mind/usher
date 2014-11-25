@@ -2,8 +2,8 @@
     "proxy_config": {
 
     },
-    "journaler_config": {
-        "db_path": "/Volumes/Master/Users/chuck/Code/MadSwan/WiredMind/splitscnd/cozmic.io/db"
+    "journalerConfig": {
+        "dbPath": "/Volumes/Master/Users/chuck/Code/MadSwan/WiredMind/splitscnd/cozmic.io/db"
     },
     "shell_config": {
                             "crash.auth":"simple",

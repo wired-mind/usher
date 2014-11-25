@@ -4,6 +4,7 @@ import io.cozmic.usherprotocols.core.CozmicSocket;
 import io.cozmic.usherprotocols.core.CozmicStreamProcessor;
 import io.cozmic.usherprotocols.core.Message;
 import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
@@ -42,7 +43,7 @@ public class EchoChamber extends Verticle {
                         final CozmicSocket cozmicSocket = new CozmicSocket(socket);
                         final Pump pump = Pump.createPump(cozmicSocket.translate(new CozmicStreamProcessor() {
                             @Override
-                            public void process(Message message, Handler<AsyncResult<Message>> resultHandler) {
+                            public void process(Message message, AsyncResultHandler<Message> resultHandler) {
                                 try {
                                     final Message reply = message.createReply(new Buffer("I hear you."));
                                     resultHandler.handle(new DefaultFutureResult<>(reply));

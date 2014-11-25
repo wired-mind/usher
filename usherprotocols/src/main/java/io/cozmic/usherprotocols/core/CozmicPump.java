@@ -14,7 +14,7 @@ public class CozmicPump {
     private MessageReadStream<?> messageReadStream;
     private final ConcurrentHashMap<String, WriteStream<?>> writeStreams = new ConcurrentHashMap<>();
     private int pumped;
-    private Handler<Message> inflightHandler;
+    private Handler<Request> inflightHandler;
     private Handler<String> responseHandler;
 
     /**
@@ -45,11 +45,11 @@ public class CozmicPump {
         return this;
     }
 
-    public CozmicPump add(Message message, WriteStream<?> writeStream) {
+    public CozmicPump add(Request request, WriteStream<?> writeStream) {
         if (inflightHandler != null) {
-            inflightHandler.handle(message);
+            inflightHandler.handle(request);
         }
-        writeStreams.put(message.getMessageId(), writeStream);
+        writeStreams.put(request.getMessageId(), writeStream);
         return this;
     }
 
@@ -113,7 +113,7 @@ public class CozmicPump {
 
     }
 
-    public void inflightHandler(Handler<Message> inflightHandler) {
+    public void inflightHandler(Handler<Request> inflightHandler) {
 
         this.inflightHandler = inflightHandler;
     }

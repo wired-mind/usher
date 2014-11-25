@@ -29,11 +29,13 @@ import java.util.concurrent.Executors;
 public class Proxy extends Verticle {
 
 
-    private Disruptor<MessageEvent> journalDisruptor;
-    private Disruptor<MessageEvent> timeoutLogDisruptor;
+    private Disruptor<ConnectionEvent> connectionDisruptor;
+    private Disruptor<RequestEvent> journalDisruptor;
+    private Disruptor<RequestEvent> timeoutLogDisruptor;
 
-    private MessageEventProducer journalProducer;
-    private MessageEventProducer timeoutLogProducer;
+    private ConnectionEventProducer connectionProducer;
+    private RequestEventProducer journalProducer;
+    private RequestEventProducer timeoutLogProducer;
 
 
     public void start(final Future<Void> startedResult) {
@@ -42,19 +44,23 @@ public class Proxy extends Verticle {
         final String serviceClusterHost = container.config().getString("service_cluster_host");
 
 
-        journalDisruptor = createDisruptor();
-        timeoutLogDisruptor = createDisruptor();
+        connectionDisruptor = createConnectionDisruptor();
+        journalDisruptor = createRequestDisruptor();
+        timeoutLogDisruptor = createRequestDisruptor();
 
         // Connect the handler
+        connectionDisruptor.handleEventsWith(new ConnectionEventHandler(vertx));
         journalDisruptor.handleEventsWith(new JournalEventHandler(vertx));
-        timeoutLogDisruptor.handleEventsWith(new TimeoutMessageEventHandler(vertx));
+        timeoutLogDisruptor.handleEventsWith(new TimeoutRequestEventHandler(vertx));
 
         // Start the Disruptor, starts all threads running
+        connectionDisruptor.start();
         journalDisruptor.start();
         timeoutLogDisruptor.start();
 
-        journalProducer = new MessageEventProducer(journalDisruptor.getRingBuffer());
-        timeoutLogProducer = new MessageEventProducer(timeoutLogDisruptor.getRingBuffer());
+        connectionProducer = new ConnectionEventProducer(connectionDisruptor.getRingBuffer());
+        journalProducer = new RequestEventProducer(journalDisruptor.getRingBuffer());
+        timeoutLogProducer = new RequestEventProducer(timeoutLogDisruptor.getRingBuffer());
 
         Map<String, InetSocketAddress> members = new ConcurrentHashMap<>();
 
@@ -156,8 +162,8 @@ public class Proxy extends Verticle {
         final String proxyTunnelType = container.config().getString("proxy_tunnel_type", "io.cozmic.usher.core.NetProxyTunnel");
         try {
             final Class<?> proxyTunnelClass = Class.forName(proxyTunnelType);
-            final Constructor<?> constructor = proxyTunnelClass.getConstructor(Container.class, Vertx.class, MessageEventProducer.class, MessageEventProducer.class);
-            final ProxyTunnel proxyTunnel = (ProxyTunnel) constructor.newInstance(container, vertx, journalProducer, timeoutLogProducer);
+            final Constructor<?> constructor = proxyTunnelClass.getConstructor(Container.class, Vertx.class, ConnectionEventProducer.class, RequestEventProducer.class, RequestEventProducer.class);
+            final ProxyTunnel proxyTunnel = (ProxyTunnel) constructor.newInstance(container, vertx, connectionProducer, journalProducer, timeoutLogProducer);
             handler.handle(new DefaultFutureResult<>(proxyTunnel));
 
         } catch (ClassNotFoundException | NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException  e) {
@@ -166,15 +172,26 @@ public class Proxy extends Verticle {
         }
     }
 
-
-
-
-    protected Disruptor<MessageEvent> createDisruptor() {
+    private Disruptor<ConnectionEvent> createConnectionDisruptor() {
         // Executor that will be used to construct new threads for consumers
         Executor executor = Executors.newCachedThreadPool();
 
         // The factory for the event
-        MessageEventFactory factory = new MessageEventFactory();
+        ConnectionEventFactory factory = new ConnectionEventFactory();
+
+        // Construct the Disruptor
+        return new Disruptor<>(factory, 1024, executor);
+    }
+
+
+
+
+    protected Disruptor<RequestEvent> createRequestDisruptor() {
+        // Executor that will be used to construct new threads for consumers
+        Executor executor = Executors.newCachedThreadPool();
+
+        // The factory for the event
+        RequestEventFactory factory = new RequestEventFactory();
 
         // Construct the Disruptor
         return new Disruptor<>(factory, 1024, executor);

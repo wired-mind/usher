@@ -1,10 +1,8 @@
 package io.cozmic.usher.test.integration;
 
-import io.cozmic.usherprotocols.core.Counter;
-import io.cozmic.usherprotocols.core.CozmicSocket;
-import io.cozmic.usherprotocols.core.CozmicStreamProcessor;
-import io.cozmic.usherprotocols.core.Message;
+import io.cozmic.usherprotocols.core.*;
 import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
@@ -52,7 +50,7 @@ public class FakeService extends Verticle {
 
                         final Pump pump = Pump.createPump(cozmicSocket.translate(new CozmicStreamProcessor() {
                             @Override
-                            public void process(Message message, Handler<AsyncResult<Message>> resultHandler) {
+                            public void process(Message message, AsyncResultHandler<Message> replyHandler) {
                                 try {
                                     final int count = fakereceiveCounter.MyCounter.incrementAndGet();
 //                                    if (count % 1000 == 0) {
@@ -65,9 +63,9 @@ public class FakeService extends Verticle {
 
 
                                     final Message reply = message.createReply(fakeTrackingResponse);
-                                    resultHandler.handle(new DefaultFutureResult<>(reply));
+                                    replyHandler.handle(new DefaultFutureResult<>(reply));
                                 } catch (Exception ex) {
-                                    resultHandler.handle(new DefaultFutureResult(ex));
+                                    replyHandler.handle(new DefaultFutureResult(ex));
                                 }
                             }
                         }), cozmicSocket);

@@ -1,6 +1,7 @@
 package io.cozmic.usher.core;
 
-import io.cozmic.usher.peristence.MessageEventProducer;
+import io.cozmic.usher.peristence.ConnectionEventProducer;
+import io.cozmic.usher.peristence.RequestEventProducer;
 import io.cozmic.usherprotocols.core.*;
 import io.cozmic.usherprotocols.protocols.HttpSocket;
 import org.vertx.java.core.AsyncResult;
@@ -18,11 +19,11 @@ import java.util.UUID;
  * Created by chuck on 10/24/14.
  */
 public class HttpProxyTunnel extends ProxyTunnel {
-    public HttpProxyTunnel(Container container, Vertx vertx, final MessageEventProducer journalProducer, final MessageEventProducer timeoutLogProducer) {
-        super(container, vertx, journalProducer, timeoutLogProducer);
+    public HttpProxyTunnel(Container container, Vertx vertx, final ConnectionEventProducer connectionProducer, final RequestEventProducer journalProducer, final RequestEventProducer timeoutLogProducer) {
+        super(container, vertx, connectionProducer, journalProducer, timeoutLogProducer);
     }
 
-    protected ReadStream<?> wrapReadStream(final NetSocket sock, final CozmicPump receivePump) {
+    protected ReadStream<?> wrapReadStream(final NetSocket sock, final Connection connection, final CozmicPump receivePump) {
         final TranslatingReadStream httpSocket = new HttpSocket(sock);
 
 
@@ -33,7 +34,7 @@ public class HttpProxyTunnel extends ProxyTunnel {
                 //Inject new header here
                 //Update this later
 
-                receivePump.add(new Message(messageId, data), sock);
+                receivePump.add(new Request(messageId, connection.getConnectionId(), System.currentTimeMillis(), data), sock);
                 resultHandler.handle(new DefaultFutureResult<Buffer>(data));
             }
         });

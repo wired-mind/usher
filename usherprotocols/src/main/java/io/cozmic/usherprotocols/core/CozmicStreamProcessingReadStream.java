@@ -1,6 +1,7 @@
 package io.cozmic.usherprotocols.core;
 
 import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.streams.ReadStream;
@@ -24,7 +25,7 @@ public class CozmicStreamProcessingReadStream implements ReadStream<CozmicStream
         cozmicSocket.messageHandler(new Handler<Message>() {
             @Override
             public void handle(Message message) {
-                cozmicStreamProcessor.process(message, new Handler<AsyncResult<Message>>() {
+                cozmicStreamProcessor.process(message, new AsyncResultHandler<Message>() {
                     @Override
                     public void handle(AsyncResult<Message> asyncResult) {
                         if (asyncResult.failed()) {
