@@ -16,10 +16,8 @@ public class TimeSeqRepository {
     protected final Options options;
     protected final RocksDB db;
 
-    static final AtomicLong seqCounter;
-    static {
-        seqCounter = new AtomicLong(0);
-    }
+    final AtomicLong seqCounter;
+
     private final Comparator<byte[]> comparator = UnsignedBytes.lexicographicalComparator();
 
     public TimeSeqRepository(String dbPath) throws RocksDBException {
@@ -38,7 +36,7 @@ public class TimeSeqRepository {
             currentSeq = key.getSequence();
         }
 
-        seqCounter.set(currentSeq);
+        seqCounter = new AtomicLong(currentSeq);
     }
 
     public void dispose() {
