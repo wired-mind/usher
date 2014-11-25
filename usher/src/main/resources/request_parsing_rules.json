@@ -1,0 +1,44 @@
+{
+    "type": "fixed",
+    "length": 2,
+    "nextRule": {
+        "type": "typeMap",
+        "typeMap": [
+            {
+                "bytes": ["1", "1"],
+                "length": 28,
+                "nextRule": {
+                    "type": "dynamicCount",
+                    "counterPosition": 26,
+                    "lengthPerSegment": 4
+                }
+            },
+            {
+                "bytes": ["2", "2"],
+                "length": 24,
+                "nextRule": {
+                    "type": "dynamicCount",
+                    "counterPosition": 32,
+                    "lengthPerSegment": 4
+                }
+            },
+            {
+                "bytes": ["3", "3"],
+                "length": 26
+            },
+            {
+                "bytes": ["4", "4"],
+                "length": 23
+            },
+            {
+                "bytes": ["7", "7"],
+                "length": 16,
+                "nextRule": {
+                    "type": "dynamicCount",
+                    "counterPosition": 14,
+                    "lengthPerSegment": 7
+                }
+            }
+        ]
+    }
+}

@@ -32,10 +32,9 @@ public abstract class NetProxyBaseIntegrationTests extends ProxyBaseIntegrationT
     @Override
     protected JsonObject getProxyConfig() {
         final JsonObject config = new JsonObject();
-        config.putString("service_host", FakeService.FAKE_SERVICE_HOST);
-        config.putNumber("service_port", FakeService.FAKE_SERVICE_PORT);
-        config.putArray("packet_map", new JsonArray(new String[]{"3:28", "1:34"}));
-        return new JsonObject().putObject("proxy_config", config);
+        config.putString("serviceHost", FakeService.FAKE_SERVICE_HOST);
+        config.putNumber("servicePort", FakeService.FAKE_SERVICE_PORT);
+        return new JsonObject().putObject("proxyConfig", config);
     }
 
     @Override
@@ -102,10 +101,11 @@ public abstract class NetProxyBaseIntegrationTests extends ProxyBaseIntegrationT
     }
 
 
-    protected Buffer createFakeTrackingPacket() {
-        final Buffer fakeTrackingPacket = new Buffer();
-        fakeTrackingPacket.appendByte((byte) 0x01);
-        fakeTrackingPacket.appendBytes(new byte[33]);
-        return fakeTrackingPacket;
+    protected Buffer createFakeStartupPacket() {
+        final Buffer fakeStartupPacket = new Buffer();
+        fakeStartupPacket.appendByte((byte) 0x03);
+        fakeStartupPacket.appendByte((byte) 0x03);
+        fakeStartupPacket.appendBytes(new byte[26]);
+        return fakeStartupPacket;
     }
 }

@@ -25,7 +25,7 @@ public class NetProxyTimeoutIntegrationTests extends NetProxyBaseIntegrationTest
     @Test
     public void testSimpleProxyRequest() {
 
-        sendToProxy(createFakeTrackingPacket(), new Handler<Buffer>() {
+        sendToProxy(createFakeStartupPacket(), new Handler<Buffer>() {
             @Override
             public void handle(Buffer response) {
                 final int type = response.getInt(0);

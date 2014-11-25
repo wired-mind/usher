@@ -62,6 +62,10 @@ public class Request implements Shareable{
         return new Request(messageId, connectionId, timestamp, body);
     }
 
+    public static Request fromEnvelope(byte[] bytes) {
+        return fromEnvelope(new Buffer(bytes));
+    }
+
     public Message createReply(Buffer buffer) {
         Buffer reply = new Buffer();
         reply.appendInt(messageId.length());

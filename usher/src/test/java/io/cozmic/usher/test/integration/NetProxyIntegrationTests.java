@@ -1,10 +1,8 @@
 package io.cozmic.usher.test.integration;
 
-import io.cozmic.usher.PersistenceVerticle;
 import org.junit.Test;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.eventbus.Message;
 
 import static org.vertx.testtools.VertxAssert.assertEquals;
 import static org.vertx.testtools.VertxAssert.fail;
@@ -22,7 +20,7 @@ public class NetProxyIntegrationTests extends NetProxyBaseIntegrationTests {
     public void testSimpleProxyRequest() throws InterruptedException {
 
 
-            sendToProxy(createFakeTrackingPacket(), 5, 500000, new Handler<Buffer>() {
+            sendToProxy(createFakeStartupPacket(), 5, 500000, new Handler<Buffer>() {
                 @Override
                 public void handle(Buffer response) {
                     final byte type = response.getByte(0);

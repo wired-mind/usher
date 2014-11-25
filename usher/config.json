@@ -1,11 +1,11 @@
 {
-    "proxy_config": {
+    "proxyConfig": {
 
     },
     "journalerConfig": {
         "dbPath": "/Volumes/Master/Users/chuck/Code/MadSwan/WiredMind/splitscnd/cozmic.io/db"
     },
-    "shell_config": {
+    "shellConfig": {
                             "crash.auth":"simple",
                             "crash.auth.simple.username":"admin",
                             "crash.auth.simple.password":"admin",

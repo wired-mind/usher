@@ -28,7 +28,7 @@ public class Start extends Verticle {
         container.deployWorkerVerticle(PersistenceVerticle.class.getName(), container.config().getObject("persistence", new JsonObject()), instanceCountForRocksVerticles, true, doneHandler);
         container.deployVerticle(EchoChamber.class.getName(), doneHandler);
         container.deployVerticle(CommandVerticle.class.getName(), doneHandler);
-        final JsonObject shellConfig = container.config().getObject("shell_config");
+        final JsonObject shellConfig = container.config().getObject("shellConfig");
         if (shellConfig != null) {
             final String commandDir = PathAdjuster.adjust((VertxInternal) vertx, "./commands");
             container.logger().info("Setting custom crash command directory to " + commandDir);
@@ -57,7 +57,7 @@ public class Start extends Verticle {
                 container.logger().info("Deployed prereq");
                 if (launchedSoFar == numberOfPrerequisites) {
                     final int proxyInstances = Runtime.getRuntime().availableProcessors() / 2;
-                    container.deployVerticle(Proxy.class.getName(), container.config().getObject("proxy_config"), proxyInstances, new Handler<AsyncResult<String>>() {
+                    container.deployVerticle(Proxy.class.getName(), container.config().getObject("proxyConfig"), proxyInstances, new Handler<AsyncResult<String>>() {
                         @Override
                         public void handle(AsyncResult<String> asyncResult) {
                             if (asyncResult.failed()) {

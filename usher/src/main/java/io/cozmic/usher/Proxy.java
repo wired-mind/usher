@@ -39,8 +39,8 @@ public class Proxy extends Verticle {
 
 
     public void start(final Future<Void> startedResult) {
-        final Integer servicePort = container.config().getInteger("service_port", EchoChamber.ECHO_SERVICE_PORT);
-        final String serviceHost = container.config().getString("service_host", EchoChamber.ECHO_SERVICE_HOST);
+        final Integer servicePort = container.config().getInteger("servicePort", EchoChamber.ECHO_SERVICE_PORT);
+        final String serviceHost = container.config().getString("serviceHost", EchoChamber.ECHO_SERVICE_HOST);
         final String serviceClusterHost = container.config().getString("service_cluster_host");
 
 
