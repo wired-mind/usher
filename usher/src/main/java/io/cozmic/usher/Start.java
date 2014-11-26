@@ -1,8 +1,6 @@
 package io.cozmic.usher;
 
 
-import com.codahale.metrics.ConsoleReporter;
-import com.codahale.metrics.MetricRegistry;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
@@ -11,7 +9,6 @@ import org.vertx.java.core.impl.VertxInternal;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -22,7 +19,13 @@ public class Start extends Verticle {
     public void start(final Future<Void> startedResult) {
 
         container.logger().info("Config: " + container.config().toString());
-        final Handler<AsyncResult<String>> doneHandler = prerequisitesReadyHandler(startedResult, 4);
+        final Handler<AsyncResult<String>> doneHandler = prerequisitesReadyHandler(startedResult, 5);
+
+        final JsonObject defaultConfigFixedTwo = new JsonObject().putString("type", "fixed").putNumber("length", 2);
+        JsonObject responseParsingRules = container.config().getObject("responseParsingRules", defaultConfigFixedTwo);
+
+        final JsonObject pulsarConfig = new JsonObject().putObject("responseParsingConfig", responseParsingRules);
+        container.deployModule("io.cozmic~pulsar-provider~1.0.0-final", pulsarConfig, doneHandler);
 
         final int instanceCountForRocksVerticles = 1; //Only one thread can access the rocksDB
         container.deployWorkerVerticle(PersistenceVerticle.class.getName(), container.config().getObject("persistence", new JsonObject()), instanceCountForRocksVerticles, true, doneHandler);
@@ -75,6 +78,8 @@ public class Start extends Verticle {
             }
         };
     }
+
+
 
 }
 
