@@ -129,7 +129,10 @@ public class TimeSeqRepository {
         final WriteBatch batch = new WriteBatch();
         batch.put(timeSeqKey.bytes(), new byte[] {});
         batch.put(seqKey.bytes(), value);
-        db.write(new WriteOptions(), batch);
+        final WriteOptions writeOptions = new WriteOptions();
+        db.write(writeOptions, batch);
+        batch.dispose();
+        writeOptions.dispose();
         return timeSeqKey;
     }
 
@@ -157,6 +160,21 @@ public class TimeSeqRepository {
         }
         iterator.dispose();
         return items;
+    }
+
+    public void deleteRange(TimeSeqKey startKey, TimeSeqKey endKey) throws RocksDBException {
+        final Set<TimeSeqKey> timeSeqKeys = byRange(startKey, endKey).keySet();
+        final WriteBatch batch = new WriteBatch();
+
+        for (TimeSeqKey timeSeqKey : timeSeqKeys) {
+            batch.remove(timeSeqKey.bytes());
+            batch.remove(timeSeqKey.getSeqKey().bytes());
+        }
+
+        final WriteOptions writeOptions = new WriteOptions();
+        db.write(writeOptions, batch);
+        batch.dispose();
+        writeOptions.dispose();
     }
 
     /**
@@ -188,14 +206,17 @@ public class TimeSeqRepository {
      * @throws RocksDBException
      */
     public TimeSeqKey maxSeqFromTime(long timestamp) throws RocksDBException {
-        final TimeSeqKey startKey = TimeSeqKey.build(timestamp, 0);
         final TimeSeqKey endKey = TimeSeqKey.build(timestamp, -1);
         final RocksIterator iterator = db.newIterator();
         TimeSeqKey key = null;
-        for (iterator.seek(startKey.bytes()); iterator.isValid() && comparator.compare(iterator.key(), endKey.bytes()) < 1; iterator.next()) {
+        iterator.seek(endKey.bytes());
+        iterator.status();
+        while (iterator.isValid() && comparator.compare(iterator.key(), endKey.bytes()) > 0) {
+            iterator.prev();
             iterator.status();
-            key = new TimeSeqKey(iterator.key());
         }
+        key = new TimeSeqKey(iterator.key());
+
         iterator.dispose();
         return key;
     }
@@ -210,10 +231,10 @@ public class TimeSeqRepository {
     }
 
 
-
     public static class TimeSeqKey {
         public static final byte TIME_SEQ_PREFIX =  0;
         public static final byte[] FIRST = new byte[] { TIME_SEQ_PREFIX };
+        public static final TimeSeqKey MIN = build(0, 0);
         private final ByteBuffer key;
 
         public TimeSeqKey(byte[] value) {

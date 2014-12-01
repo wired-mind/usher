@@ -5,11 +5,13 @@ import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.net.NetServer;
 import org.vertx.java.core.net.NetSocket;
 import org.vertx.java.core.parsetools.RecordParser;
 import org.vertx.java.platform.Verticle;
 
+import java.net.InetSocketAddress;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -19,7 +21,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * Created by chuck on 11/7/14.
  */
 public class CommandVerticle extends Verticle {
+
     public void start(final Future<Void> startedResult) {
+
 
 
         vertx.createNetServer().connectHandler(new Handler<NetSocket>() {
@@ -89,11 +93,24 @@ public class CommandVerticle extends Verticle {
                     @Override
                     public void handle(Message<String> msg) {
                         final long total = runningTotal.incrementAndGet();
-                        resultHandler.handle(String.format("Running total: %d ", total));
-                        resultHandler.handle(msg.body());
+                        resultHandler.handle(String.format("Running total: %d . %s\n", total, msg.body()));
                     }
                 });
                 break;
+
+            case "replay": {
+                vertx.eventBus().publish(Start.TIMEOUT_REPLAY_HANDLER, reply);
+                vertx.eventBus().registerHandler(reply, new Handler<Message<JsonObject>>() {
+                    @Override
+                    public void handle(Message<JsonObject> msg) {
+                        resultHandler.handle(String.format("%s - %s\n", msg.body().getString("status"), msg.body().getString("message")));
+                    }
+                });
+
+                break;
+            }
         }
     }
+
+
 }

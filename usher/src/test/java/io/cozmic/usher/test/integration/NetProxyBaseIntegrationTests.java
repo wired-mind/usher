@@ -1,11 +1,9 @@
 package io.cozmic.usher.test.integration;
 
-import io.cozmic.usher.Start;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,20 +19,8 @@ public abstract class NetProxyBaseIntegrationTests extends ProxyBaseIntegrationT
     private AtomicInteger counter = new AtomicInteger();
 
 
-    protected String getProxyName() {
-        return Start.class.getName();
-    }
-
     protected String getFakeName() {
         return FakeService.class.getName();
-    }
-
-    @Override
-    protected JsonObject getProxyConfig() {
-        final JsonObject config = new JsonObject();
-        config.putString("serviceHost", FakeService.FAKE_SERVICE_HOST);
-        config.putNumber("servicePort", FakeService.FAKE_SERVICE_PORT);
-        return new JsonObject().putObject("proxyConfig", config);
     }
 
     @Override

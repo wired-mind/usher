@@ -14,15 +14,17 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" exported="" name="Gradle: vertx-core-2.1.2" level="project" />
     <orderEntry type="library" exported="" name="Gradle: slf4j-api-1.6.2" level="project" />
     <orderEntry type="library" exported="" name="Gradle: jackson-databind-2.2.2" level="project" />
     <orderEntry type="library" exported="" name="Gradle: jackson-core-2.2.2" level="project" />
     <orderEntry type="library" exported="" name="Gradle: log4j-1.2.16" level="project" />
-    <orderEntry type="library" exported="" name="Gradle: netty-all-4.0.20.Final" level="project" />
     <orderEntry type="library" exported="" name="Gradle: jackson-annotations-2.2.2" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: junit-4.11" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: hamcrest-core-1.3" level="project" />
+    <orderEntry type="library" exported="" name="Gradle: pulsar-provider-1.0.0-final" level="project" />
+    <orderEntry type="library" exported="" name="Gradle: pulsar-core-1.0.0-final" level="project" />
+    <orderEntry type="library" exported="" name="Gradle: vertx-core-2.1.4" level="project" />
+    <orderEntry type="library" exported="" name="Gradle: netty-all-4.0.21.Final" level="project" />
   </component>
 </module>
 

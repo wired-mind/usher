@@ -84,11 +84,9 @@ public class EchoChamber extends Verticle {
                     public void handle(AsyncResult<NetServer> event) {
                         if (event.failed()) {
                             container.logger().error(event.cause().getMessage());
-                            startedResult.setFailure(event.cause());
-                            return;
                         }
 
-                        startedResult.setResult(null);
+
                     }
                 });
             }

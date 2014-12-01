@@ -24,9 +24,6 @@ public class FakeService extends Verticle {
 
     public void start(final Future<Void> startedResult)
     {
-        final ConcurrentSharedMap<String, Counter> counters = vertx.sharedData().getMap("counters");
-        final Counter fakereceiveCounter = counters.get("fakereceive");
-
 
         final Integer delay = container.config().getInteger("delay", 1);
         final Buffer fakeTrackingResponse = new Buffer();
@@ -52,15 +49,6 @@ public class FakeService extends Verticle {
                             @Override
                             public void process(Message message, AsyncResultHandler<Message> replyHandler) {
                                 try {
-                                    final int count = fakereceiveCounter.MyCounter.incrementAndGet();
-//                                    if (count % 1000 == 0) {
-//                                        container.logger().info("Fake receive: " + count);
-//                                    }
-                                    if (count + 1 == 100000) {
-                                        container.logger().info("Fake receive: " + count);
-                                    }
-                                    // container.logger().info("Fake receive: " + count);
-
 
                                     final Message reply = message.createReply(fakeTrackingResponse);
                                     replyHandler.handle(new DefaultFutureResult<>(reply));

@@ -14,11 +14,6 @@ import org.vertx.java.core.net.NetSocket;
 import org.vertx.java.core.streams.ReadStream;
 import org.vertx.java.platform.Container;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 /**
@@ -31,16 +26,9 @@ public class NetProxyTunnel extends ProxyTunnel {
     public NetProxyTunnel(Container container, Vertx vertx, final ConnectionEventProducer connectionProducer, final RequestEventProducer journalProducer, final RequestEventProducer timeoutLogProducer) {
         super(container, vertx, connectionProducer, journalProducer, timeoutLogProducer);
 
-        JsonObject defaultRequestRulesConfig = new JsonObject();
-        try {
-            final URI uri = getClass().getResource("/request_parsing_rules.json").toURI();
-            final String requestRules = new String(Files.readAllBytes(Paths.get(uri)));
-            defaultRequestRulesConfig = new JsonObject(requestRules);
-        } catch (URISyntaxException | IOException e) {
-            container.logger().warn("Cannot load default request parsing rules", e);
-        }
 
-        requestParsingRules = container.config().getObject("requestParsingRules", defaultRequestRulesConfig);
+        final JsonObject defaultConfigFixedTwo = new JsonObject().putString("type", "fixed").putNumber("length", 2);
+        requestParsingRules = container.config().getObject("requestParsingRules", defaultConfigFixedTwo);
     }
 
     protected ReadStream<?> wrapReadStream(final NetSocket sock, final Connection connection, final CozmicPump receivePump) {

@@ -1,25 +1,28 @@
 package io.cozmic.usher.test.integration;
 
-import io.cozmic.usherprotocols.core.Counter;
+import io.cozmic.usher.Start;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.shareddata.ConcurrentSharedMap;
 import org.vertx.testtools.TestVerticle;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.UUID;
 
 import static org.vertx.testtools.VertxAssert.assertNotNull;
 import static org.vertx.testtools.VertxAssert.assertTrue;
+import static org.vertx.testtools.VertxAssert.fail;
 
 /**
  * Created by chuck on 9/26/14.
  */
 public abstract class ProxyBaseIntegrationTests extends TestVerticle {
 
-    protected abstract String getProxyName();
-
     protected abstract String getFakeName();
-
-    protected abstract JsonObject getProxyConfig();
 
     protected abstract JsonObject getFakeConfig();
 
@@ -27,14 +30,6 @@ public abstract class ProxyBaseIntegrationTests extends TestVerticle {
     public void start() {
         initialize();
 
-        final ConcurrentSharedMap<String, Counter> counters = vertx.sharedData().getMap("counters");
-        counters.put("fakesend", new Counter());
-        counters.put("fakereceive", new Counter("fakereceive"));
-        counters.put("purged_fake", new Counter("purged_fake"));
-        counters.put("send", new Counter());
-        counters.put("receive", new Counter("receive"));
-        counters.put("purged_proxy", new Counter("purged_proxy"));
-        counters.put("received_bytes", new Counter("received_bytes"));
 
         container.deployVerticle(getFakeName(), getFakeConfig(), 2, new Handler<AsyncResult<String>>() {
             @Override
@@ -49,7 +44,20 @@ public abstract class ProxyBaseIntegrationTests extends TestVerticle {
                 assertNotNull("deploymentID should not be null", event.result());
 
 
-                container.deployVerticle(getProxyName(), getProxyConfig(), 1, new Handler<AsyncResult<String>>() {
+                JsonObject config = null;
+                try {
+                    final URI uri = getClass().getResource("/config.json").toURI();
+                    final String configString = new String(Files.readAllBytes(Paths.get(uri)));
+                    config = new JsonObject(configString);
+                } catch (URISyntaxException | IOException e) {
+                    fail(e.getMessage());
+                }
+
+                makeDbPathRandom(config, "journalerConfig");
+                makeDbPathRandom(config, "timeoutLogConfig");
+                makeDbPathRandom(config, "connectionLogConfig");
+
+                container.deployVerticle(Start.class.getName(), config, 1, new Handler<AsyncResult<String>>() {
                     @Override
                     public void handle(AsyncResult<String> event) {
                         if (event.failed()) {
@@ -67,5 +75,11 @@ public abstract class ProxyBaseIntegrationTests extends TestVerticle {
 
             }
         });
+    }
+
+    private void makeDbPathRandom(JsonObject config, String dbName) {
+        final JsonObject persistence = config.getObject("persistence");
+        final JsonObject conf = persistence.getObject(dbName);
+        conf.putString("dbPath", UUID.randomUUID().toString());
     }
 }
