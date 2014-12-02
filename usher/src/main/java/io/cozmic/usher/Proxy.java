@@ -1,10 +1,6 @@
 package io.cozmic.usher;
 
-import com.hazelcast.client.config.ClientConfig;
 import com.lmax.disruptor.dsl.Disruptor;
-import io.cozmic.usher.core.ClusterListener;
-import io.cozmic.usher.core.HazelcastClusterListener;
-import io.cozmic.usher.core.Listener;
 import io.cozmic.usher.core.ProxyTunnel;
 import io.cozmic.usher.peristence.*;
 import org.vertx.java.core.AsyncResult;
@@ -12,6 +8,8 @@ import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.impl.DefaultFutureResult;
+import org.vertx.java.core.json.JsonArray;
+import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Container;
 import org.vertx.java.platform.Verticle;
 
@@ -19,6 +17,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -41,8 +40,7 @@ public class Proxy extends Verticle {
     public void start(final Future<Void> startedResult) {
         final Integer servicePort = container.config().getInteger("servicePort", EchoChamber.ECHO_SERVICE_PORT);
         final String serviceHost = container.config().getString("serviceHost", EchoChamber.ECHO_SERVICE_HOST);
-        final String serviceClusterHost = container.config().getString("service_cluster_host");
-
+        final JsonArray services = container.config().getArray("services");
 
         connectionDisruptor = createConnectionDisruptor();
         journalDisruptor = createRequestDisruptor();
@@ -69,25 +67,11 @@ public class Proxy extends Verticle {
         if (serviceHost != null) {
             members.put("DEFAULT", new InetSocketAddress(serviceHost, servicePort));
         }
-        if (serviceClusterHost != null) {
-            //TODO: Fix this
-            final ClientConfig clientConfig = new ClientConfig();
-
-            ClusterListener clusterListener = new HazelcastClusterListener(clientConfig);
-            members.putAll(clusterListener.getMembers());
-
-            clusterListener.listener(new Listener() {
-
-                @Override
-                public void added(String uuid, String serviceHost, int servicePort) {
-
-                }
-
-                @Override
-                public void removed(String uuid) {
-
-                }
-            }).start();
+        if (services != null) {
+            for (Object serviceObj : services) {
+                final JsonObject service = (JsonObject) serviceObj;
+                members.put(UUID.randomUUID().toString(), new InetSocketAddress(service.getString("host"), service.getInteger("port")));
+            }
 
         }
         final int serviceMemberCount = members.size();
