@@ -95,18 +95,21 @@ public abstract class ProxyTunnel {
             @Override
             public void handle(final NetSocket sock) {
                 final Timer.Context connectTimer = clientConnects.time();
+
+                String connectionId = UUID.randomUUID().toString();
+                final Connection connection = new Connection(sock, connectionId);
+                serviceGateway.addSocketToPumps(sock, connection, connectTimer);
+
                 sock.exceptionHandler(new Handler<Throwable>() {
                     @Override
                     public void handle(Throwable event) {
                         log.error("[ProxyTunnel] Socket error", event);
                         connectTimer.stop();
                         clientErrors.mark();
+                        connection.setCloseTimestamp(System.currentTimeMillis());
+                        connectionProducer.onData(connection);
                     }
                 });
-
-                String connectionId = UUID.randomUUID().toString();
-                final Connection connection = new Connection(sock, connectionId);
-                serviceGateway.addSocketToPumps(sock, connection, connectTimer);
 
             }
         });
