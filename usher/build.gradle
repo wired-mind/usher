@@ -62,9 +62,12 @@ dependencies {
     compile "io.dropwizard.metrics:metrics-core:$metricsVersion"
     compile "com.lmax:disruptor:3.3.0"
     compile project(":usherprotocols")
-    compile name: 'rocksdbjni'
-    compile name: 'librocksdbjni', ext: 'jnilib'
     compile 'com.google.guava:guava:18.0'
+
+    //Built these on Chuck's dev machine and uploaded to nexus. Not sure if the jnilib file is platform dependent yet or not.
+    //We'll find out.
+    compile 'facebook:rocksdb:3.2'
+    compile group: 'facebook', name: 'librocksdb', version: '3.2', ext: 'jnilib'
 }
 
 
