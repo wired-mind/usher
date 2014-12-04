@@ -251,20 +251,20 @@ servers should use the timestamp as the actual receive time of the message. Resp
 
 ### Request byte order
 
-4   length
-4   messageId length
-36  messageId           //Doesn't have to be 36, but is right now for usher
-4   connectionId length
-36  connectionId        //Doesn't have to be 36, but is right now for usher
-8   timestamp
-N   original message
+    4   length
+    4   messageId length
+    36  messageId           //Doesn't have to be 36, but is right now for usher
+    4   connectionId length
+    36  connectionId        //Doesn't have to be 36, but is right now for usher
+    8   timestamp
+    N   original message
 
 ### Response byte order
 
-4   length
-4   messageId length
-36  messageId           // should correlate to the same id used in the request
-N   response
+    4   length
+    4   messageId length
+    36  messageId           // should correlate to the same id used in the request
+    N   response
 
 Usher users parsing libraries from pulsar. Usher also has an usherprotocol library with some higher level parsing classes.
 The libraries just contains classes used for parsing usher streams, etc. They have vertx dependencies, but don't contain 
