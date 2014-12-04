@@ -10,7 +10,7 @@ The usherprotocols library contains classes that an app server can use to help w
 
 ## Deployment
 
-    container.deployModule("io.cozmic~usher~1.0-SNAPSHOT", {proxyConfig: {requestParsingRules: {type: "fixed", length: testMessage.length}}, responseParsingRules: {type: "fixed", length: testMessage.length}});
+    container.deployModule("io.cozmic~usher~1.0.0-SNAPSHOT", {proxyConfig: {requestParsingRules: {type: "fixed", length: testMessage.length}}, responseParsingRules: {type: "fixed", length: testMessage.length}});
     
 ## Overview
 
