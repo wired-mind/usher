@@ -13,15 +13,9 @@ allprojects {
 
 }
 
-group = 'io.cozmic.usher'
+group = 'io.cozmic'
 
 subprojects {
-
-    apply plugin: 'maven'
-
-
-    group = rootProject.group
-    version = '1.0-SNAPSHOT'
 
 
     defaultTasks = ['assemble']
@@ -29,5 +23,5 @@ subprojects {
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '1.5'
+    gradleVersion = '2.0'
 }
