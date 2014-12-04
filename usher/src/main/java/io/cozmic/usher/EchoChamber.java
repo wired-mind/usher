@@ -3,6 +3,7 @@ package io.cozmic.usher;
 import io.cozmic.usherprotocols.core.CozmicSocket;
 import io.cozmic.usherprotocols.core.CozmicStreamProcessor;
 import io.cozmic.usherprotocols.core.Message;
+import io.cozmic.usherprotocols.core.Request;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Future;
@@ -20,7 +21,7 @@ import org.vertx.java.platform.Verticle;
 
 
 public class EchoChamber extends Verticle {
-    public static final int ECHO_SERVICE_PORT = 9192;
+    public static final int ECHO_SERVICE_PORT = 9193;
     public static final String ECHO_SERVICE_HOST = "localhost";
 
     public void start(final Future<Void> startedResult) {
@@ -29,7 +30,7 @@ public class EchoChamber extends Verticle {
         final Integer delay = container.config().getInteger("delay", 1);
 
         final NetServer netServer = vertx.createNetServer();
-
+            container.logger().info("Echo is Hello world!");
         netServer
                 .connectHandler(new Handler<NetSocket>() {
                     @Override
@@ -45,7 +46,10 @@ public class EchoChamber extends Verticle {
                             @Override
                             public void process(Message message, AsyncResultHandler<Message> resultHandler) {
                                 try {
-                                    final Message reply = message.createReply(new Buffer("I hear you."));
+                                    final Request request = Request.fromEnvelope(message.buildEnvelope());
+                                    final Buffer body = request.getBody();
+                                    container.logger().info("Responding with: " + body.toString());
+                                    final Message reply = message.createReply(body);
                                     resultHandler.handle(new DefaultFutureResult<>(reply));
                                 } catch (Exception ex) {
                                     resultHandler.handle(new DefaultFutureResult(ex));
@@ -64,7 +68,7 @@ public class EchoChamber extends Verticle {
                             startedResult.setFailure(event.cause());
                             return;
                         }
-
+                        container.logger().info(String.format("Started echo server - %s", ECHO_SERVICE_PORT));
                         startedResult.setResult(null);
                     }
                 });
