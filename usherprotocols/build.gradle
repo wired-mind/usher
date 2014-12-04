@@ -2,6 +2,17 @@ apply plugin: 'java'
 apply from: '../gradle/maven.gradle'
 
 
+
+group = modowner
+archivesBaseName = modname
+
+defaultTasks = ['assemble']
+
+sourceCompatibility = '1.7'
+targetCompatibility = '1.7'
+
+project.ext.moduleName = "$modowner~$modname~$version"
+
 dependencies {
     compile "io.vertx:vertx-core:$vertxVersion"
     compile "io.cozmic:pulsar-provider:1.0.0-SNAPSHOT"

@@ -48,7 +48,6 @@ public class EchoChamber extends Verticle {
                                 try {
                                     final Request request = Request.fromEnvelope(message.buildEnvelope());
                                     final Buffer body = request.getBody();
-                                    container.logger().info("Responding with: " + body.toString());
                                     final Message reply = message.createReply(body);
                                     resultHandler.handle(new DefaultFutureResult<>(reply));
                                 } catch (Exception ex) {

@@ -1,5 +1,6 @@
 package io.cozmic.usherprotocols.core;
 
+import io.cozmic.pulsar.core.parsing.CozmicParser;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.net.NetSocket;
@@ -17,17 +18,18 @@ public class CozmicSocket implements ReadStream<CozmicSocket>, WriteStream<Cozmi
     private final NetSocket sock;
     private ConcurrentLinkedQueue<Message> readBuffers = new ConcurrentLinkedQueue<>();
 
-    private final RecordParser parser = RecordParser.newFixed(LENGTH_HEADER_SIZE, new Handler<Buffer>() {
-        int messageSize = -1;
+    CozmicParser cozmicParser = new CozmicParser();
 
-        public void handle(Buffer buff) {
+    private Handler<Buffer> dataHandler;
+    private boolean paused;
+    private Handler<Message> messageHandler;
 
-            if (messageSize == -1) {
-                messageSize = buff.getInt(0) - LENGTH_HEADER_SIZE;
-                parser.fixedSizeMode(messageSize);
-            } else {
-                parser.fixedSizeMode(LENGTH_HEADER_SIZE);
-                messageSize = -1;
+    public CozmicSocket(NetSocket sock) {
+        this.sock = sock;
+
+        cozmicParser.handler(new Handler<Buffer>() {
+            @Override
+            public void handle(Buffer buff) {
 
                 int pos = 0;
                 final int messageIdLength = buff.getInt(pos);
@@ -37,7 +39,6 @@ public class CozmicSocket implements ReadStream<CozmicSocket>, WriteStream<Cozmi
                 pos += messageIdLength;
                 final Buffer body = buff.getBuffer(pos, buff.length());
 
-
                 readBuffers.add(new Message(messageId, body));
 
                 if (paused) {
@@ -46,17 +47,9 @@ public class CozmicSocket implements ReadStream<CozmicSocket>, WriteStream<Cozmi
 
                 purgeReadBuffers();
             }
-        }
-    });
-    private Handler<Buffer> dataHandler;
-    private boolean paused;
-    private Handler<Message> messageHandler;
+        });
 
-    public CozmicSocket(NetSocket sock) {
-        this.sock = sock;
-
-
-        sock.dataHandler(parser);
+        sock.dataHandler(cozmicParser);
     }
 
 
