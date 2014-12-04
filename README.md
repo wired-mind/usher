@@ -324,6 +324,12 @@ You can use these without a vertx socket just to parse "Buffer" objects.
     
 You can chain the parsers too.
 
+Also notice the Request class used above.
+
+    final Request request = Request.fromEnvelope(message.buildEnvelope());
+    
+That will parse the final buffer into the "id", "connection id", "timestamp", etc.
+
 ## Testing
 
 First start usher with the built in echo server.
