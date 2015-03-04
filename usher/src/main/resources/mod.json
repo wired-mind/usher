@@ -2,7 +2,7 @@
 
   // Java verticle
   "main":"io.cozmic.usher.Start",
-
+  "deploys": "io.cozmic~pulsar-server~1.0.0-SNAPSHOT,io.cozmic~pulsar-provider~1.0.0-SNAPSHOT",
 
 
   // If your module is going to be registered in the Vert.x module registry you will also need the following
