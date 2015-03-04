@@ -32,8 +32,8 @@ public class Start extends Verticle {
         JsonObject responseParsingRules = container.config().getObject("responseParsingRules", defaultConfigFixedTwo);
 
         final JsonObject pulsarConfig = new JsonObject().putObject("responseParsingConfig", responseParsingRules);
-        container.deployModule("io.cozmic~pulsar-provider~1.0.0-final", pulsarConfig, doneHandler);
-        container.deployModule("io.cozmic~pulsar-server~1.0.0-final", doneHandler);
+        container.deployModule("io.cozmic~pulsar-provider~1.0.0-SNAPSHOT", pulsarConfig, doneHandler);
+        container.deployModule("io.cozmic~pulsar-server~1.0.0-SNAPSHOT", doneHandler);
 
         final int instanceCountForRocksVerticles = 1; //Only one thread can access the rocksDB
         container.deployWorkerVerticle(PersistenceVerticle.class.getName(), container.config().getObject("persistence", new JsonObject()), instanceCountForRocksVerticles, true, doneHandler);
