@@ -3,7 +3,12 @@ allprojects {
     apply plugin: 'idea'
 
     repositories {
-        maven { url 'http://ec2-54-198-158-92.compute-1.amazonaws.com/content/groups/public/' }
+        maven {
+            credentials {
+                username sonatypeUsername
+                password sonatypePassword
+            }
+            url 'http://ec2-54-198-158-92.compute-1.amazonaws.com/content/groups/public/' }
         mavenLocal()
 
         flatDir {
