@@ -1,0 +1,4 @@
+#Passwords in vcs. yay
+
+# Custom splitsecnd repo
+maven:http://deployment:splitsecnd@ec2-54-198-158-92.compute-1.amazonaws.com/content/groups/public
