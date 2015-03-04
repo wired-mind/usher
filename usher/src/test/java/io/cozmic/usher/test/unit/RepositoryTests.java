@@ -5,6 +5,8 @@ import io.cozmic.usher.peristence.TimeSeqRepository;
 import org.junit.Test;
 import org.rocksdb.RocksDBException;
 
+import java.io.File;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.UUID;
 
@@ -189,6 +191,9 @@ public class RepositoryTests {
     }
 
     private String testDbPath() {
-        return String.format("testdb/%s", UUID.randomUUID().toString());
+        final File dir = new File("testdb");
+        if (!dir.exists())
+            dir.mkdir();
+        return Paths.get(dir.getAbsolutePath(), UUID.randomUUID().toString()).toString();
     }
 }
