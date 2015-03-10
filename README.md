@@ -10,7 +10,7 @@ The usherprotocols library contains classes that an app server can use to help w
 
 ## Deployment
 
-    container.deployModule("io.cozmic~usher~1.0.0-SNAPSHOT", {proxyConfig: {requestParsingRules: {type: "fixed", length: testMessage.length}}, responseParsingRules: {type: "fixed", length: testMessage.length}});
+    container.deployModule("io.cozmic~usher~1.0.0-SNAPSHOT", {proxyConfig: {host: "0.0.0.0", requestParsingRules: {type: "fixed", length: testMessage.length}}, responseParsingRules: {type: "fixed", length: testMessage.length}});
     
 ## Overview
 
@@ -57,7 +57,7 @@ universal way. For now just add to the default system library path or provide th
     cd rocksdb/
     git checkout rocksdb-3.2
     make rocksdbjava
-    sudo cp librocksdb.a /usr/local/bin/
+    sudo cp librocksdb.a /usr/lib/java/
     
 
 We'll need to build the library for the target platform and install in that platform's default system library path.
@@ -77,6 +77,7 @@ Here's a more complete config example:
 
     {
         "proxyConfig": {
+            "host": "0.0.0.0.",
             "serviceHost": "localhost",
             "servicePort": 9191,
             "requestParsingRules": {
@@ -168,6 +169,16 @@ Here's a more complete config example:
     }
     
 ## Configuration options
+
+### proxyConfig.host
+### proxyConfig.port
+
+Defaults shown:
+
+    "host": "localhost"
+    "port": 2500
+
+You will likely want to change the host binding to 0.0.0.0.
 
 ### proxyConfig.serviceHost
 ### proxyConfig.servicePort
