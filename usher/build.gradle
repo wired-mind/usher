@@ -63,6 +63,7 @@ dependencies {
     compile "com.lmax:disruptor:3.3.0"
     compile project(":usherprotocols")
     compile 'com.google.guava:guava:18.0'
+    compile 'org.apache.kafka:kafka_2.11:0.8.2.1'
 
     //Built these on Chuck's dev machine and uploaded to nexus. Not sure if the jnilib file is platform dependent yet or not.
     //We'll find out.
