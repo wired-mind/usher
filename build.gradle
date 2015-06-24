@@ -8,7 +8,7 @@ allprojects {
                 username sonatypeUsername
                 password sonatypePassword
             }
-            url 'http://ec2-54-198-158-92.compute-1.amazonaws.com/content/groups/public/' }
+            url 'https://nexus.cyberphysicalsystems.io/content/groups/public' }
         mavenLocal()
 
         flatDir {

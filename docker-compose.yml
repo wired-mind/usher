@@ -3,4 +3,4 @@ usher:
     ports:
      - "2500:2500"
     environment:
-       CUSTOM_REPO: maven:http://deployment:splitsecnd@ec2-54-198-158-92.compute-1.amazonaws.com/content/groups/public
+       CUSTOM_REPO: maven:https://deployment:splitsecnd@nexus.cyberphysicalsystems.io/content/groups/public

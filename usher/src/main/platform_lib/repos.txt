@@ -5,6 +5,9 @@
 # Local Maven repo on filesystem
 mavenLocal:~/.m2/repository
 
+# Custom splitsecnd repo
+maven:https://deployment:splitsecnd@nexus.cyberphysicalsystems.io/content/groups/public
+
 # Maven central
 maven:http://repo2.maven.org/maven2
 
