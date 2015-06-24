@@ -38,14 +38,6 @@ public class Start extends Verticle {
         final int instanceCountForRocksVerticles = 1; //Only one thread can access the rocksDB
         container.deployWorkerVerticle(PersistenceVerticle.class.getName(), container.config().getObject("persistence", new JsonObject()), instanceCountForRocksVerticles, true, doneHandler);
         container.deployVerticle(EchoChamber.class.getName(), doneHandler);
-        container.deployVerticle(CommandVerticle.class.getName(), doneHandler);
-        final JsonObject shellConfig = container.config().getObject("shellConfig");
-        if (shellConfig != null) {
-            final String commandDir = PathAdjuster.adjust((VertxInternal) vertx, "./commands");
-            container.logger().info("Setting custom crash command directory to " + commandDir);
-            shellConfig.putString("cmd", commandDir);
-        }
-        container.deployModule("org.crashub~vertx.shell~2.1.0", shellConfig, doneHandler);
 
 
         /**
