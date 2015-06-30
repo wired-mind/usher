@@ -1,5 +1,20 @@
 {
+    "inputs": [
+        {
+            "type": "TcpInput",
+            "host": "0.0.0.0",
+            "port": 2500
+        }
+    ],
+    "outputs": [
+        {
+            "type": "TcpOutput",
+            "host": "www.cnn.com",
+            "port": 80
+        }
+    ],
     "proxyConfig": {
+
         "serviceHost": "localhost",
         "servicePort": 9191,
         "requestParsingRules": {
@@ -75,17 +90,6 @@
                 }
             ]
         }
-    },
-    "persistence": {
-        "journalerConfig": {},
-        "timeoutLogConfig": {},
-        "connectionLogConfig": {}
-    },
-    "shellConfig": {
-                            "crash.auth":"simple",
-                            "crash.auth.simple.username":"admin",
-                            "crash.auth.simple.password":"admin",
-                            "crash.ssh.port":2000
     }
 
 }

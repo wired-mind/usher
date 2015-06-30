@@ -9,7 +9,7 @@ allprojects {
                 password sonatypePassword
             }
             url 'https://nexus.cyberphysicalsystems.io/content/groups/public' }
-        mavenLocal()
+
 
         flatDir {
             dirs 'lib'

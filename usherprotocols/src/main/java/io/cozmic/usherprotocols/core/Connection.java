@@ -1,9 +1,9 @@
 package io.cozmic.usherprotocols.core;
 
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.net.NetSocket;
 
-import java.net.InetSocketAddress;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.net.NetSocket;
+import io.vertx.core.net.SocketAddress;
 
 /**
  * Created by chuck on 11/24/14.
@@ -11,8 +11,8 @@ import java.net.InetSocketAddress;
 public class Connection {
     private final String connectionId;
     private final long timestamp = System.currentTimeMillis();
-    private final InetSocketAddress localAddress;
-    private final InetSocketAddress remoteAddress;
+    private final SocketAddress localAddress;
+    private final SocketAddress remoteAddress;
     private long closeTimestamp;
 
     public Connection(NetSocket sock, String connectionId) {
@@ -22,16 +22,16 @@ public class Connection {
     }
 
     public Buffer asBuffer() {
-        Buffer buffer = new Buffer();
+        Buffer buffer = Buffer.buffer();
         buffer.appendString(connectionId);
         buffer.appendLong(timestamp);
         buffer.appendLong(closeTimestamp);
-        buffer.appendInt(localAddress.getHostName().length());
-        buffer.appendString(localAddress.getHostName());
-        buffer.appendInt(localAddress.getPort());
-        buffer.appendInt(remoteAddress.getHostName().length());
-        buffer.appendString(remoteAddress.getHostName());
-        buffer.appendInt(remoteAddress.getPort());
+        buffer.appendInt(localAddress.host().length());
+        buffer.appendString(localAddress.host());
+        buffer.appendInt(localAddress.port());
+        buffer.appendInt(remoteAddress.host().length());
+        buffer.appendString(remoteAddress.host());
+        buffer.appendInt(remoteAddress.port());
         return buffer;
     }
 

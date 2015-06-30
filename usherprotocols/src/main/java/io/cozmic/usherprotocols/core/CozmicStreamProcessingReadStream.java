@@ -1,17 +1,18 @@
 package io.cozmic.usherprotocols.core;
 
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.streams.ReadStream;
+
+import io.vertx.core.AsyncResult;
+import io.vertx.core.AsyncResultHandler;
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.streams.ReadStream;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
 * Created by chuck on 9/30/14.
 */
-public class CozmicStreamProcessingReadStream implements ReadStream<CozmicStreamProcessingReadStream>, MessageReadStream<CozmicStreamProcessingReadStream> {
+public class CozmicStreamProcessingReadStream implements ReadStream<Buffer>, MessageReadStream {
     private final CozmicSocket cozmicSocket;
     private ConcurrentLinkedQueue<Message> readBuffers = new ConcurrentLinkedQueue<>();
     private boolean paused;
@@ -53,7 +54,7 @@ public class CozmicStreamProcessingReadStream implements ReadStream<CozmicStream
     }
 
     @Override
-    public CozmicStreamProcessingReadStream dataHandler(final Handler<Buffer> handler) {
+    public CozmicStreamProcessingReadStream handler(final Handler<Buffer> handler) {
         this.dataHandler = handler;
         return this;
     }

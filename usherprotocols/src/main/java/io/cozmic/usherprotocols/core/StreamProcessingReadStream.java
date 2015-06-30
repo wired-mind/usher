@@ -1,26 +1,28 @@
 package io.cozmic.usherprotocols.core;
 
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.streams.ReadStream;
+
+
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.streams.ReadStream;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Created by chuck on 9/30/14.
  */
-public class StreamProcessingReadStream implements ReadStream<StreamProcessingReadStream> {
-    private final ReadStream<?> innerReadStream;
+public class StreamProcessingReadStream implements ReadStream<Buffer> {
+    private final ReadStream<Buffer> innerReadStream;
     private ConcurrentLinkedQueue<Buffer> readBuffers = new ConcurrentLinkedQueue<>();
     private boolean paused;
     private Handler<Buffer> dataHandler;
 
-    public StreamProcessingReadStream(ReadStream<?> readStream, final StreamProcessor streamProcessor) {
+    public StreamProcessingReadStream(ReadStream<Buffer> readStream, final StreamProcessor streamProcessor) {
 
         this.innerReadStream = readStream;
 
-        innerReadStream.dataHandler(new Handler<Buffer>() {
+        innerReadStream.handler(new Handler<Buffer>() {
             @Override
             public void handle(Buffer event) {
                 streamProcessor.process(event, new Handler<AsyncResult<Buffer>>() {
@@ -49,10 +51,11 @@ public class StreamProcessingReadStream implements ReadStream<StreamProcessingRe
     }
 
     @Override
-    public StreamProcessingReadStream dataHandler(final Handler<Buffer> handler) {
+    public StreamProcessingReadStream handler(final Handler<Buffer> handler) {
         this.dataHandler = handler;
         return this;
     }
+
 
 
     @Override

@@ -1,8 +1,10 @@
 package io.cozmic.usherprotocols.core;
 
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.streams.WriteStream;
+
+
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.streams.WriteStream;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,8 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class CozmicPump {
 
-    private MessageReadStream<?> messageReadStream;
-    private final ConcurrentHashMap<String, WriteStream<?>> writeStreams = new ConcurrentHashMap<>();
+    private MessageReadStream messageReadStream;
+    private final ConcurrentHashMap<String, WriteStream<Buffer>> writeStreams = new ConcurrentHashMap<>();
     private int pumped;
     private Handler<Request> inflightHandler;
     private Handler<String> responseHandler;
@@ -28,7 +30,7 @@ public class CozmicPump {
 
 
 
-    public CozmicPump setMessageReadStream(MessageReadStream<?> messageReadStream) {
+    public CozmicPump setMessageReadStream(MessageReadStream messageReadStream) {
         if (this.messageReadStream != null) {
             this.messageReadStream.messageHandler(null);
         }
@@ -45,7 +47,7 @@ public class CozmicPump {
         return this;
     }
 
-    public CozmicPump add(Request request, WriteStream<?> writeStream) {
+    public CozmicPump add(Request request, WriteStream<Buffer> writeStream) {
         if (inflightHandler != null) {
             inflightHandler.handle(request);
         }
@@ -59,7 +61,7 @@ public class CozmicPump {
     }
 
     public void timeoutMessage(String messageId, Buffer buffer) {
-        final WriteStream<?> writeStream = writeStreams.remove(messageId);
+        final WriteStream<Buffer> writeStream = writeStreams.remove(messageId);
         if (writeStream != null) {
 
             if (buffer != null) {
@@ -88,7 +90,7 @@ public class CozmicPump {
 
     private final Handler<Message> messageHandler = new Handler<Message>() {
         public void handle(Message message) {
-            final WriteStream<?> writeStream = writeStreams.remove(message.getMessageId());
+            final WriteStream<Buffer> writeStream = writeStreams.remove(message.getMessageId());
             if (writeStream != null) {
                 final Buffer buffer = message.getBody();
                 doWrite(writeStream, buffer);
@@ -99,7 +101,7 @@ public class CozmicPump {
         }
     };
 
-    protected void doWrite(WriteStream<?> writeStream, Buffer buffer) {
+    protected void doWrite(WriteStream<Buffer> writeStream, Buffer buffer) {
         writeStream.write(buffer);
         pumped += buffer.length();
         if (writeStream.writeQueueFull()) {

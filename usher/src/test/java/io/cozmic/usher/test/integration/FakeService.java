@@ -1,81 +1,53 @@
 package io.cozmic.usher.test.integration;
 
-import io.cozmic.usherprotocols.core.*;
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
-import org.vertx.java.core.Future;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.impl.DefaultFutureResult;
-import org.vertx.java.core.net.NetServer;
-import org.vertx.java.core.net.NetSocket;
-import org.vertx.java.core.shareddata.ConcurrentSharedMap;
-import org.vertx.java.core.streams.Pump;
-import org.vertx.java.platform.Verticle;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
+import io.vertx.core.net.NetServer;
+
 
 /**
  * Created by chuck on 9/25/14.
  */
-public class FakeService extends Verticle {
+public class FakeService extends AbstractVerticle {
 
     public static final int FAKE_SERVICE_PORT = 9191;
     public static final String FAKE_SERVICE_HOST = "localhost";
 
+    Logger logger = LoggerFactory.getLogger(FakeService.class.getName());
 
     public void start(final Future<Void> startedResult)
     {
 
-        final Integer delay = container.config().getInteger("delay", 1);
-        final Buffer fakeTrackingResponse = new Buffer();
+        final Integer delay =  config().getInteger("delay", 1);
+        final Buffer fakeTrackingResponse = Buffer.buffer();
         fakeTrackingResponse.appendByte((byte) 0x11);
         fakeTrackingResponse.appendByte((byte) 0x01);
 
         final NetServer netServer = vertx.createNetServer();
 
         netServer
-                .connectHandler(new Handler<NetSocket>() {
-                    @Override
-                    public void handle(final NetSocket socket) {
-                        socket.exceptionHandler(new Handler<Throwable>() {
-                            @Override
-                            public void handle(Throwable event) {
-                                container.logger().error("Socket error on fake service socket", event);
-                            }
-                        });
-                        final CozmicSocket cozmicSocket = new CozmicSocket(socket);
+                .connectHandler(socket -> {
+                    socket.exceptionHandler(event -> {
+                        logger.error("Socket error on fake service socket", event);
+                    });
+                    socket.handler(event -> {
+                        socket.write(fakeTrackingResponse);
+                    });
 
 
-                        final Pump pump = Pump.createPump(cozmicSocket.translate(new CozmicStreamProcessor() {
-                            @Override
-                            public void process(Message message, AsyncResultHandler<Message> replyHandler) {
-                                try {
-
-                                    final Message reply = message.createReply(fakeTrackingResponse);
-                                    replyHandler.handle(new DefaultFutureResult<>(reply));
-                                } catch (Exception ex) {
-                                    replyHandler.handle(new DefaultFutureResult(ex));
-                                }
-                            }
-                        }), cozmicSocket);
-                        pump.start();
-
-
-
-                    }
                 })
-
-                .setAcceptBacklog(10000)
-                .listen(FAKE_SERVICE_PORT, FAKE_SERVICE_HOST, new Handler<AsyncResult<NetServer>>() {
-                    @Override
-                    public void handle(AsyncResult<NetServer> event) {
-                        if (event.failed()) {
-                            container.logger().error(event.cause().getMessage());
-                            startedResult.setFailure(event.cause());
-                            return;
-                        }
-
-                        startedResult.setResult(null);
+                .listen(FAKE_SERVICE_PORT, FAKE_SERVICE_HOST, event -> {
+                    if (event.failed()) {
+                        final Throwable cause = event.cause();
+                        logger.error(cause.getMessage());
+                        startedResult.fail(cause);
+                        return;
                     }
+
+                    startedResult.complete();
                 });
     }
 

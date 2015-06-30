@@ -46,46 +46,5 @@
                    ]
                }
            }
-    },
-    "responseParsingRules": {
-        "type": "fixed",
-        "length": 2,
-        "nextRule": {
-            "type": "typeMap",
-            "typeMap": [
-                {
-                    "bytes": ["3", "19"],
-                    "length": 18
-                },
-                {
-                    "bytes": ["1", "17"],
-                    "length": 0
-                },
-                {
-                    "bytes": ["2", "18"],
-                    "length": 0
-                },
-                {
-                    "bytes": ["7", "23"],
-                    "length": 0
-                },
-                {
-                    "bytes": ["0", "-1"],
-                    "length": 0
-                }
-            ]
-        }
-    },
-    "persistence": {
-        "journalerConfig": {},
-        "timeoutLogConfig": {},
-        "connectionLogConfig": {}
-    },
-    "shellConfig": {
-                            "crash.auth":"simple",
-                            "crash.auth.simple.username":"admin",
-                            "crash.auth.simple.password":"admin",
-                            "crash.ssh.port":2000
     }
-
 }

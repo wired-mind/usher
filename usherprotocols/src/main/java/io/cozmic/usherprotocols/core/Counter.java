@@ -1,6 +1,8 @@
 package io.cozmic.usherprotocols.core;
 
-import org.vertx.java.core.shareddata.Shareable;
+
+
+import io.vertx.core.shareddata.Shareable;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

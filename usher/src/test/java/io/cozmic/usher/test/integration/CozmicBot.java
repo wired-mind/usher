@@ -1,37 +1,42 @@
 package io.cozmic.usher.test.integration;
 
-import io.cozmic.usher.core.ProxyTunnel;
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.Future;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.net.NetClient;
-import org.vertx.java.core.net.NetSocket;
-import org.vertx.java.core.parsetools.RecordParser;
-import org.vertx.java.core.streams.Pump;
-import org.vertx.java.core.streams.ReadStream;
-import org.vertx.java.platform.Verticle;
+import io.cozmic.usher.old.ProxyTunnel;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
+import io.vertx.core.net.NetClient;
+import io.vertx.core.net.NetSocket;
+import io.vertx.core.parsetools.RecordParser;
+import io.vertx.core.streams.Pump;
+import io.vertx.core.streams.ReadStream;
+
 
 /**
  * Created by chuck on 10/3/14.
  */
-public class CozmicBot extends Verticle {
+public class CozmicBot extends AbstractVerticle {
     public static final String COZMICBOT_RESULT = "COZMICBOT_RESULT";
+    Logger logger = LoggerFactory.getLogger(CozmicBot.class.getName());
 
     private NetClient netClient;
 
     public void start(final Future<Void> startedResult) {
 
-        final int repeat = container.config().getNumber("repeat", 1).intValue();
-        final byte[] bytes = container.config().getBinary("buffer", new byte[]{});
-        final Buffer buffer = new Buffer(bytes);
-        netClient = vertx.createNetClient().setConnectTimeout(5000).setReconnectAttempts(100).setReconnectInterval(1000);
+        final int repeat = config().getInteger("repeat", 1).intValue();
+        final byte[] bytes = config().getBinary("buffer", new byte[]{});
+        final Buffer buffer = Buffer.buffer(bytes);
+        netClient = vertx.createNetClient();
+//        .setConnectTimeout(5000).setReconnectAttempts(100).setReconnectInterval(1000);
         netClient.connect(ProxyTunnel.DEFAULT_PORT, ProxyTunnel.DEFAULT_HOST, new Handler<AsyncResult<NetSocket>>() {
             @Override
             public void handle(AsyncResult<NetSocket> event) {
                 if (event.failed()) {
-                    container.logger().error(event.cause().getMessage());
-                    startedResult.setFailure(event.cause());
+                    logger.error(event.cause().getMessage());
+                    startedResult.fail(event.cause());
                     return;
                 }
 
@@ -46,7 +51,7 @@ public class CozmicBot extends Verticle {
 
                         socketReceiveCount++;
                         if (socketReceiveCount == repeat) {
-                            socket.dataHandler(null);
+                            socket.handler(null);
                             socket.close();
                         }
 
@@ -54,15 +59,15 @@ public class CozmicBot extends Verticle {
 
                     }
                 });
-                socket.dataHandler(responseParser);
+                socket.handler(responseParser);
                 socket.exceptionHandler(new Handler<Throwable>() {
                     @Override
                     public void handle(Throwable event) {
-                        container.logger().error("Socket error from test client", event);
+                        logger.error("Socket error from test client", event);
                     }
                 });
 
-                Pump.createPump(new DataStream(buffer, repeat), socket).start();
+                Pump.pump(new DataStream(buffer, repeat), socket).start();
 
 
 
@@ -75,12 +80,12 @@ public class CozmicBot extends Verticle {
             }
         });
 
-        startedResult.setResult(null);
+        startedResult.complete();
     }
 
 
 
-    private static class DataStream implements ReadStream<Object> {
+    private static class DataStream implements ReadStream<Buffer> {
         private final Buffer buffer;
         private final int repeat;
         private boolean paused;
@@ -94,12 +99,12 @@ public class CozmicBot extends Verticle {
         }
 
         @Override
-        public Object endHandler(Handler<Void> endHandler) {
-            return null;
+        public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
+            return this;
         }
 
         @Override
-        public Object dataHandler(Handler<Buffer> handler) {
+        public ReadStream<Buffer> handler(Handler<Buffer> handler) {
             this.dataHandler = handler;
             if (dataHandler != null) doGenerateData();
             return this;
@@ -113,21 +118,21 @@ public class CozmicBot extends Verticle {
         }
 
         @Override
-        public Object pause() {
+        public ReadStream<Buffer> pause() {
             paused = true;
             return this;
         }
 
         @Override
-        public Object resume() {
+        public ReadStream<Buffer> resume() {
             paused = false;
             if (dataHandler != null) doGenerateData();
             return this;
         }
 
         @Override
-        public Object exceptionHandler(Handler<Throwable> handler) {
-            return null;
+        public ReadStream<Buffer> exceptionHandler(Handler<Throwable> handler) {
+            return this;
         }
     }
 }

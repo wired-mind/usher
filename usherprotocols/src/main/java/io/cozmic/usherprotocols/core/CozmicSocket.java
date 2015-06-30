@@ -1,27 +1,27 @@
 package io.cozmic.usherprotocols.core;
 
-import io.cozmic.pulsar.core.parsing.CozmicParser;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.net.NetSocket;
-import org.vertx.java.core.parsetools.RecordParser;
-import org.vertx.java.core.streams.ReadStream;
-import org.vertx.java.core.streams.WriteStream;
+import io.cozmic.usherprotocols.parsing.CozmicParser;
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.net.NetSocket;
+import io.vertx.core.streams.ReadStream;
+import io.vertx.core.streams.WriteStream;
+
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Created by chuck on 9/30/14.
  */
-public class CozmicSocket implements ReadStream<CozmicSocket>, WriteStream<CozmicSocket>, MessageReadStream<CozmicSocket> {
+public class CozmicSocket implements ReadStream<Buffer>, WriteStream<Buffer>, MessageReadStream {
     public static final int LENGTH_HEADER_SIZE = 4;
     private final NetSocket sock;
     private ConcurrentLinkedQueue<Message> readBuffers = new ConcurrentLinkedQueue<>();
 
     CozmicParser cozmicParser = new CozmicParser();
 
-    private Handler<Buffer> dataHandler;
     private boolean paused;
+    private Handler<Buffer> dataHandler;
     private Handler<Message> messageHandler;
 
     public CozmicSocket(NetSocket sock) {
@@ -49,7 +49,7 @@ public class CozmicSocket implements ReadStream<CozmicSocket>, WriteStream<Cozmi
             }
         });
 
-        sock.dataHandler(cozmicParser);
+        sock.handler(cozmicParser);
     }
 
 
@@ -87,7 +87,7 @@ public class CozmicSocket implements ReadStream<CozmicSocket>, WriteStream<Cozmi
     }
 
     @Override
-    public CozmicSocket dataHandler(final Handler<Buffer> handler) {
+    public CozmicSocket handler(final Handler<Buffer> handler) {
         this.dataHandler = handler;
         return this;
     }
@@ -114,9 +114,15 @@ public class CozmicSocket implements ReadStream<CozmicSocket>, WriteStream<Cozmi
     }
 
     @Override
+    public CozmicSocket exceptionHandler(Handler<Throwable> handler) {
+        sock.exceptionHandler(handler);
+        return this;
+    }
+
+    @Override
     public CozmicSocket write(Buffer data) {
         int messageLength = 4 + data.length();
-        final Buffer envelope = new Buffer(messageLength);
+        final Buffer envelope = Buffer.buffer(messageLength);
         envelope.appendInt(messageLength);
         envelope.appendBuffer(data);
 
@@ -124,13 +130,7 @@ public class CozmicSocket implements ReadStream<CozmicSocket>, WriteStream<Cozmi
         return this;
     }
 
-    @Override
-    public CozmicSocket exceptionHandler(Handler<Throwable> handler) {
-        sock.exceptionHandler(handler);
-        return this;
-    }
-
-    public MessageReadStream<?> translate(CozmicStreamProcessor cozmicStreamProcessor) {
+    public MessageReadStream translate(CozmicStreamProcessor cozmicStreamProcessor) {
         return new CozmicStreamProcessingReadStream(this, cozmicStreamProcessor);
     }
 

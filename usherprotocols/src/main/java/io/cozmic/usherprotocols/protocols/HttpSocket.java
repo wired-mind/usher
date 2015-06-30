@@ -3,11 +3,13 @@ package io.cozmic.usherprotocols.protocols;
 import io.cozmic.usherprotocols.core.StreamProcessingReadStream;
 import io.cozmic.usherprotocols.core.StreamProcessor;
 import io.cozmic.usherprotocols.core.TranslatingReadStream;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.net.NetSocket;
-import org.vertx.java.core.parsetools.RecordParser;
-import org.vertx.java.core.streams.ReadStream;
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.net.NetSocket;
+import io.vertx.core.parsetools.RecordParser;
+import io.vertx.core.streams.ReadStream;
+
+
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -16,7 +18,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * Just adding a quick example of what this might look like. Will need testing and more work
  */
-public class HttpSocket implements TranslatingReadStream<HttpSocket> {
+public class HttpSocket implements TranslatingReadStream<Buffer> {
     private final NetSocket sock;
     private Handler<Buffer> handler;
     private boolean paused;
@@ -59,13 +61,13 @@ public class HttpSocket implements TranslatingReadStream<HttpSocket> {
     }
 
     @Override
-    public HttpSocket dataHandler(final Handler<Buffer> handler) {
+    public HttpSocket handler(final Handler<Buffer> handler) {
         this.handler = handler;
         if (handler == null) {
-            sock.dataHandler(null);
+            sock.handler(null);
         } else {
 
-            sock.dataHandler(new Handler<Buffer>() {
+            sock.handler(new Handler<Buffer>() {
                 @Override
                 public void handle(Buffer event) {
                     rawHttpParser.handle(event);
@@ -96,7 +98,7 @@ public class HttpSocket implements TranslatingReadStream<HttpSocket> {
         return this;
     }
     @Override
-    public ReadStream<?> translate(StreamProcessor streamProcessor) {
+    public ReadStream<Buffer> translate(StreamProcessor streamProcessor) {
         return new StreamProcessingReadStream(this, streamProcessor);
     }
 }

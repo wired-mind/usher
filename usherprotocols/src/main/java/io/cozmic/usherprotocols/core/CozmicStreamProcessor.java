@@ -1,6 +1,7 @@
 package io.cozmic.usherprotocols.core;
 
-import org.vertx.java.core.AsyncResultHandler;
+
+import io.vertx.core.AsyncResultHandler;
 
 /**
  * Created by chuck on 9/30/14.

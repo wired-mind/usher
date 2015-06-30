@@ -1,21 +1,22 @@
 package io.cozmic.usherprotocols.protocols;
 
-import io.cozmic.pulsar.core.parsing.RuleBasedPacketParser;
 import io.cozmic.usherprotocols.core.StreamProcessingReadStream;
 import io.cozmic.usherprotocols.core.StreamProcessor;
 import io.cozmic.usherprotocols.core.TranslatingReadStream;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.net.NetSocket;
-import org.vertx.java.core.streams.ReadStream;
+import io.cozmic.usherprotocols.parsing.RuleBasedPacketParser;
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.NetSocket;
+import io.vertx.core.streams.ReadStream;
+
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Created by chuck on 10/1/14.
  */
-public class RuleBasedPacketSocket implements TranslatingReadStream<RuleBasedPacketSocket> {
+public class RuleBasedPacketSocket implements TranslatingReadStream<Buffer> {
     private final NetSocket sock;
     private final RuleBasedPacketParser ruleBasedPacketParser;
     private ConcurrentLinkedQueue<Buffer> readBuffers = new ConcurrentLinkedQueue<>();
@@ -57,13 +58,13 @@ public class RuleBasedPacketSocket implements TranslatingReadStream<RuleBasedPac
     }
 
     @Override
-    public RuleBasedPacketSocket dataHandler(final Handler<Buffer> handler) {
+    public RuleBasedPacketSocket handler(final Handler<Buffer> handler) {
         this.handler = handler;
         if (handler == null) {
-            sock.dataHandler(null);
+            sock.handler(null);
         } else {
 
-            sock.dataHandler(new Handler<Buffer>() {
+            sock.handler(new Handler<Buffer>() {
                 @Override
                 public void handle(Buffer event) {
                     ruleBasedPacketParser.handle(event);
@@ -93,7 +94,7 @@ public class RuleBasedPacketSocket implements TranslatingReadStream<RuleBasedPac
         sock.exceptionHandler(handler);
         return this;
     }
-    public ReadStream<?> translate(StreamProcessor streamProcessor) {
+    public ReadStream<Buffer> translate(StreamProcessor streamProcessor) {
         return new StreamProcessingReadStream(this, streamProcessor);
     }
 }

@@ -1,4 +1,5 @@
 src/main/resources
+src/main/platform_lib
 bin
 out/production/usher
 out/test/usher

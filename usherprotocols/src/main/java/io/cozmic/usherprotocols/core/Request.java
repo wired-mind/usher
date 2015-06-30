@@ -1,14 +1,16 @@
 package io.cozmic.usherprotocols.core;
 
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.shareddata.Shareable;
+
+
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.shareddata.Shareable;
 
 import java.util.UUID;
 
 /**
  * Created by chuck on 9/29/14.
  */
-public class Request implements Shareable{
+public class Request implements Shareable {
     private String messageId;
     private String connectionId;
     private Long timestamp;
@@ -63,11 +65,11 @@ public class Request implements Shareable{
     }
 
     public static Request fromEnvelope(byte[] bytes) {
-        return fromEnvelope(new Buffer(bytes));
+        return fromEnvelope(Buffer.buffer(bytes));
     }
 
     public Message createReply(Buffer buffer) {
-        Buffer reply = new Buffer();
+        Buffer reply = Buffer.buffer();
         reply.appendInt(messageId.length());
         reply.appendString(messageId);
         reply.appendBuffer(buffer);
@@ -76,7 +78,7 @@ public class Request implements Shareable{
 
     public Buffer buildEnvelope() {
         int messageLength = 4 + 4  + messageId.length() + 4 + connectionId.length() + 8 + body.length();
-        final Buffer envelope = new Buffer(messageLength);
+        final Buffer envelope = Buffer.buffer(messageLength);
         envelope.appendInt(messageLength);
         envelope.appendInt(messageId.length());
         envelope.appendString(messageId);
