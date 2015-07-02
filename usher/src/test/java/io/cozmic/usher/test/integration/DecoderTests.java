@@ -29,7 +29,7 @@ import static org.junit.Assert.fail;
  * Created by chuck on 6/29/15.
  */
 @RunWith(VertxUnitRunner.class)
-public class EncoderTests {
+public class DecoderTests {
 
     Vertx vertx;
 
@@ -45,22 +45,19 @@ public class EncoderTests {
     }
 
 
-    /**
-     * This test isn't great yet. It's only just validating that a response comes back. Should also
-     * confirm encoding behavior
-     * @param context
-     */
     @Test
-    public void testCanEchoEncodedStream(TestContext context) {
+    public void testCanEchoEncodedDecodedStream(TestContext context) {
         final DeploymentOptions options = new DeploymentOptions();
 
         final JsonObject config = new JsonObject();
         final JsonObject output = buildOutput();
         output.put("encoder", "CozmicEncoder");
+        output.put("decoder", "CozmicDecoder");
         config
                 .put("Router", buildInput())
                 .put("EchoBackend", output)
-                .put("CozmicEncoder", buildCozmicEncoder());
+                .put("CozmicEncoder", buildCozmicEncoder())
+                .put("CozmicDecoder", buildCozmicDecoder());
         options.setConfig(config);
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
@@ -68,7 +65,7 @@ public class EncoderTests {
                 final NetSocket socket = asyncResult.result();
                 socket.write("Hello World");
                 socket.handler(buffer -> {
-                    context.assertNotNull(buffer);
+                    context.assertEquals("Hello World", buffer.toString());
 
                     async.complete();
 
@@ -81,6 +78,10 @@ public class EncoderTests {
                 }
             });
         }));
+    }
+
+    private JsonObject buildCozmicDecoder() {
+        return new JsonObject().put("type", "CozmicDecoder");
     }
 
     private JsonObject buildCozmicEncoder() {
