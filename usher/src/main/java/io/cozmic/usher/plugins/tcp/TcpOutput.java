@@ -1,7 +1,7 @@
 package io.cozmic.usher.plugins.tcp;
 
 import io.cozmic.usher.core.OutputPlugin;
-import io.cozmic.usher.pipeline.DuplexStream;
+import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;

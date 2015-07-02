@@ -1,6 +1,6 @@
 package io.cozmic.usher.core;
 
-import io.cozmic.usherprotocols.core.Message;
+import io.cozmic.usher.message.Message;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 
@@ -9,4 +9,5 @@ import io.vertx.core.buffer.Buffer;
  */
 public interface EncoderPlugin extends Plugin {
     void encode(Message message, Handler<Buffer> bufferHandler);
+    EncoderPlugin createNew();
 }

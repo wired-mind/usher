@@ -1,6 +1,7 @@
 package io.cozmic.usher.core;
 
-import io.cozmic.usherprotocols.core.Message;
+
+import io.cozmic.usher.message.Message;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 
@@ -11,4 +12,5 @@ public interface DecoderPlugin extends Plugin {
     void decode(Buffer record, Handler<Message> messageHandler);
 
 
+    DecoderPlugin createNew();
 }

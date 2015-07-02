@@ -1,6 +1,6 @@
 package io.cozmic.usher.core;
 
-import io.cozmic.usher.pipeline.DuplexStream;
+import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;

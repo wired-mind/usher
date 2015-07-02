@@ -1,0 +1,12 @@
+{
+  "Router": {
+    "type": "TcpInput",
+    "host": "0.0.0.0",
+    "port": 2500
+  },
+  "EchoBackend": {
+    "type": "TcpOutput",
+    "host": "localhost",
+    "port": 9193
+  }
+}

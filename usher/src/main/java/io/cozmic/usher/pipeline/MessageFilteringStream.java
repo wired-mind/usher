@@ -1,6 +1,8 @@
 package io.cozmic.usher.pipeline;
 
-import io.cozmic.usherprotocols.core.Message;
+import io.cozmic.usher.core.MessageFilter;
+import io.cozmic.usher.message.Message;
+import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.ReadStream;
 

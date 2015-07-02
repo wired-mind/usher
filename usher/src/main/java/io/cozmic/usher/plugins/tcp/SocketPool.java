@@ -5,6 +5,8 @@ import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetClientOptions;
 import io.vertx.core.net.NetSocket;
@@ -13,6 +15,7 @@ import io.vertx.core.net.NetSocket;
  * Created by chuck on 6/30/15.
  */
 public class SocketPool extends ObjectPool<NetSocket> {
+    Logger logger = LoggerFactory.getLogger(SocketPool.class.getName());
     private String host;
     private NetClient netClient;
     private Integer port;
@@ -43,7 +46,9 @@ public class SocketPool extends ObjectPool<NetSocket> {
     protected void createObject(AsyncResultHandler<NetSocket> readyHandler) {
         netClient.connect(port, host, connectHandler -> {
             if (connectHandler.failed()) {
-                readyHandler.handle(Future.failedFuture(connectHandler.cause()));
+                final Throwable cause = connectHandler.cause();
+                logger.error(cause.getMessage(), cause);
+                readyHandler.handle(Future.failedFuture(cause));
                 return;
             }
             readyHandler.handle(Future.succeededFuture(connectHandler.result()));

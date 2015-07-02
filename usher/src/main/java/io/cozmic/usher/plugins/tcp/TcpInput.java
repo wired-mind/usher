@@ -1,7 +1,7 @@
 package io.cozmic.usher.plugins.tcp;
 
 import io.cozmic.usher.core.InputPlugin;
-import io.cozmic.usher.pipeline.DuplexStream;
+import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -24,7 +24,11 @@ public class TcpInput implements InputPlugin {
     public void run(AsyncResultHandler<Void> startupHandler, Handler<DuplexStream<Buffer, Buffer>> duplexStreamHandler) {
 
         netServer.connectHandler(socket -> {
-            duplexStreamHandler.handle(new DuplexStream<>(socket, socket));
+
+            duplexStreamHandler.handle(new DuplexStream<>(socket, socket, message -> {
+                message.setRemoteAddress(socket.remoteAddress());
+                message.setLocalAddress(socket.localAddress());
+            }));
         });
 
         netServer.listen(netServerAsyncResult -> {
@@ -42,7 +46,7 @@ public class TcpInput implements InputPlugin {
         netServer = vertx.createNetServer(buildOptions(configObj));
     }
 
-    private NetServerOptions buildOptions(JsonObject inputObj) {
-        return new NetServerOptions(inputObj);
+    private NetServerOptions buildOptions(JsonObject configObj) {
+        return new NetServerOptions(configObj);
     }
 }

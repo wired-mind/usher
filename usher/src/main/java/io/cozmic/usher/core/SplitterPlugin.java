@@ -9,4 +9,5 @@ import io.vertx.core.buffer.Buffer;
 public interface SplitterPlugin extends Plugin {
     void findRecord(Buffer buffer, Handler<Buffer> bufferHandler);
 
+    SplitterPlugin createNew();
 }

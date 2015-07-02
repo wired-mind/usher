@@ -1,7 +1,8 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.EncoderPlugin;
-import io.cozmic.usherprotocols.core.Message;
+import io.cozmic.usher.core.MessageFilter;
+import io.cozmic.usher.message.Message;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.WriteStream;

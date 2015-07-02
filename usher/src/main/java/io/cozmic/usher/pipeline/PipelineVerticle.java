@@ -1,43 +1,47 @@
 package io.cozmic.usher.pipeline;
 
+import io.cozmic.usher.core.Channel;
 import io.cozmic.usher.core.CountDownFutureResult;
+import io.cozmic.usher.core.InputRunner;
+import io.cozmic.usher.core.OutputRunner;
+import io.cozmic.usher.streams.ChannelImpl;
+import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.core.streams.Pump;
-import io.vertx.core.streams.ReadStream;
-import io.vertx.core.streams.WriteStream;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 /**
  * Created by chuck on 6/30/15.
- *
+ * <p>
  * Sets up data streams based on config file.... Example config:
- *
+ * <p>
  * inputs: [
- *    {
- *      type: TcpInput
- *    },
- *    {
- *      type: HttpInput
- *    }
+ * {
+ * type: TcpInput
+ * },
+ * {
+ * type: HttpInput
+ * }
  * ],
  * outputs: [
- *    {
- *        type: TcpOutput
- *    }
+ * {
+ * type: TcpOutput
+ * }
  * ]
  */
 public class PipelineVerticle extends AbstractVerticle {
     Logger logger = LoggerFactory.getLogger(PipelineVerticle.class.getName());
-    public void start(final Future<Void> startedResult) {
 
-        PluginFactory pluginFactory = new PluginFactory(getVertx());
-        List<InputRunner> inputRunners = pluginFactory.createInputRunners(config().getJsonArray("inputs"));
-        List<OutputRunner> outputRunners = pluginFactory.createOutputRunners(config().getJsonArray("outputs"));
+    public void start(final Future<Void> startedResult) throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
+
+        PluginFactory pluginFactory = new PluginFactory(getVertx(), config());
+        List<InputRunner> inputRunners = pluginFactory.getInputRunners();
+        List<OutputRunner> outputRunners = pluginFactory.getOutputRunners();
 
         CountDownFutureResult<Void> dynamicStarter = CountDownFutureResult.dynamicStarter(inputRunners.size(), startedResult);
 
@@ -51,7 +55,11 @@ public class PipelineVerticle extends AbstractVerticle {
                     return;
                 }
                 dynamicStarter.complete();
-            }, inputMessageParsingStream -> {
+            }, inMessageStream -> {
+
+                //Pause the in stream until the outstream is ready
+                inMessageStream.pause();
+
                 for (OutputRunner outputRunner : outputRunners) {
                     outputRunner.run(asyncResult -> {
                         if (asyncResult.failed()) {
@@ -61,20 +69,11 @@ public class PipelineVerticle extends AbstractVerticle {
                             return;
                         }
 
-                        final MessageFilteringStream messageFilteringStream = asyncResult.result();
-                        final MessageParser messageParser = inputMessageParsingStream.getMessageParser();
-                        final WriteStream<Buffer> inputWriteStream = inputMessageParsingStream.getWriteStream();
-                        final MessageFilter messageFilter = messageFilteringStream.getMessageFilter();
-                        final ReadStream<Buffer> outputReadStream = messageFilteringStream.getReadStream();
 
-                        final Pump inToOutPump = Pump.pump(messageParser, messageFilter);
-                        final Pump outToInPump = Pump.pump(outputReadStream, inputWriteStream);
-                        inToOutPump.start();
-                        outToInPump.start();
-                        messageParser.endHandler(v -> {
-                            outputRunner.stop(messageFilter);
-                            inToOutPump.stop();
-                            outToInPump.stop();
+                        final MessageStream outMessageStream = asyncResult.result();
+                        Channel channel = new ChannelImpl(inMessageStream, outMessageStream);
+                        channel.start().endHandler(v -> {
+                            outputRunner.stop(outMessageStream.getMessageFilter());
                         });
                     });
                 }

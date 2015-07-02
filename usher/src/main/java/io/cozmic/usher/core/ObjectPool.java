@@ -90,7 +90,7 @@ public abstract class ObjectPool<T>
             return;
         }
 
-        Future.succeededFuture(object);
+        readyHandler.handle(Future.succeededFuture(object));
     }
 
     /**

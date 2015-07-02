@@ -1,6 +1,5 @@
 package io.cozmic.usher.test.integration;
 
-import io.cozmic.usher.old.ProxyTunnel;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -31,7 +30,7 @@ public class CozmicBot extends AbstractVerticle {
         final Buffer buffer = Buffer.buffer(bytes);
         netClient = vertx.createNetClient();
 //        .setConnectTimeout(5000).setReconnectAttempts(100).setReconnectInterval(1000);
-        netClient.connect(ProxyTunnel.DEFAULT_PORT, ProxyTunnel.DEFAULT_HOST, new Handler<AsyncResult<NetSocket>>() {
+        netClient.connect(2500, "localhost", new Handler<AsyncResult<NetSocket>>() {
             @Override
             public void handle(AsyncResult<NetSocket> event) {
                 if (event.failed()) {

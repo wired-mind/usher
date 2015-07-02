@@ -1,8 +1,10 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.DecoderPlugin;
+import io.cozmic.usher.core.MessageParser;
 import io.cozmic.usher.core.SplitterPlugin;
-import io.cozmic.usherprotocols.core.Message;
+import io.cozmic.usher.message.Message;
+import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.ReadStream;
@@ -17,22 +19,27 @@ public class MessageParserImpl implements MessageParser, Handler<Buffer> {
     private final DecoderPlugin decoderPlugin;
 
     private final ReadStream<Buffer> innerReadStream;
+    private final DuplexStream<Buffer, Buffer> duplexStream;
     private ConcurrentLinkedQueue<Message> readBuffers = new ConcurrentLinkedQueue<>();
     private boolean paused;
     private Handler<Message> handler;
 
-    public MessageParserImpl(ReadStream<Buffer> readStream, SplitterPlugin splitterPlugin, DecoderPlugin decoderPlugin) {
-        innerReadStream = readStream;
+    public MessageParserImpl(DuplexStream<Buffer, Buffer> duplexStream, SplitterPlugin splitterPlugin, DecoderPlugin decoderPlugin) {
+        this.duplexStream = duplexStream;
+        innerReadStream = duplexStream.getReadStream();
         this.splitterPlugin = splitterPlugin;
         this.decoderPlugin = decoderPlugin;
 
-        readStream.handler(this);
+        innerReadStream.handler(this);
     }
 
     @Override
     public void handle(Buffer buffer) {
         splitterPlugin.findRecord(buffer, record -> {
             decoderPlugin.decode(record, message -> {
+//                duplexStream.decorate(message, decorated -> {
+//
+//                })
                 readBuffers.add(message);
 
                 if (paused) {
@@ -64,6 +71,7 @@ public class MessageParserImpl implements MessageParser, Handler<Buffer> {
     @Override
     public ReadStream<Message> handler(final Handler<Message> handler) {
         this.handler = handler;
+        if (handler != null) purgeReadBuffers();
         return this;
     }
 

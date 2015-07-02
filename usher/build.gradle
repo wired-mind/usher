@@ -35,8 +35,8 @@ repositories {
 
 dependencies {
     compile "io.vertx:vertx-core:$vertxVersion"
+    compile "com.vistarmedia:metrics-datadog:0.0.18-SNAPSHOT"
     compile "io.dropwizard.metrics:metrics-core:$metricsVersion"
-    compile project(":usherprotocols")
     compile 'com.google.guava:guava:18.0'
     compile 'org.apache.kafka:kafka_2.11:0.8.2.1'
     testCompile "io.vertx:vertx-unit:$vertxVersion"

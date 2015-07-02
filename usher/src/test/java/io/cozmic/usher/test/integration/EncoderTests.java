@@ -4,7 +4,9 @@ package io.cozmic.usher.test.integration;
 import io.cozmic.usher.RawEchoChamber;
 import io.cozmic.usher.Start;
 import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetSocket;
 import io.vertx.ext.unit.Async;
@@ -27,7 +29,7 @@ import static org.junit.Assert.fail;
  * Created by chuck on 6/29/15.
  */
 @RunWith(VertxUnitRunner.class)
-public class SimpleSmokeTests {
+public class EncoderTests {
 
     Vertx vertx;
 
@@ -43,40 +45,69 @@ public class SimpleSmokeTests {
     }
 
 
+    /**
+     * This test isn't great yet. It's only just validating that a response comes back. Should also
+     * confirm encoding behavior
+     * @param context
+     */
     @Test
-    public void testCanStart(TestContext context) {
-        final DeploymentOptions options = buildDeploymentOptions();
-        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
-            vertx.undeploy(deploymentID, context.asyncAssertSuccess());
-        }));
+    public void testCanEchoEncodedStream(TestContext context) {
+        final DeploymentOptions options = new DeploymentOptions();
 
-
-    }
-
-    @Test
-    public void testCanEcho(TestContext context) {
-        final DeploymentOptions options = buildDeploymentOptions();
+        final JsonObject config = new JsonObject();
+        final JsonObject output = buildOutput();
+        output.put("encoder", "CozmicEncoder");
+        config
+                .put("Router", buildInput())
+                .put("EchoBackend", output)
+                .put("CozmicEncoder", buildCozmicEncoder());
+        options.setConfig(config);
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
             vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
                 final NetSocket socket = asyncResult.result();
-                socket.write("Hello");
+                socket.write("Hello World");
                 socket.handler(buffer -> {
-                    context.assertEquals("Hello", buffer.toString());
+                    context.assertNotNull(buffer);
 
-
-                         async.complete();
+                    async.complete();
 
                 });
             });
-
+            vertx.setTimer(5000, new Handler<Long>() {
+                @Override
+                public void handle(Long event) {
+                    context.fail("timed out");
+                }
+            });
         }));
+    }
+
+    private JsonObject buildCozmicEncoder() {
+        return new JsonObject().put("type", "CozmicEncoder");
+    }
+
+
+    protected Buffer createFakeStartupPacket() {
+        final Buffer fakeStartupPacket = Buffer.buffer();
+        fakeStartupPacket.appendByte((byte) 0x03);
+        fakeStartupPacket.appendByte((byte) 0x03);
+        fakeStartupPacket.appendBytes(new byte[26]);
+        return fakeStartupPacket;
+    }
+
+    private JsonObject buildOutput() {
+        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193);
+    }
+
+    private JsonObject buildInput() {
+        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500);
     }
 
     public DeploymentOptions buildDeploymentOptions() {
         JsonObject config = null;
         try {
-            final URI uri = getClass().getResource("/config_simple_echo.json").toURI();
+            final URI uri = getClass().getResource("/config_base.json").toURI();
             final String configString = new String(Files.readAllBytes(Paths.get(uri)));
             config = new JsonObject(configString);
         } catch (URISyntaxException | IOException e) {

@@ -1,6 +1,8 @@
 package io.cozmic.usher.pipeline;
 
-import io.cozmic.usher.core.OutputPlugin;
+import io.cozmic.usher.core.*;
+import io.cozmic.usher.streams.DuplexStream;
+import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
@@ -9,24 +11,29 @@ import io.vertx.core.buffer.Buffer;
  * Created by chuck on 6/30/15.
  */
 public class OutputRunnerImpl implements OutputRunner {
+    private final String pluginName;
     private final OutputPlugin outputPlugin;
-    private final MessageFilterFactory messageFilterFactory;
+    private final MessageParserFactoryImpl outInParserFactory;
+    private final MessageFilterFactory inOutFilterFactory;
 
-    public OutputRunnerImpl(OutputPlugin outputPlugin, MessageFilterFactory messageFilterFactory) {
+    public OutputRunnerImpl(String pluginName, OutputPlugin outputPlugin, MessageParserFactoryImpl outInParserFactory, MessageFilterFactory inOutFilterFactory) {
+        this.pluginName = pluginName;
         this.outputPlugin = outputPlugin;
-        this.messageFilterFactory = messageFilterFactory;
+        this.outInParserFactory = outInParserFactory;
+        this.inOutFilterFactory = inOutFilterFactory;
     }
 
     @Override
-    public void run(AsyncResultHandler<MessageFilteringStream> messageFilteringStreamAsyncResultHandler) {
+    public void run(AsyncResultHandler<MessageStream> messageStreamAsyncResultHandler) {
          outputPlugin.run(duplexStreamAsyncResult -> {
              if (duplexStreamAsyncResult.failed()) {
-                 messageFilteringStreamAsyncResultHandler.handle(Future.failedFuture(duplexStreamAsyncResult.cause()));
+                 messageStreamAsyncResultHandler.handle(Future.failedFuture(duplexStreamAsyncResult.cause()));
                  return;
              }
              final DuplexStream<Buffer, Buffer> duplexStream = duplexStreamAsyncResult.result();
-             final MessageFilter messageWriteStream = messageFilterFactory.createFilter(duplexStream.getWriteStream());
-             messageFilteringStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageFilteringStream(duplexStream.getReadStream(), messageWriteStream)));
+             final MessageFilter messageFilter = inOutFilterFactory.createFilter(pluginName, duplexStream.getWriteStream());
+             final MessageParser messageParser = outInParserFactory.createParser(pluginName, duplexStream);
+             messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(messageParser, messageFilter)));
          });
     }
 
