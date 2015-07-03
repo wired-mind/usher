@@ -11,6 +11,8 @@ import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetClientOptions;
 import io.vertx.core.net.NetSocket;
 
+import static com.codahale.metrics.MetricRegistry.name;
+
 /**
  * Created by chuck on 6/30/15.
  */
@@ -53,5 +55,9 @@ public class SocketPool extends ObjectPool<NetSocket> {
             }
             readyHandler.handle(Future.succeededFuture(connectHandler.result()));
         });
+    }
+
+    protected Class className() {
+        return SocketPool.class;
     }
 }

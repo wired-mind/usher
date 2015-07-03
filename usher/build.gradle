@@ -35,18 +35,20 @@ repositories {
 
 dependencies {
     compile "io.vertx:vertx-core:$vertxVersion"
-    compile "com.vistarmedia:metrics-datadog:0.0.18-SNAPSHOT"
-    compile "io.dropwizard.metrics:metrics-core:$metricsVersion"
+    compile "io.vertx:vertx-dropwizard-metrics:$vertxVersion"
+    compile "org.coursera:metrics-datadog:1.0.2"
     compile 'com.google.guava:guava:18.0'
     compile 'org.apache.kafka:kafka_2.11:0.8.2.1'
     testCompile "io.vertx:vertx-unit:$vertxVersion"
     testCompile "junit:junit:$junitVersion"
 }
 
+
 shadowJar {
     classifier = 'fat'
     manifest {
         attributes 'Main-Class': 'io.vertx.core.Starter'
+        attributes 'Main-Verticle': 'java:io.cozmic.usher.Start'
     }
     mergeServiceFiles {
         include 'META-INF/services/io.vertx.core.spi.VerticleFactory'

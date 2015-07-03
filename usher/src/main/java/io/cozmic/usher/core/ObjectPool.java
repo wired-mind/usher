@@ -1,11 +1,16 @@
 package io.cozmic.usher.core;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static com.codahale.metrics.MetricRegistry.name;
 
 /**
  * Inspired by easy-pool (https://github.com/ova2/easy-pool) but adapted for vertx
@@ -17,6 +22,11 @@ public abstract class ObjectPool<T>
     protected Vertx vertx;
     private ConcurrentLinkedQueue<T> pool;
     private long timerId;
+    private MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate("usher");
+    private final Counter poolSize = metricRegistry.counter(name(className(), "pool-size"));
+    private final Counter poolMisses = metricRegistry.counter(name(className(), "pool-misses"));
+
+    protected abstract Class className();
 
 
     /**
@@ -46,7 +56,6 @@ public abstract class ObjectPool<T>
         final Integer minIdle = configObj.getInteger("minIdle", 3);
         final Integer maxIdle = configObj.getInteger("maxIdle", 100);
         final Integer validationInterval = configObj.getInteger("validationInterval", 5);
-
         // initialize pool
         initialize(minIdle);
 
@@ -57,14 +66,19 @@ public abstract class ObjectPool<T>
                 int sizeToBeAdded = minIdle - size;
                 for (int i = 0; i < sizeToBeAdded; i++) {
                     createObject(asyncResult -> {
-                        if (asyncResult.succeeded()) pool.add(asyncResult.result());
+                        if (asyncResult.succeeded()) {
+                            pool.add(asyncResult.result());
+                            poolSize.inc();
+                        }
                     });
                 }
             } else if (size > maxIdle) {
                 int sizeToBeRemoved = size - maxIdle;
                 for (int i = 0; i < sizeToBeRemoved; i++) {
-                    destroyObject(pool.poll());
-
+                    final T obj = doRemoveFromPool();
+                    if (obj != null) {
+                        destroyObject(obj);
+                    }
                 }
             }
         });
@@ -78,19 +92,25 @@ public abstract class ObjectPool<T>
      */
     public void borrowObject(AsyncResultHandler<T> readyHandler) {
         T object;
-        if ((object = pool.poll()) == null) {
+        if ((object = doRemoveFromPool()) == null) {
             createObject(asyncResult -> {
                 if (asyncResult.failed()) {
                     readyHandler.handle(Future.failedFuture(asyncResult.cause()));
                     return;
                 }
-
+                poolMisses.inc();
                 readyHandler.handle(Future.succeededFuture(asyncResult.result()));
             });
             return;
         }
 
         readyHandler.handle(Future.succeededFuture(object));
+    }
+
+    private T doRemoveFromPool() {
+        final T object = pool.poll();
+        if (object != null) poolSize.dec();
+        return object;
     }
 
     /**
@@ -104,6 +124,7 @@ public abstract class ObjectPool<T>
         }
 
         this.pool.offer(object);
+        poolSize.inc();
     }
 
     /**
@@ -127,7 +148,10 @@ public abstract class ObjectPool<T>
 
         for (int i = 0; i < minIdle; i++) {
             createObject(asyncResult -> {
-                if (asyncResult.succeeded()) pool.add(asyncResult.result());
+                if (asyncResult.succeeded()) {
+                    pool.add(asyncResult.result());
+                    poolSize.inc();
+                }
             });
         }
     }
