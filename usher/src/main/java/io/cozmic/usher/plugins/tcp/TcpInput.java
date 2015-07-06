@@ -41,6 +41,7 @@ public class TcpInput implements InputPlugin {
         });
     }
 
+
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
         netServer = vertx.createNetServer(buildOptions(configObj));

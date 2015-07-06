@@ -3,6 +3,7 @@ package io.cozmic.usher.pipeline;
 import io.cozmic.usher.core.EncoderPlugin;
 import io.cozmic.usher.core.MessageFilter;
 import io.cozmic.usher.core.MessageFilterFactory;
+import io.cozmic.usher.core.MessageMatcher;
 import io.cozmic.usher.plugins.core.NullEncoder;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.WriteStream;
@@ -22,17 +23,20 @@ public class MessageFilterFactoryImpl implements MessageFilterFactory {
 
 
     @Override
-    public MessageFilter createFilter(String pluginName, WriteStream<Buffer> writeStream){
+    public MessageFilter createFilter(String pluginName, MessageMatcher messageMatcher, WriteStream<Buffer> writeStream){
         EncoderPlugin encoderPlugin = createEncoder(pluginName);
-        return new MessageFilterImpl(writeStream, encoderPlugin);
+
+        return new MessageFilterImpl(writeStream, encoderPlugin, messageMatcher);
     }
+
+
 
     private EncoderPlugin createEncoder(String pluginName) {
         if (!encoderIndex.exists(pluginName)) {
             return new NullEncoder();
         }
 
-        final EncoderPlugin decoderPlugin = encoderIndex.get(pluginName);
-        return decoderPlugin.createNew();
+        final EncoderPlugin encoderPlugin = encoderIndex.get(pluginName);
+        return encoderPlugin.createNew();
     }
 }

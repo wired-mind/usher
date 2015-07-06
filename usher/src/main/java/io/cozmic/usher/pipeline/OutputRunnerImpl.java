@@ -13,12 +13,14 @@ import io.vertx.core.buffer.Buffer;
 public class OutputRunnerImpl implements OutputRunner {
     private final String pluginName;
     private final OutputPlugin outputPlugin;
+    private final MessageMatcher messageMatcher;
     private final MessageParserFactoryImpl outInParserFactory;
     private final MessageFilterFactory inOutFilterFactory;
 
-    public OutputRunnerImpl(String pluginName, OutputPlugin outputPlugin, MessageParserFactoryImpl outInParserFactory, MessageFilterFactory inOutFilterFactory) {
+    public OutputRunnerImpl(String pluginName, OutputPlugin outputPlugin, MessageMatcher messageMatcher, MessageParserFactoryImpl outInParserFactory, MessageFilterFactory inOutFilterFactory) {
         this.pluginName = pluginName;
         this.outputPlugin = outputPlugin;
+        this.messageMatcher = messageMatcher;
         this.outInParserFactory = outInParserFactory;
         this.inOutFilterFactory = inOutFilterFactory;
     }
@@ -31,7 +33,7 @@ public class OutputRunnerImpl implements OutputRunner {
                  return;
              }
              final DuplexStream<Buffer, Buffer> duplexStream = duplexStreamAsyncResult.result();
-             final MessageFilter messageFilter = inOutFilterFactory.createFilter(pluginName, duplexStream.getWriteStream());
+             final MessageFilter messageFilter = inOutFilterFactory.createFilter(pluginName, messageMatcher, duplexStream.getWriteStream());
              final MessageParser messageParser = outInParserFactory.createParser(pluginName, duplexStream);
              messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(messageParser, messageFilter)));
          });

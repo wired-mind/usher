@@ -70,4 +70,12 @@ public class Message implements Shareable {
     public void setLocalAddress(SocketAddress localAddress) {
         this.localAddress = localAddress;
     }
+
+    public SocketAddress getRemoteAddress() {
+        return remoteAddress;
+    }
+
+    public SocketAddress getLocalAddress() {
+        return localAddress;
+    }
 }

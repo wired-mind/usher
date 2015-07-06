@@ -2,6 +2,7 @@ package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.EncoderPlugin;
 import io.cozmic.usher.core.MessageFilter;
+import io.cozmic.usher.core.MessageMatcher;
 import io.cozmic.usher.message.Message;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
@@ -13,10 +14,12 @@ import io.vertx.core.streams.WriteStream;
 public class MessageFilterImpl implements MessageFilter {
     private final WriteStream<Buffer> innerWriteStream;
     private final EncoderPlugin encoderPlugin;
+    private final MessageMatcher messageMatcher;
 
-    public MessageFilterImpl(WriteStream<Buffer> writeStream, EncoderPlugin encoderPlugin) {
+    public MessageFilterImpl(WriteStream<Buffer> writeStream, EncoderPlugin encoderPlugin, MessageMatcher messageMatcher) {
         this.innerWriteStream = writeStream;
         this.encoderPlugin = encoderPlugin;
+        this.messageMatcher = messageMatcher;
     }
 
     @Override
@@ -27,15 +30,10 @@ public class MessageFilterImpl implements MessageFilter {
 
     @Override
     public WriteStream<Message> write(Message message) {
-        if (matches(message)) {
+        if (messageMatcher.matches(message)) {
             encoderPlugin.encode(message, innerWriteStream::write);
         }
         return this;
-    }
-
-    //TODO: return true until we implement filter logic
-    private boolean matches(Message message) {
-        return true;
     }
 
 

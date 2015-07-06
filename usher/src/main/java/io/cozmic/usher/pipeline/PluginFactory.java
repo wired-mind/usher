@@ -76,7 +76,9 @@ public class PluginFactory {
 
     public InputRunner createInputRunner(String pluginName, JsonObject inputObj, MessageParserFactoryImpl inOutParserFactory, MessageFilterFactoryImpl outInFilterFactory) {
         InputPlugin inputPlugin = createInput(inputObj);
-        return new InputRunnerImpl(pluginName, inputPlugin, inOutParserFactory, outInFilterFactory);
+        final String expressionVal = inputObj.getString("messageMatcher");
+        final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.always() : new JuelMatcher(expressionVal);
+        return new InputRunnerImpl(pluginName, inputPlugin, messageMatcher, inOutParserFactory, outInFilterFactory);
     }
 
     public OutputPlugin createOutput(JsonObject outputObj) {
@@ -87,7 +89,9 @@ public class PluginFactory {
 
     public OutputRunner createOutputRunner(String pluginName, JsonObject outputObj, MessageParserFactoryImpl outInParserFactory, MessageFilterFactoryImpl inOutFilterFactory) {
         OutputPlugin outputPlugin = createOutput(outputObj);
-        return new OutputRunnerImpl(pluginName, outputPlugin, outInParserFactory, inOutFilterFactory);
+        final String expressionVal = outputObj.getString("messageMatcher");
+        final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.never() : new JuelMatcher(expressionVal);
+        return new OutputRunnerImpl(pluginName, outputPlugin, messageMatcher, outInParserFactory, inOutFilterFactory);
     }
 
     public List<OutputRunner> getOutputRunners() {

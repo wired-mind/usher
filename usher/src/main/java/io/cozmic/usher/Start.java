@@ -69,7 +69,7 @@ public class Start extends AbstractVerticle {
     public void startDatadogReporter(MetricRegistry usher, String datadogApiKey) {
         EnumSet<DatadogReporter.Expansion> expansions = EnumSet.of(COUNT, RATE_1_MINUTE, RATE_15_MINUTE, MEDIAN, P95, P99);
         HttpTransport httpTransport = new HttpTransport.Builder().withApiKey(datadogApiKey).build();
-        DatadogReporter reporter = null;
+        DatadogReporter reporter;
         try {
             reporter = DatadogReporter.forRegistry(usher)
                     .withEC2Host()

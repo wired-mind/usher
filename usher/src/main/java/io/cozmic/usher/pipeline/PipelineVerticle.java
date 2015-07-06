@@ -1,13 +1,11 @@
 package io.cozmic.usher.pipeline;
 
-import io.cozmic.usher.core.Channel;
-import io.cozmic.usher.core.CountDownFutureResult;
-import io.cozmic.usher.core.InputRunner;
-import io.cozmic.usher.core.OutputRunner;
+import io.cozmic.usher.core.*;
 import io.cozmic.usher.streams.ChannelImpl;
 import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.eventbus.impl.EventBusImpl;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
@@ -55,11 +53,11 @@ public class PipelineVerticle extends AbstractVerticle {
                     return;
                 }
                 dynamicStarter.complete();
-            }, inMessageStream -> {
+            }, inputMessageStream -> {
 
-                //Pause the in stream until the outstream is ready
-                inMessageStream.pause();
-
+                //Pause the in stream until the out stream is ready
+                inputMessageStream.pause();
+                final Router router = new DemultiplexingRouter(outputRunners);
                 for (OutputRunner outputRunner : outputRunners) {
                     outputRunner.run(asyncResult -> {
                         if (asyncResult.failed()) {
@@ -70,13 +68,15 @@ public class PipelineVerticle extends AbstractVerticle {
                         }
 
 
-                        final MessageStream outMessageStream = asyncResult.result();
-                        Channel channel = new ChannelImpl(inMessageStream, outMessageStream);
+                        final MessageStream outputMessageStream = asyncResult.result();
+                        Channel channel = new ChannelImpl(inputMessageStream, outputMessageStream);
                         channel.start().endHandler(v -> {
-                            outputRunner.stop(outMessageStream.getMessageFilter());
+                            outputRunner.stop(outputMessageStream.getMessageFilter());
                         });
                     });
                 }
+
+
             });
         }
 

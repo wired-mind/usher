@@ -46,6 +46,7 @@ public class DuplexStream<R, W> {
             return;
         }
 
-//        messageDecorator.handle(m);
+        messageDecorator.handle(message);
+        decoratedHandler.handle(message);
     }
 }

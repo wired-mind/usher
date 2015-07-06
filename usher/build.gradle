@@ -35,6 +35,15 @@ repositories {
 
 dependencies {
     compile "io.vertx:vertx-core:$vertxVersion"
+
+    compile 'javax.el:el-api:2.2.1-b04'
+    compile 'de.odysseus.juel:juel-impl:2.2.7'
+    compile 'de.odysseus.juel:juel-spi:2.2.7'
+
+
+
+
+
     compile "io.vertx:vertx-dropwizard-metrics:$vertxVersion"
     compile "org.coursera:metrics-datadog:1.0.2"
     compile 'com.google.guava:guava:18.0'

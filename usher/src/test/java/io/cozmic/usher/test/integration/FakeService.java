@@ -15,16 +15,27 @@ public class FakeService extends AbstractVerticle {
 
     public static final int FAKE_SERVICE_PORT = 9191;
     public static final String FAKE_SERVICE_HOST = "localhost";
+    private final Buffer response;
+    private final int port;
 
     Logger logger = LoggerFactory.getLogger(FakeService.class.getName());
+
+    public FakeService(Buffer response) {
+        this(response, FAKE_SERVICE_PORT);
+    }
+
+    public FakeService(Buffer response, int port) {
+
+        this.response = response;
+        this.port = port;
+    }
 
     public void start(final Future<Void> startedResult)
     {
 
-        final Integer delay =  config().getInteger("delay", 1);
-        final Buffer fakeTrackingResponse = Buffer.buffer();
-        fakeTrackingResponse.appendByte((byte) 0x11);
-        fakeTrackingResponse.appendByte((byte) 0x01);
+//        final Buffer fakeTrackingResponse = Buffer.buffer();
+//        fakeTrackingResponse.appendByte((byte) 0x11);
+//        fakeTrackingResponse.appendByte((byte) 0x01);
 
         final NetServer netServer = vertx.createNetServer();
 
@@ -34,12 +45,12 @@ public class FakeService extends AbstractVerticle {
                         logger.error("Socket error on fake service socket", event);
                     });
                     socket.handler(event -> {
-                        socket.write(fakeTrackingResponse);
+                        socket.write(response);
                     });
 
 
                 })
-                .listen(FAKE_SERVICE_PORT, FAKE_SERVICE_HOST, event -> {
+                .listen(port, FAKE_SERVICE_HOST, event -> {
                     if (event.failed()) {
                         final Throwable cause = event.cause();
                         logger.error(cause.getMessage());

@@ -126,4 +126,5 @@ public class PluginLoader {
     public PluginIndex<EncoderPlugin> getEncoderIndex() {
         return encoderIndex;
     }
+
 }

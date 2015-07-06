@@ -2,6 +2,7 @@ package io.cozmic.usher.core;
 
 import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.streams.ReadStream;
 
 /**
  * Created by chuck on 6/29/15.

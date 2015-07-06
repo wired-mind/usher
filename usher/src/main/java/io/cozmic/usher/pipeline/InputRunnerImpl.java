@@ -13,14 +13,17 @@ public class InputRunnerImpl implements InputRunner {
     private final InputPlugin inputPlugin;
     private final MessageParserFactory inOutParserFactory;
     private final MessageFilterFactoryImpl outInFilterFactory;
+    private final MessageMatcher messageMatcher;
 
-
-    public InputRunnerImpl(String pluginName, InputPlugin inputPlugin, MessageParserFactory inOutParserFactory, MessageFilterFactoryImpl outInFilterFactory) {
+    public InputRunnerImpl(String pluginName, InputPlugin inputPlugin, MessageMatcher messageMatcher, MessageParserFactory inOutParserFactory, MessageFilterFactoryImpl outInFilterFactory) {
         this.pluginName = pluginName;
 
         this.inputPlugin = inputPlugin;
+        this.messageMatcher = messageMatcher;
         this.inOutParserFactory = inOutParserFactory;
         this.outInFilterFactory = outInFilterFactory;
+
+
     }
 
     @Override
@@ -28,7 +31,7 @@ public class InputRunnerImpl implements InputRunner {
 
         inputPlugin.run(startupHandler::handle, duplexStream -> {
             MessageParser messageParser = inOutParserFactory.createParser(pluginName, duplexStream);
-            final MessageFilter messageFilter = outInFilterFactory.createFilter(pluginName, duplexStream.getWriteStream());
+            final MessageFilter messageFilter = outInFilterFactory.createFilter(pluginName, messageMatcher, duplexStream.getWriteStream());
             messageStreamHandler.handle(new MessageStream(messageParser, messageFilter));
         });
     }

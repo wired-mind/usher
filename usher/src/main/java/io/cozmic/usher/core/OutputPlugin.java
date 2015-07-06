@@ -12,4 +12,5 @@ public interface OutputPlugin extends Plugin {
     void run(AsyncResultHandler<DuplexStream<Buffer, Buffer>> duplexStreamAsyncResultHandler);
 
     void stop(WriteStream<Buffer> innerWriteStream);
+
 }

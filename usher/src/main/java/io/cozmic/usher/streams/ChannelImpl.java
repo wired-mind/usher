@@ -17,13 +17,13 @@ public class ChannelImpl implements Channel {
     private Pump outToInPump;
     private Handler<Void> endHandler;
 
-    public ChannelImpl(MessageStream inMessageStream, MessageStream outMessageStream) {
-        this.inMessageStream = inMessageStream;
-        this.outMessageStream = outMessageStream;
-        inToOutPump = createPump(inMessageStream, outMessageStream);
-        outToInPump = createPump(outMessageStream, inMessageStream);
+    public ChannelImpl(MessageStream inputMessageStream, MessageStream outputMessageStream) {
+        this.inMessageStream = inputMessageStream;
+        this.outMessageStream = outputMessageStream;
+        inToOutPump = createPump(inputMessageStream, outputMessageStream);
+        outToInPump = createPump(outputMessageStream, inputMessageStream);
 
-        inMessageStream.getReadStream().endHandler(v -> {
+        inputMessageStream.getReadStream().endHandler(v -> {
             inToOutPump.stop();
             outToInPump.stop();
             if (endHandler != null) endHandler.handle(null);
@@ -31,9 +31,9 @@ public class ChannelImpl implements Channel {
     }
 
     public Pump createPump(MessageStream inMessageStream, MessageStream outMessageStream) {
-        final MessageParser inOutMessageParser = inMessageStream.getMessageParser();
-        final MessageFilter inOutmessageFilter = outMessageStream.getMessageFilter();
-        return Pump.pump(inOutMessageParser, inOutmessageFilter);
+        final MessageParser messageParser = inMessageStream.getMessageParser();
+        final MessageFilter messageFilter = outMessageStream.getMessageFilter();
+        return Pump.pump(messageParser, messageFilter);
     }
 
     @Override

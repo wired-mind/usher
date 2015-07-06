@@ -37,16 +37,16 @@ public class MessageParserImpl implements MessageParser, Handler<Buffer> {
     public void handle(Buffer buffer) {
         splitterPlugin.findRecord(buffer, record -> {
             decoderPlugin.decode(record, message -> {
-//                duplexStream.decorate(message, decorated -> {
-//
-//                })
-                readBuffers.add(message);
+                duplexStream.decorate(message, decorated -> {
+                    readBuffers.add(decorated);
 
-                if (paused) {
-                    return;
-                }
+                    if (paused) {
+                        return;
+                    }
 
-                purgeReadBuffers();
+                    purgeReadBuffers();
+                });
+
             });
         });
     }
