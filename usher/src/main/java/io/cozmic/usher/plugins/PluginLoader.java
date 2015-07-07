@@ -1,4 +1,4 @@
-package io.cozmic.usher.pipeline;
+package io.cozmic.usher.plugins;
 
 import com.google.common.collect.Maps;
 import io.cozmic.usher.core.*;
@@ -12,7 +12,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * Created by chuck on 7/1/15.
@@ -26,6 +25,7 @@ public class PluginLoader {
     private Map<String, Map.Entry<DecoderPlugin, JsonObject>> decoderPlugins = Maps.newConcurrentMap();
     private Map<String, Map.Entry<OutputPlugin, JsonObject>> outputPlugins = Maps.newConcurrentMap();
     private Map<String, Map.Entry<EncoderPlugin, JsonObject>> encoderPlugins = Maps.newConcurrentMap();
+    private Map<String, Map.Entry<FilterPlugin, JsonObject>> filterPlugins = Maps.newConcurrentMap();
     private Map<String, String> wellKnownPackages;
 
 
@@ -71,6 +71,9 @@ public class PluginLoader {
             else if (pluginType.endsWith("Encoder")) {
                 encoderPlugins.put(pluginName, Maps.immutableEntry((EncoderPlugin) plugin, pluginConfig));
             }
+            else if (pluginType.endsWith("Filter")) {
+                filterPlugins.put(pluginName, Maps.immutableEntry((FilterPlugin) plugin, pluginConfig));
+            }
         }
 
         splitterIndex = new PluginIndex<>(getSplitters(), "splitter");
@@ -115,6 +118,10 @@ public class PluginLoader {
         return decoderPlugins;
     }
 
+    public Map<String, Map.Entry<FilterPlugin, JsonObject>> getFilters() {
+        return filterPlugins;
+    }
+
     public PluginIndex<SplitterPlugin> getSplitterIndex() {
         return splitterIndex;
     }
@@ -126,5 +133,4 @@ public class PluginLoader {
     public PluginIndex<EncoderPlugin> getEncoderIndex() {
         return encoderIndex;
     }
-
 }

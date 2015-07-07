@@ -7,6 +7,9 @@
   "EchoBackend": {
     "type": "TcpOutput",
     "host": "localhost",
-    "port": 9193
+    "port": 9193,
+    "messageMatcher": "#{localPort == 2500}",
+    "reconnectAttempts": -1,
+    "reconnectInterval": 3000
   }
 }

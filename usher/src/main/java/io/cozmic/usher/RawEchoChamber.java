@@ -5,7 +5,10 @@ import io.vertx.core.Future;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.NetServer;
+import io.vertx.core.net.NetServerOptions;
 import io.vertx.core.streams.Pump;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -23,7 +26,7 @@ public class RawEchoChamber extends AbstractVerticle {
 
         final Integer delay = config().getInteger("delay", 1);
 
-        final NetServer netServer = vertx.createNetServer();
+        final NetServer netServer = vertx.createNetServer(new NetServerOptions().setAcceptBacklog(10000));
         logger.info("Echo is Hello world!");
         netServer
                 .connectHandler(socket -> {
@@ -31,8 +34,9 @@ public class RawEchoChamber extends AbstractVerticle {
                         logger.error("Socket error on echo service socket", event);
                     });
 
-                    final Pump pump = Pump.pump(socket, socket);
-                    pump.start();
+
+                    Pump.pump(socket, socket).start();
+
                 })
                 .listen(ECHO_SERVICE_PORT, ECHO_SERVICE_HOST, event -> {
                     if (event.failed()) {

@@ -7,6 +7,8 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.streams.WriteStream;
 
@@ -16,11 +18,13 @@ import io.vertx.core.streams.WriteStream;
  */
 public class TcpOutput implements OutputPlugin {
 
-
+    Logger logger = LoggerFactory.getLogger(TcpOutput.class.getName());
     private SocketPool socketPool;
+    private JsonObject configObj;
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
+        this.configObj = configObj;
         socketPool = new SocketPool(configObj, vertx);
     }
 
@@ -29,12 +33,16 @@ public class TcpOutput implements OutputPlugin {
         socketPool.borrowObject(asyncResult -> {
             if (asyncResult.failed()) {
                 final Throwable cause = asyncResult.cause();
-                duplexStreamAsyncResultHandler.handle(Future.failedFuture(cause));
+                logger.error(String.format("Unable to obtain socket for %s. Cause: %s", configObj.toString(), cause.getMessage()), cause);
+                run(duplexStreamAsyncResultHandler);
                 return;
             }
 
             final NetSocket socket = asyncResult.result();
-            duplexStreamAsyncResultHandler.handle(Future.succeededFuture(new DuplexStream<>(socket, socket)));
+            duplexStreamAsyncResultHandler.handle(Future.succeededFuture(new DuplexStream<>(socket, socket, message -> {
+                message.setRemoteAddress(socket.remoteAddress());
+                message.setLocalAddress(socket.localAddress());
+            })));
         });
 
     }

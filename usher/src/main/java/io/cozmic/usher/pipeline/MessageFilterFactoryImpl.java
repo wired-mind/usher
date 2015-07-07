@@ -4,6 +4,8 @@ import io.cozmic.usher.core.EncoderPlugin;
 import io.cozmic.usher.core.MessageFilter;
 import io.cozmic.usher.core.MessageFilterFactory;
 import io.cozmic.usher.core.MessageMatcher;
+import io.cozmic.usher.plugins.PluginIndex;
+import io.cozmic.usher.plugins.PluginLoader;
 import io.cozmic.usher.plugins.core.NullEncoder;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.WriteStream;

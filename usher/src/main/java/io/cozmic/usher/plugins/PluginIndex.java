@@ -1,4 +1,4 @@
-package io.cozmic.usher.pipeline;
+package io.cozmic.usher.plugins;
 
 import com.google.common.collect.Maps;
 import io.vertx.core.json.JsonObject;

@@ -1,6 +1,8 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.*;
+import io.cozmic.usher.plugins.PluginIndex;
+import io.cozmic.usher.plugins.PluginLoader;
 import io.cozmic.usher.plugins.core.NullDecoder;
 import io.cozmic.usher.plugins.core.NullSplitter;
 import io.cozmic.usher.streams.DuplexStream;

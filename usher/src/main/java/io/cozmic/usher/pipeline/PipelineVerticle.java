@@ -1,11 +1,11 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.*;
-import io.cozmic.usher.streams.ChannelImpl;
-import io.cozmic.usher.streams.MessageStream;
+import io.cozmic.usher.plugins.PluginFactory;
+import io.cozmic.usher.streams.ChannelFactoryImpl;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.eventbus.impl.EventBusImpl;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
@@ -41,7 +41,14 @@ public class PipelineVerticle extends AbstractVerticle {
         List<InputRunner> inputRunners = pluginFactory.getInputRunners();
         List<OutputRunner> outputRunners = pluginFactory.getOutputRunners();
 
-        CountDownFutureResult<Void> dynamicStarter = CountDownFutureResult.dynamicStarter(inputRunners.size(), startedResult);
+
+        final int inputCount = inputRunners.size();
+        final int outputCount = outputRunners.size();
+        CountDownFutureResult<Void> dynamicStarter = CountDownFutureResult.dynamicStarter(inputCount);
+
+        final OutputStreamDemultiplexerPool outputStreamDemultiplexerPool = new OutputStreamDemultiplexerPool(buildPoolConfig(inputCount, outputCount), vertx, pluginFactory);
+        final ChannelFactory channelFactory = new ChannelFactoryImpl(outputStreamDemultiplexerPool);
+
 
         for (InputRunner inputRunner : inputRunners) {
 
@@ -53,32 +60,11 @@ public class PipelineVerticle extends AbstractVerticle {
                     return;
                 }
                 dynamicStarter.complete();
-            }, inputMessageStream -> {
-
-                //Pause the in stream until the out stream is ready
-                inputMessageStream.pause();
-                final Router router = new DemultiplexingRouter(outputRunners);
-                for (OutputRunner outputRunner : outputRunners) {
-                    outputRunner.run(asyncResult -> {
-                        if (asyncResult.failed()) {
-                            final Throwable cause = asyncResult.cause();
-                            logger.error(cause.getMessage(), cause);
-                            dynamicStarter.fail(cause);
-                            return;
-                        }
+            }, channelFactory::createDuplexChannel);
 
 
-                        final MessageStream outputMessageStream = asyncResult.result();
-                        Channel channel = new ChannelImpl(inputMessageStream, outputMessageStream);
-                        channel.start().endHandler(v -> {
-                            outputRunner.stop(outputMessageStream.getMessageFilter());
-                        });
-                    });
-                }
-
-
-            });
         }
+
 
         dynamicStarter.setHandler(asyncResult -> {
             if (asyncResult.failed()) {
@@ -91,4 +77,17 @@ public class PipelineVerticle extends AbstractVerticle {
             startedResult.complete();
         });
     }
+
+    private JsonObject buildPoolConfig(int inputCount, int outputCount) {
+        return new JsonObject()
+                .put("minIdle", computeOutputStreamEstimate(inputCount, outputCount, 10))
+                .put("maxIdle", computeOutputStreamEstimate(inputCount, outputCount, 11));
+    }
+
+    private int computeOutputStreamEstimate(int inputCount, int outputCount, int concurrentConnections) {
+        final int outputStreamsPerConnection = outputCount * outputCount;
+        return (inputCount + outputStreamsPerConnection) * concurrentConnections;
+    }
+
+
 }

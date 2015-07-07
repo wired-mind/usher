@@ -19,6 +19,7 @@ public class FakeService extends AbstractVerticle {
     private final int port;
 
     Logger logger = LoggerFactory.getLogger(FakeService.class.getName());
+    private Buffer lastBuffer;
 
     public FakeService(Buffer response) {
         this(response, FAKE_SERVICE_PORT);
@@ -45,6 +46,7 @@ public class FakeService extends AbstractVerticle {
                         logger.error("Socket error on fake service socket", event);
                     });
                     socket.handler(event -> {
+                        this.lastBuffer = event;
                         socket.write(response);
                     });
 
@@ -62,4 +64,7 @@ public class FakeService extends AbstractVerticle {
                 });
     }
 
+    public Buffer getLastBuffer() {
+        return lastBuffer;
+    }
 }

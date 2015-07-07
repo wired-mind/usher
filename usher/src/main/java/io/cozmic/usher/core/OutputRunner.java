@@ -9,5 +9,5 @@ import io.vertx.core.AsyncResultHandler;
 public interface OutputRunner {
     void run(AsyncResultHandler<MessageStream> messageStreamAsyncResultHandler);
 
-    void stop(MessageFilter messageFilter);
+    void stop(MessageStream messageStream);
 }

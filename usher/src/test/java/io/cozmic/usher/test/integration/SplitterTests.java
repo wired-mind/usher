@@ -37,6 +37,7 @@ public class SplitterTests {
     public void before(TestContext context) {
         vertx = Vertx.vertx();
         vertx.deployVerticle(RawEchoChamber.class.getName(), context.asyncAssertSuccess());
+
     }
 
     @After
@@ -71,6 +72,9 @@ public class SplitterTests {
             });
 
         }));
+        vertx.setTimer(5000, event -> {
+            context.fail("timed out");
+        });
     }
 
     @Test
@@ -99,11 +103,8 @@ public class SplitterTests {
                 });
             });
 
-            vertx.setTimer(5000, new Handler<Long>() {
-                @Override
-                public void handle(Long event) {
-                    context.fail("timed out");
-                }
+            vertx.setTimer(5000, event -> {
+                context.fail("timed out");
             });
 
         }));
@@ -166,7 +167,7 @@ public class SplitterTests {
     }
 
     private JsonObject buildOutput() {
-        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193);
+        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193).put("messageMatcher", "#{localPort == 2500}");
     }
 
     private JsonObject buildTokenSplitter(String delimiter) {
@@ -175,20 +176,6 @@ public class SplitterTests {
 
     private JsonObject buildInput() {
         return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500);
-    }
-
-    public DeploymentOptions buildDeploymentOptions() {
-        JsonObject config = null;
-        try {
-            final URI uri = getClass().getResource("/config_base.json").toURI();
-            final String configString = new String(Files.readAllBytes(Paths.get(uri)));
-            config = new JsonObject(configString);
-        } catch (URISyntaxException | IOException e) {
-            fail(e.getMessage());
-        }
-        final DeploymentOptions options = new DeploymentOptions();
-        options.setConfig(config);
-        return options;
     }
 
 

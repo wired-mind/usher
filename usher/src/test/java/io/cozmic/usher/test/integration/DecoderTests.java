@@ -90,26 +90,14 @@ public class DecoderTests {
 
 
     private JsonObject buildOutput() {
-        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193);
+        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193).put("messageMatcher", "#{localPort == 2500}");
     }
 
     private JsonObject buildInput() {
         return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500);
     }
 
-    public DeploymentOptions buildDeploymentOptions() {
-        JsonObject config = null;
-        try {
-            final URI uri = getClass().getResource("/config_base.json").toURI();
-            final String configString = new String(Files.readAllBytes(Paths.get(uri)));
-            config = new JsonObject(configString);
-        } catch (URISyntaxException | IOException e) {
-            fail(e.getMessage());
-        }
-        final DeploymentOptions options = new DeploymentOptions();
-        options.setConfig(config);
-        return options;
-    }
+
 
 
 }

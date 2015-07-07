@@ -4,9 +4,13 @@ package io.cozmic.usher.test.integration;
 import io.cozmic.usher.RawEchoChamber;
 import io.cozmic.usher.Start;
 import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.metrics.MetricsOptions;
 import io.vertx.core.net.NetSocket;
+import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -33,7 +37,7 @@ public class SimpleSmokeTests {
 
     @Before
     public void before(TestContext context) {
-        vertx = Vertx.vertx();
+        vertx = Vertx.vertx(new VertxOptions().setMetricsOptions(new DropwizardMetricsOptions().setEnabled(true)));
         vertx.deployVerticle(RawEchoChamber.class.getName(), context.asyncAssertSuccess());
     }
 
@@ -68,6 +72,13 @@ public class SimpleSmokeTests {
                          async.complete();
 
                 });
+            });
+
+            vertx.setTimer(5000, new Handler<Long>() {
+                @Override
+                public void handle(Long event) {
+                    context.fail("timed out");
+                }
             });
 
         }));

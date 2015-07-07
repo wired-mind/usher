@@ -19,20 +19,8 @@ public class CountDownFutureResult<T> implements Future<T> {
     private Throwable throwable;
 
 
-    public static CountDownFutureResult<Void> dynamicStarter(int size, final Future<Void> startedResult) {
+    public static CountDownFutureResult<Void> dynamicStarter(int size) {
         CountDownFutureResult<Void> starter = new CountDownFutureResult<>(size);
-        starter.setHandler(new AsyncResultHandler<Void>() {
-
-            @Override
-            public void handle(AsyncResult<Void> asyncResult) {
-                if (asyncResult.failed()) {
-                    startedResult.fail(asyncResult.cause());
-                    return;
-                }
-
-                startedResult.complete();
-            }
-        });
         return starter;
     }
 

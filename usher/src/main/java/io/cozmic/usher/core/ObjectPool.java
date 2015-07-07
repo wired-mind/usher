@@ -5,6 +5,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
@@ -57,7 +58,9 @@ public abstract class ObjectPool<T>
         final Integer maxIdle = configObj.getInteger("maxIdle", 100);
         final Integer validationInterval = configObj.getInteger("validationInterval", 5);
         // initialize pool
-        initialize(minIdle);
+        vertx.runOnContext(v -> {
+            initialize(minIdle);
+        });
 
         // check pool conditions in a separate thread
         timerId = vertx.setPeriodic(validationInterval * 1000, timeoutId -> {
