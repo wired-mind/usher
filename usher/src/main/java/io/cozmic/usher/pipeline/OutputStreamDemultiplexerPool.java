@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * Created by chuck on 7/6/15.
  */
-public class OutputStreamDemultiplexerPool extends ObjectPool<StreamDemultiplexer> {
+public class OutputStreamDemultiplexerPool extends ObjectPool<StreamMux> {
     Logger logger = LoggerFactory.getLogger(OutputStreamDemultiplexerPool.class.getName());
 
     private List<OutputRunner> outputRunners;
@@ -34,32 +34,31 @@ public class OutputStreamDemultiplexerPool extends ObjectPool<StreamDemultiplexe
     }
 
     @Override
-    protected void destroyObject(StreamDemultiplexer obj) {
+    protected void destroyObject(StreamMux obj) {
         obj.unregisterAllConsumers();
     }
 
     @Override
-    protected void createObject(AsyncResultHandler<StreamDemultiplexer> readyHandler) {
+    protected void createObject(AsyncResultHandler<StreamMux> readyHandler) {
 
 
         final int runnerCount = outputRunners.size() + filterRunners.size();
         CountDownFutureResult<Void> dynamicStarter = CountDownFutureResult.dynamicStarter(runnerCount);
 
-        final StreamDemultiplexer streamDemultiplexer = new StreamDemultiplexerImpl(vertx);
+        final StreamMux streamMux = new StreamMuxImpl(vertx);
 
         for (OutputRunner outputRunner : outputRunners) {
             outputRunner.run(asyncResult -> {
                 if (asyncResult.failed()) {
                     final Throwable cause = asyncResult.cause();
-                    logger.error("Problem");
                     logger.error(cause.getMessage(), cause);
                     dynamicStarter.fail(cause);
                 }
 
                 final MessageStream outputMessageStream = asyncResult.result();
 
-                final MessageConsumer consumer = streamDemultiplexer.consumer(outputMessageStream, true);
-                consumer.endHandler(v->outputRunner.stop(outputMessageStream));
+                final MuxRegistration muxRegistration = streamMux.addStream(outputMessageStream, true);
+                muxRegistration.endHandler(v -> outputRunner.stop(outputMessageStream));
                 dynamicStarter.complete();
 
             });
@@ -75,11 +74,12 @@ public class OutputStreamDemultiplexerPool extends ObjectPool<StreamDemultiplexe
             if (asyncResult.failed()) {
                 final Throwable cause = asyncResult.cause();
                 logger.error(cause.getMessage(), cause);
-                readyHandler.handle(Future.failedFuture(cause));
+                logger.error(String.format("Unable to obtain streamMux from pool. Trying again. %s", cause.getMessage()), cause);
+                createObject(readyHandler);
                 return;
             }
 
-            readyHandler.handle(Future.succeededFuture(streamDemultiplexer));
+            readyHandler.handle(Future.succeededFuture(streamMux));
         });
 
 

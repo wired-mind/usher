@@ -7,5 +7,5 @@ import io.vertx.core.AsyncResultHandler;
  * Created by chuck on 7/6/15.
  */
 public interface ChannelFactory {
-    void createDuplexChannel(MessageStream inputMessageStream);
+    void createFullDuplexMuxChannel(MessageStream inputMessageStream);
 }

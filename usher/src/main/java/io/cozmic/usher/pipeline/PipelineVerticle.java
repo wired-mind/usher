@@ -39,19 +39,16 @@ public class PipelineVerticle extends AbstractVerticle {
 
         PluginFactory pluginFactory = new PluginFactory(getVertx(), config());
         List<InputRunner> inputRunners = pluginFactory.getInputRunners();
-        List<OutputRunner> outputRunners = pluginFactory.getOutputRunners();
-
 
         final int inputCount = inputRunners.size();
-        final int outputCount = outputRunners.size();
+
         CountDownFutureResult<Void> dynamicStarter = CountDownFutureResult.dynamicStarter(inputCount);
 
-        final OutputStreamDemultiplexerPool outputStreamDemultiplexerPool = new OutputStreamDemultiplexerPool(buildPoolConfig(inputCount, outputCount), vertx, pluginFactory);
+        final OutputStreamDemultiplexerPool outputStreamDemultiplexerPool = new OutputStreamDemultiplexerPool(new JsonObject(), vertx, pluginFactory);
         final ChannelFactory channelFactory = new ChannelFactoryImpl(outputStreamDemultiplexerPool);
 
 
         for (InputRunner inputRunner : inputRunners) {
-
             inputRunner.start(startupResult -> {
                 if (startupResult.failed()) {
                     final Throwable cause = startupResult.cause();
@@ -60,9 +57,7 @@ public class PipelineVerticle extends AbstractVerticle {
                     return;
                 }
                 dynamicStarter.complete();
-            }, channelFactory::createDuplexChannel);
-
-
+            }, channelFactory::createFullDuplexMuxChannel);
         }
 
 
@@ -78,16 +73,6 @@ public class PipelineVerticle extends AbstractVerticle {
         });
     }
 
-    private JsonObject buildPoolConfig(int inputCount, int outputCount) {
-        return new JsonObject()
-                .put("minIdle", computeOutputStreamEstimate(inputCount, outputCount, 10))
-                .put("maxIdle", computeOutputStreamEstimate(inputCount, outputCount, 11));
-    }
-
-    private int computeOutputStreamEstimate(int inputCount, int outputCount, int concurrentConnections) {
-        final int outputStreamsPerConnection = outputCount * outputCount;
-        return (inputCount + outputStreamsPerConnection) * concurrentConnections;
-    }
 
 
 }

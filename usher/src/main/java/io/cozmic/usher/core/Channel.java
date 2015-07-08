@@ -11,15 +11,4 @@ import java.util.List;
  */
 public interface Channel {
     Channel start();
-
-    Channel stop();
-
-
-    Channel endHandler(Handler<Void> endHandler);
-
-    List<MessageParser> getResponseStreams();
-
-    void init(AsyncResultHandler<Channel> readyHandler);
-
-    void init(MessageStream optionalMessageStream, AsyncResultHandler<Channel> readyHandler);
 }
