@@ -15,13 +15,13 @@ import java.util.List;
 /**
  * Created by chuck on 7/6/15.
  */
-public class OutputStreamDemultiplexerPool extends ObjectPool<StreamMux> {
-    Logger logger = LoggerFactory.getLogger(OutputStreamDemultiplexerPool.class.getName());
+public class OutputStreamMuxPool extends ObjectPool<StreamMux> {
+    Logger logger = LoggerFactory.getLogger(OutputStreamMuxPool.class.getName());
 
     private List<OutputRunner> outputRunners;
     private List<FilterRunner> filterRunners;
 
-    public OutputStreamDemultiplexerPool(JsonObject configObj, Vertx vertx, PluginFactory pluginFactory) {
+    public OutputStreamMuxPool(JsonObject configObj, Vertx vertx, PluginFactory pluginFactory) {
         super(configObj, vertx);
 
         outputRunners = pluginFactory.getOutputRunners();
@@ -30,7 +30,7 @@ public class OutputStreamDemultiplexerPool extends ObjectPool<StreamMux> {
 
     @Override
     protected Class className() {
-        return OutputStreamDemultiplexerPool.class;
+        return OutputStreamMuxPool.class;
     }
 
     @Override
@@ -64,11 +64,21 @@ public class OutputStreamDemultiplexerPool extends ObjectPool<StreamMux> {
             });
         }
 
-//        for (FilterRunner filterRunner : filterRunners) {
-//            filterRunner.run(asyncResult -> {
-//
-//            });
-//        }
+        for (FilterRunner filterRunner : filterRunners) {
+            filterRunner.run(asyncResult -> {
+                if (asyncResult.failed()) {
+                    final Throwable cause = asyncResult.cause();
+                    logger.error(cause.getMessage(), cause);
+                    dynamicStarter.fail(cause);
+                }
+
+                final MessageStream filterMessageStream = asyncResult.result();
+
+                final MuxRegistration muxRegistration = streamMux.addStream(filterMessageStream, true);
+//                muxRegistration.endHandler(v -> filterRunner.stop(filterMessageStream));
+                dynamicStarter.complete();
+            });
+        }
 
         dynamicStarter.setHandler(asyncResult -> {
             if (asyncResult.failed()) {

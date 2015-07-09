@@ -8,4 +8,5 @@ import io.vertx.core.AsyncResultHandler;
  */
 public interface FilterRunner {
 
+    void run(AsyncResultHandler<MessageStream> messageStreamAsyncResultHandler);
 }

@@ -1,0 +1,11 @@
+{
+  "Router": {
+    "type": "TcpInput",
+    "host": "0.0.0.0",
+    "port": 2500
+  },
+  "EchoBackend": {
+    "type": "EchoFilter",
+    "messageMatcher": "#{localPort == 2500}"
+  }
+}

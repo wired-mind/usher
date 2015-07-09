@@ -1,7 +1,6 @@
 package io.cozmic.usher.streams;
 
 import io.cozmic.usher.core.*;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -14,15 +13,15 @@ import java.util.Objects;
  */
 public class ChannelFactoryImpl implements ChannelFactory {
     Logger logger = LoggerFactory.getLogger(ChannelFactoryImpl.class.getName());
-    private final ObjectPool<StreamMux> outStreamDemuxPool;
+    private final ObjectPool<StreamMux> outStreamMuxPool;
 
-    public ChannelFactoryImpl(ObjectPool<StreamMux> outStreamDemuxPool) {
-        this.outStreamDemuxPool = outStreamDemuxPool;
+    public ChannelFactoryImpl(ObjectPool<StreamMux> outStreamMuxPool) {
+        this.outStreamMuxPool = outStreamMuxPool;
     }
 
     @Override
     public void createFullDuplexMuxChannel(MessageStream inputStream) {
-        outStreamDemuxPool.borrowObject(asyncResult -> {
+        outStreamMuxPool.borrowObject(asyncResult -> {
             StreamMux outStreamMux = asyncResult.result();
             ensureStreamMux(outStreamMux);
 
@@ -55,8 +54,9 @@ public class ChannelFactoryImpl implements ChannelFactory {
             messageStream.pause();
 
             final MessageParser messageParser = messageStream.getMessageParser();
+            final MessageFilter messageFilter = messageStream.getMessageFilter();
             inToOutPump = Pump.pump(messageParser, outStreamMux);
-            outToInPump = Pump.pump(outStreamMux, messageStream.getMessageFilter());
+            outToInPump = Pump.pump(outStreamMux, messageFilter);
 
             messageParser.endHandler(v -> {
                 if (endHandler != null) endHandler.handle(null);
@@ -80,7 +80,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
         private void doStop() {
             if (inToOutPump != null) inToOutPump.stop();
             if (outToInPump != null) outToInPump.stop();
-            if (outStreamDemuxPool != null) outStreamDemuxPool.returnObject(outStreamMux);
+            if (outStreamMuxPool != null) outStreamMuxPool.returnObject(outStreamMux);
         }
 
     }

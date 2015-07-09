@@ -44,8 +44,8 @@ public class PipelineVerticle extends AbstractVerticle {
 
         CountDownFutureResult<Void> dynamicStarter = CountDownFutureResult.dynamicStarter(inputCount);
 
-        final OutputStreamDemultiplexerPool outputStreamDemultiplexerPool = new OutputStreamDemultiplexerPool(new JsonObject(), vertx, pluginFactory);
-        final ChannelFactory channelFactory = new ChannelFactoryImpl(outputStreamDemultiplexerPool);
+        final OutputStreamMuxPool outputStreamMuxPool = new OutputStreamMuxPool(new JsonObject(), vertx, pluginFactory);
+        final ChannelFactory channelFactory = new ChannelFactoryImpl(outputStreamMuxPool);
 
 
         for (InputRunner inputRunner : inputRunners) {
