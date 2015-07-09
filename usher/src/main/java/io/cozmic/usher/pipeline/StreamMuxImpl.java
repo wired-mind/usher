@@ -139,9 +139,9 @@ public class StreamMuxImpl implements StreamMux {
         private Handler<Void> drainHandler;
 
         public MuxRegistrationImpl(MessageStream messageStream, boolean bidirectional) {
-            demuxPump = Pump.pump(this, messageStream.getMessageFilter()).start();
+            demuxPump = Pump.pump(this, messageStream.getOutPipeline()).start();
             if (bidirectional) {
-                muxPump = Pump.pump(messageStream.getMessageParser(), this).start();
+                muxPump = Pump.pump(messageStream.getInPipeline(), this).start();
             }
         }
 

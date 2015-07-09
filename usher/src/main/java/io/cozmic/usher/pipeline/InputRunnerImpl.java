@@ -11,11 +11,11 @@ import io.vertx.core.Handler;
 public class InputRunnerImpl implements InputRunner {
     private final String pluginName;
     private final InputPlugin inputPlugin;
-    private final MessageParserFactory inOutParserFactory;
-    private final MessageFilterFactoryImpl outInFilterFactory;
+    private final InPipelineFactory inOutParserFactory;
+    private final OutPipelineFactoryImpl outInFilterFactory;
     private final MessageMatcher messageMatcher;
 
-    public InputRunnerImpl(String pluginName, InputPlugin inputPlugin, MessageMatcher messageMatcher, MessageParserFactory inOutParserFactory, MessageFilterFactoryImpl outInFilterFactory) {
+    public InputRunnerImpl(String pluginName, InputPlugin inputPlugin, MessageMatcher messageMatcher, InPipelineFactory inOutParserFactory, OutPipelineFactoryImpl outInFilterFactory) {
         this.pluginName = pluginName;
 
         this.inputPlugin = inputPlugin;
@@ -30,9 +30,9 @@ public class InputRunnerImpl implements InputRunner {
     public void start(AsyncResultHandler<Void> startupHandler, Handler<MessageStream> messageStreamHandler) {
 
         inputPlugin.run(startupHandler::handle, duplexStream -> {
-            MessageParser messageParser = inOutParserFactory.createParser(pluginName, duplexStream);
-            final MessageFilter messageFilter = outInFilterFactory.createFilter(pluginName, messageMatcher, duplexStream.getWriteStream());
-            messageStreamHandler.handle(new MessageStream(messageParser, messageFilter));
+            InPipeline inPipeline = inOutParserFactory.createDefaultInPipeline(pluginName, duplexStream);
+            final OutPipeline outPipeline = outInFilterFactory.createDefaultOutPipeline(pluginName, messageMatcher, duplexStream.getWriteStream());
+            messageStreamHandler.handle(new MessageStream(inPipeline, outPipeline));
         });
     }
 }

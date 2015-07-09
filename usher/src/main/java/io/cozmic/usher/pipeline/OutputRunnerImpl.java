@@ -17,15 +17,15 @@ public class OutputRunnerImpl implements OutputRunner {
     private final String pluginName;
     private final OutputPlugin outputPlugin;
     private final MessageMatcher messageMatcher;
-    private final MessageParserFactoryImpl outInParserFactory;
-    private final MessageFilterFactory inOutFilterFactory;
+    private final InPipelineFactory inPipelineFactory;
+    private final OutPipelineFactory outPipelineFactory;
 
-    public OutputRunnerImpl(String pluginName, OutputPlugin outputPlugin, MessageMatcher messageMatcher, MessageParserFactoryImpl outInParserFactory, MessageFilterFactory inOutFilterFactory) {
+    public OutputRunnerImpl(String pluginName, OutputPlugin outputPlugin, MessageMatcher messageMatcher, InPipelineFactory inPipelineFactory, OutPipelineFactory outPipelineFactory) {
         this.pluginName = pluginName;
         this.outputPlugin = outputPlugin;
         this.messageMatcher = messageMatcher;
-        this.outInParserFactory = outInParserFactory;
-        this.inOutFilterFactory = inOutFilterFactory;
+        this.inPipelineFactory = inPipelineFactory;
+        this.outPipelineFactory = outPipelineFactory;
     }
 
     @Override
@@ -38,14 +38,15 @@ public class OutputRunnerImpl implements OutputRunner {
                  return;
              }
              final DuplexStream<Buffer, Buffer> duplexStream = duplexStreamAsyncResult.result();
-             final MessageFilter messageFilter = inOutFilterFactory.createFilter(pluginName, messageMatcher, duplexStream.getWriteStream());
-             final MessageParser messageParser = outInParserFactory.createParser(pluginName, duplexStream);
-             messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(messageParser, messageFilter)));
+             final OutPipeline outPipeline = outPipelineFactory.createDefaultOutPipeline(pluginName, messageMatcher, duplexStream.getWriteStream());
+             final InPipeline inPipeline = inPipelineFactory.createDefaultInPipeline(pluginName, duplexStream);
+             messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(inPipeline, outPipeline)));
          });
     }
 
     @Override
     public void stop(MessageStream messageStream) {
-        outputPlugin.stop(messageStream.getMessageFilter().getInnerWriteStream());
+
+        outputPlugin.stop(messageStream.getOutPipeline());
     }
 }

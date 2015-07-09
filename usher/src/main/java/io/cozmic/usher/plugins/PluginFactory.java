@@ -3,16 +3,11 @@ package io.cozmic.usher.plugins;
 import com.google.common.collect.Lists;
 import io.cozmic.usher.core.*;
 import io.cozmic.usher.pipeline.*;
-import io.cozmic.usher.plugins.PluginLoader;
-import io.cozmic.usher.plugins.tcp.TcpInput;
-import io.cozmic.usher.plugins.tcp.TcpOutput;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -32,8 +27,8 @@ public class PluginFactory {
         this.vertx = vertx;
         this.config = config;
         final PluginLoader pluginLoader = new PluginLoader(vertx, config);
-        final MessageParserFactoryImpl messageParserFactory = new MessageParserFactoryImpl(pluginLoader);
-        final MessageFilterFactoryImpl messageFilterFactory = new MessageFilterFactoryImpl(pluginLoader);
+        final InPipelineFactoryImpl messageParserFactory = new InPipelineFactoryImpl(pluginLoader);
+        final OutPipelineFactoryImpl messageFilterFactory = new OutPipelineFactoryImpl(pluginLoader);
 
         final Map<String, Map.Entry<InputPlugin, JsonObject>> inputs = pluginLoader.getInputs();
         final Map<String, Map.Entry<OutputPlugin, JsonObject>> outputs = pluginLoader.getOutputs();
@@ -57,7 +52,7 @@ public class PluginFactory {
 
 
 
-    public InputRunner createInputRunner(String pluginName, JsonObject inputObj, InputPlugin inputPlugin, MessageParserFactoryImpl inOutParserFactory, MessageFilterFactoryImpl outInFilterFactory) {
+    public InputRunner createInputRunner(String pluginName, JsonObject inputObj, InputPlugin inputPlugin, InPipelineFactoryImpl inOutParserFactory, OutPipelineFactoryImpl outInFilterFactory) {
         final String expressionVal = inputObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.always() : new JuelMatcher(expressionVal);
         return new InputRunnerImpl(pluginName, inputPlugin, messageMatcher, inOutParserFactory, outInFilterFactory);
@@ -65,17 +60,17 @@ public class PluginFactory {
 
 
 
-    public OutputRunner createOutputRunner(String pluginName, JsonObject outputObj, OutputPlugin outputPlugin, MessageParserFactoryImpl outInParserFactory, MessageFilterFactoryImpl inOutFilterFactory) {
+    public OutputRunner createOutputRunner(String pluginName, JsonObject outputObj, OutputPlugin outputPlugin, InPipelineFactoryImpl outInParserFactory, OutPipelineFactoryImpl inOutFilterFactory) {
         final String expressionVal = outputObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.never() : new JuelMatcher(expressionVal);
         return new OutputRunnerImpl(pluginName, outputPlugin, messageMatcher, outInParserFactory, inOutFilterFactory);
     }
 
 
-    private FilterRunner createFilterRunner(String pluginName, JsonObject filterObj, FilterPlugin filterPlugin, MessageParserFactoryImpl outInParserFactory, MessageFilterFactoryImpl inOutFilterFactory) {
+    private FilterRunner createFilterRunner(String pluginName, JsonObject filterObj, FilterPlugin filterPlugin, InPipelineFactoryImpl outInParserFactory, OutPipelineFactoryImpl inOutFilterFactory) {
         final String expressionVal = filterObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.never() : new JuelMatcher(expressionVal);
-        return new FilterRunnerImpl(pluginName, filterPlugin, messageMatcher, outInParserFactory, inOutFilterFactory);
+        return new FilterRunnerImpl(pluginName, filterPlugin, messageMatcher);
     }
 
     public List<InputRunner> getInputRunners() {

@@ -1,22 +1,22 @@
 package io.cozmic.usher.plugins.tcp;
 
-import io.cozmic.usher.core.ObjectPool;
+import io.cozmic.usher.core.WriteStreamPool;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetClientOptions;
 import io.vertx.core.net.NetSocket;
-
-import static com.codahale.metrics.MetricRegistry.name;
+import io.vertx.core.streams.WriteStream;
 
 /**
  * Created by chuck on 6/30/15.
  */
-public class SocketPool extends ObjectPool<NetSocket> {
+public class SocketPool extends WriteStreamPool {
     Logger logger = LoggerFactory.getLogger(SocketPool.class.getName());
     private String host;
     private NetClient netClient;
@@ -40,12 +40,13 @@ public class SocketPool extends ObjectPool<NetSocket> {
     }
 
     @Override
-    protected void destroyObject(NetSocket obj) {
-        obj.close();
+    protected void destroyObject(WriteStream<Buffer> obj) {
+        final NetSocket socket = (NetSocket) obj;
+        socket.close();
     }
 
     @Override
-    protected void createObject(AsyncResultHandler<NetSocket> readyHandler) {
+    protected void createObject(AsyncResultHandler<WriteStream<Buffer>> readyHandler) {
         netClient.connect(port, host, connectHandler -> {
             if (connectHandler.failed()) {
                 final Throwable cause = connectHandler.cause();

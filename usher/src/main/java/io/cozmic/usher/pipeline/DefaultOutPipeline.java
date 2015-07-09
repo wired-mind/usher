@@ -1,22 +1,20 @@
 package io.cozmic.usher.pipeline;
 
-import io.cozmic.usher.core.EncoderPlugin;
-import io.cozmic.usher.core.MessageFilter;
-import io.cozmic.usher.core.MessageMatcher;
+import io.cozmic.usher.core.*;
 import io.cozmic.usher.message.Message;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.WriteStream;
 
 /**
- * Created by chuck on 6/30/15.
+ * Default out pipeline filters using messageMatcher and then encodes the message to a buffer
  */
-public class MessageFilterImpl implements MessageFilter {
+public class DefaultOutPipeline implements OutPipeline {
     private final WriteStream<Buffer> innerWriteStream;
     private final EncoderPlugin encoderPlugin;
     private final MessageMatcher messageMatcher;
 
-    public MessageFilterImpl(WriteStream<Buffer> writeStream, EncoderPlugin encoderPlugin, MessageMatcher messageMatcher) {
+    public DefaultOutPipeline(WriteStream<Buffer> writeStream, EncoderPlugin encoderPlugin, MessageMatcher messageMatcher) {
         this.innerWriteStream = writeStream;
         this.encoderPlugin = encoderPlugin;
         this.messageMatcher = messageMatcher;
@@ -54,8 +52,9 @@ public class MessageFilterImpl implements MessageFilter {
         return this;
     }
 
+
     @Override
-    public WriteStream<Buffer> getInnerWriteStream() {
-        return innerWriteStream;
+    public void stop(WriteStreamPool pool) {
+        pool.returnObject(innerWriteStream);
     }
 }

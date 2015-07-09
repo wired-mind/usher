@@ -1,5 +1,6 @@
 package io.cozmic.usher.plugins.tcp;
 
+import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.OutputPlugin;
 import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.AsyncResultHandler;
@@ -38,7 +39,8 @@ public class TcpOutput implements OutputPlugin {
                 return;
             }
 
-            final NetSocket socket = asyncResult.result();
+            final WriteStream<Buffer> writeStream = asyncResult.result();
+            NetSocket socket = (NetSocket)writeStream;
             duplexStreamAsyncResultHandler.handle(Future.succeededFuture(new DuplexStream<>(socket, socket, message -> {
                 message.setRemoteAddress(socket.remoteAddress());
                 message.setLocalAddress(socket.localAddress());
@@ -48,10 +50,8 @@ public class TcpOutput implements OutputPlugin {
     }
 
     @Override
-    public void stop(WriteStream<Buffer> innerWriteStream) {
-        final boolean validSocket = innerWriteStream instanceof NetSocket;
-        if (!validSocket) throw new IllegalArgumentException("Must be an instance of NetSocket");
-        socketPool.returnObject((NetSocket) innerWriteStream);
+    public void stop(OutPipeline outPipeline) {
+        outPipeline.stop(socketPool);
     }
 
 

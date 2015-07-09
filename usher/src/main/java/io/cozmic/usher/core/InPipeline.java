@@ -6,5 +6,5 @@ import io.vertx.core.streams.ReadStream;
 /**
  * Created by chuck on 6/30/15.
  */
-public interface MessageParser extends ReadStream<Message> {
+public interface InPipeline extends ReadStream<Message> {
 }

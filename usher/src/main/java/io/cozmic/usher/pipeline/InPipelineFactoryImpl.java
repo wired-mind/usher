@@ -14,11 +14,11 @@ import io.vertx.core.buffer.Buffer;
  * new instances of the Splitter and Decoder plugins because each stream needs to maintain state separately
  * for splitting and decoding.
  */
-public class MessageParserFactoryImpl implements MessageParserFactory {
+public class InPipelineFactoryImpl implements InPipelineFactory {
     private PluginIndex<SplitterPlugin> splitterIndex;
     private PluginIndex<DecoderPlugin> decoderIndex;
 
-    public MessageParserFactoryImpl(PluginLoader pluginLoader) {
+    public InPipelineFactoryImpl(PluginLoader pluginLoader) {
 
         splitterIndex = pluginLoader.getSplitterIndex();
         decoderIndex = pluginLoader.getDecoderIndex();
@@ -46,10 +46,10 @@ public class MessageParserFactoryImpl implements MessageParserFactory {
     }
 
     @Override
-    public MessageParser createParser(String pluginName, DuplexStream<Buffer, Buffer> duplexStream) {
+    public InPipeline createDefaultInPipeline(String pluginName, DuplexStream<Buffer, Buffer> duplexStream) {
         SplitterPlugin splitterPlugin = createSplitter(pluginName);
         DecoderPlugin decoderPlugin = createDecoder(pluginName);
-        return new MessageParserImpl(duplexStream, splitterPlugin, decoderPlugin);
+        return new DefaultInPipeline(duplexStream, splitterPlugin, decoderPlugin);
     }
 
 

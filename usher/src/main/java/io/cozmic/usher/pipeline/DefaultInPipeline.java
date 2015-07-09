@@ -1,7 +1,7 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.DecoderPlugin;
-import io.cozmic.usher.core.MessageParser;
+import io.cozmic.usher.core.InPipeline;
 import io.cozmic.usher.core.SplitterPlugin;
 import io.cozmic.usher.message.Message;
 import io.cozmic.usher.streams.DuplexStream;
@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Created by chuck on 6/29/15.
  */
-public class MessageParserImpl implements MessageParser, Handler<Buffer> {
+public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
     private final SplitterPlugin splitterPlugin;
     private final DecoderPlugin decoderPlugin;
 
@@ -24,7 +24,7 @@ public class MessageParserImpl implements MessageParser, Handler<Buffer> {
     private boolean paused;
     private Handler<Message> handler;
 
-    public MessageParserImpl(DuplexStream<Buffer, Buffer> duplexStream, SplitterPlugin splitterPlugin, DecoderPlugin decoderPlugin) {
+    public DefaultInPipeline(DuplexStream<Buffer, Buffer> duplexStream, SplitterPlugin splitterPlugin, DecoderPlugin decoderPlugin) {
         this.duplexStream = duplexStream;
         innerReadStream = duplexStream.getReadStream();
         this.splitterPlugin = splitterPlugin;

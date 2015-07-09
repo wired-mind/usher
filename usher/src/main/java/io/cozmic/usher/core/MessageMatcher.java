@@ -27,5 +27,7 @@ public interface MessageMatcher {
         public boolean matches(Message message) {
             return defaultVal;
         }
+
+
     }
 }

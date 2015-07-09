@@ -1,12 +1,15 @@
 package io.cozmic.usher.plugins.core;
 
 import io.cozmic.usher.core.FilterPlugin;
-import io.cozmic.usher.streams.DuplexStream;
+import io.cozmic.usher.core.OutPipeline;
+import io.cozmic.usher.core.InPipeline;
+import io.cozmic.usher.core.WriteStreamPool;
+import io.cozmic.usher.message.Message;
+import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
@@ -22,28 +25,29 @@ public class EchoFilter implements FilterPlugin {
 
     }
 
+
     @Override
-    public void run(AsyncResultHandler<DuplexStream<Buffer, Buffer>> duplexStreamAsyncResultHandler) {
+    public void run(AsyncResultHandler<MessageStream> messageStreamAsyncResultHandler) {
         final EchoStream echoStream = new EchoStream();
-        duplexStreamAsyncResultHandler.handle(Future.succeededFuture(new DuplexStream<>(echoStream, echoStream)));
+        messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(echoStream, echoStream)));
     }
 
 
-    private class EchoStream implements ReadStream<Buffer>, WriteStream<Buffer> {
-        private Handler<Buffer> dataHandler;
+    private class EchoStream implements InPipeline, OutPipeline {
+        private Handler<Message> dataHandler;
         @Override
         public EchoStream exceptionHandler(Handler<Throwable> handler) {
             return this;
         }
 
         @Override
-        public WriteStream<Buffer> write(Buffer data) {
+        public WriteStream<Message> write(Message data) {
             dataHandler.handle(data);
             return this;
         }
 
         @Override
-        public WriteStream<Buffer> setWriteQueueMaxSize(int maxSize) {
+        public WriteStream<Message> setWriteQueueMaxSize(int maxSize) {
             return this;
         }
 
@@ -53,30 +57,34 @@ public class EchoFilter implements FilterPlugin {
         }
 
         @Override
-        public WriteStream<Buffer> drainHandler(Handler<Void> handler) {
+        public WriteStream<Message> drainHandler(Handler<Void> handler) {
             return this;
         }
 
         @Override
-        public ReadStream<Buffer> handler(Handler<Buffer> dataHandler) {
+        public ReadStream<Message> handler(Handler<Message> dataHandler) {
             this.dataHandler = dataHandler;
             return this;
         }
 
         @Override
-        public ReadStream<Buffer> pause() {
+        public ReadStream<Message> pause() {
             return this;
         }
 
         @Override
-        public ReadStream<Buffer> resume() {
+        public ReadStream<Message> resume() {
             return this;
         }
 
         @Override
-        public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
+        public ReadStream<Message> endHandler(Handler<Void> endHandler) {
             return this;
         }
 
+        @Override
+        public void stop(WriteStreamPool pool) {
+            //no op
+        }
     }
 }

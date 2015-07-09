@@ -1,8 +1,8 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.EncoderPlugin;
-import io.cozmic.usher.core.MessageFilter;
-import io.cozmic.usher.core.MessageFilterFactory;
+import io.cozmic.usher.core.OutPipeline;
+import io.cozmic.usher.core.OutPipelineFactory;
 import io.cozmic.usher.core.MessageMatcher;
 import io.cozmic.usher.plugins.PluginIndex;
 import io.cozmic.usher.plugins.PluginLoader;
@@ -13,22 +13,22 @@ import io.vertx.core.streams.WriteStream;
 /**
  * Created by chuck on 6/30/15.
  */
-public class MessageFilterFactoryImpl implements MessageFilterFactory {
+public class OutPipelineFactoryImpl implements OutPipelineFactory {
 
 
     private final PluginIndex<EncoderPlugin> encoderIndex;
 
-    public MessageFilterFactoryImpl(PluginLoader pluginLoader) {
+    public OutPipelineFactoryImpl(PluginLoader pluginLoader) {
         encoderIndex = pluginLoader.getEncoderIndex();
     }
 
 
 
     @Override
-    public MessageFilter createFilter(String pluginName, MessageMatcher messageMatcher, WriteStream<Buffer> writeStream){
+    public OutPipeline createDefaultOutPipeline(String pluginName, MessageMatcher messageMatcher, WriteStream<Buffer> writeStream){
         EncoderPlugin encoderPlugin = createEncoder(pluginName);
 
-        return new MessageFilterImpl(writeStream, encoderPlugin, messageMatcher);
+        return new DefaultOutPipeline(writeStream, encoderPlugin, messageMatcher);
     }
 
 

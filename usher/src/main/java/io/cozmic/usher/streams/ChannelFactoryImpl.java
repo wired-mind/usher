@@ -53,12 +53,12 @@ public class ChannelFactoryImpl implements ChannelFactory {
             //Pause the in stream until the out stream is ready
             messageStream.pause();
 
-            final MessageParser messageParser = messageStream.getMessageParser();
-            final MessageFilter messageFilter = messageStream.getMessageFilter();
-            inToOutPump = Pump.pump(messageParser, outStreamMux);
-            outToInPump = Pump.pump(outStreamMux, messageFilter);
+            final InPipeline inPipeline = messageStream.getInPipeline();
+            final OutPipeline outPipeline = messageStream.getOutPipeline();
+            inToOutPump = Pump.pump(inPipeline, outStreamMux);
+            outToInPump = Pump.pump(outStreamMux, outPipeline);
 
-            messageParser.endHandler(v -> {
+            inPipeline.endHandler(v -> {
                 if (endHandler != null) endHandler.handle(null);
                 doStop();
             });
