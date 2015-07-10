@@ -2,6 +2,7 @@ package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.*;
 import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.WriteStream;
@@ -21,13 +22,13 @@ public class DefaultOutPipeline implements OutPipeline {
     }
 
     @Override
-    public WriteStream<Message> exceptionHandler(Handler<Throwable> handler) {
+    public WriteStream<PipelinePack> exceptionHandler(Handler<Throwable> handler) {
         innerWriteStream.exceptionHandler(handler);
         return this;
     }
 
     @Override
-    public WriteStream<Message> write(Message message) {
+    public WriteStream<PipelinePack> write(PipelinePack message) {
         if (messageMatcher.matches(message)) {
             encoderPlugin.encode(message, innerWriteStream::write);
         }
@@ -36,7 +37,7 @@ public class DefaultOutPipeline implements OutPipeline {
 
 
     @Override
-    public WriteStream<Message> setWriteQueueMaxSize(int maxSize) {
+    public WriteStream<PipelinePack> setWriteQueueMaxSize(int maxSize) {
         innerWriteStream.setWriteQueueMaxSize(maxSize);
         return this;
     }
@@ -47,7 +48,7 @@ public class DefaultOutPipeline implements OutPipeline {
     }
 
     @Override
-    public WriteStream<Message> drainHandler(Handler<Void> handler) {
+    public WriteStream<PipelinePack> drainHandler(Handler<Void> handler) {
         innerWriteStream.drainHandler(handler);
         return this;
     }

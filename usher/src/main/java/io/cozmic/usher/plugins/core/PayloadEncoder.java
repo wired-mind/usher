@@ -9,12 +9,16 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 
 /**
- * The NullEncoder assumes that the Message is a Buffer
+ * Created by chuck on 7/9/15.
  */
-public class NullEncoder implements EncoderPlugin {
+public class PayloadEncoder implements EncoderPlugin {
+    private JsonObject configObj;
+    private Vertx vertx;
+
     @Override
     public void encode(PipelinePack pipelinePack, Handler<Buffer> bufferHandler) {
-        bufferHandler.handle(pipelinePack.getMessage());
+        final Message message = pipelinePack.getMessage();
+        bufferHandler.handle(Buffer.buffer(message.getPayload()));
     }
 
     @Override
@@ -25,5 +29,7 @@ public class NullEncoder implements EncoderPlugin {
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
 
+        this.configObj = configObj;
+        this.vertx = vertx;
     }
 }

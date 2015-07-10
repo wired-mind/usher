@@ -132,26 +132,26 @@ public class RoutingTests {
     }
 
     private JsonObject buildFooBarInput() {
-        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("messageMatcher", String.format("#{remotePort == %s}", 9192));
+        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("encoder", "PayloadEncoder").put("messageMatcher", String.format("#{remotePort == %s}", 9192));
     }
 
     private JsonObject buildBarInput() {
-        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2501);
+        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2501).put("encoder", "PayloadEncoder");
     }
 
 
 
 
     private JsonObject buildFooOutput(int inputFilterPort) {
-        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9192).put("messageMatcher", String.format("#{localPort == %s}", inputFilterPort));
+        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9192).put("encoder", "PayloadEncoder").put("messageMatcher", String.format("#{localPort == %s}", inputFilterPort));
     }
     private JsonObject buildBarOutput(int inputFilterPort) {
-        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193).put("messageMatcher", String.format("#{localPort == %s}", inputFilterPort));
+        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193).put("encoder", "PayloadEncoder").put("messageMatcher", String.format("#{localPort == %s}", inputFilterPort));
     }
 
 
     private JsonObject buildFooInput() {
-        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500);
+        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("encoder", "PayloadEncoder");
     }
 
 

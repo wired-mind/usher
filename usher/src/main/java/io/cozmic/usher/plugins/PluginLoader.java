@@ -2,6 +2,10 @@ package io.cozmic.usher.plugins;
 
 import com.google.common.collect.Maps;
 import io.cozmic.usher.core.*;
+import io.cozmic.usher.plugins.core.NullDecoder;
+import io.cozmic.usher.plugins.core.NullEncoder;
+import io.cozmic.usher.plugins.core.NullSplitter;
+import io.cozmic.usher.plugins.core.PayloadEncoder;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
@@ -42,6 +46,10 @@ public class PluginLoader {
 
     public PluginLoader(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException {
         wellKnownPackages = Maps.fromProperties(loadTypePackages());
+        splitterPlugins.put("NullSplitter", Maps.immutableEntry((SplitterPlugin) new NullSplitter(), new JsonObject()));
+        decoderPlugins.put("NullDecoder", Maps.immutableEntry((DecoderPlugin) new NullDecoder(), new JsonObject()));
+        encoderPlugins.put("NullEncoder", Maps.immutableEntry((EncoderPlugin) new NullEncoder(), new JsonObject()));
+        encoderPlugins.put("PayloadEncoder", Maps.immutableEntry((EncoderPlugin) new PayloadEncoder(), new JsonObject()));
         for (String pluginName : config.fieldNames()) {
             final JsonObject pluginConfig = config.getJsonObject(pluginName);
             String pluginType = pluginConfig.getString("type");
@@ -76,15 +84,15 @@ public class PluginLoader {
             }
         }
 
-        splitterIndex = new PluginIndex<>(getSplitters(), "splitter");
+        splitterIndex = new PluginIndex<>(getSplitters(), "splitter", "NullSplitter");
         splitterIndex.build(getInputs());
         splitterIndex.build(getOutputs());
 
-        decoderIndex = new PluginIndex<>(getDecoders(), "decoder");
+        decoderIndex = new PluginIndex<>(getDecoders(), "decoder", "NullDecoder");
         decoderIndex.build(getInputs());
         decoderIndex.build(getOutputs());
 
-        encoderIndex = new PluginIndex<>(getEncoders(), "encoder");
+        encoderIndex = new PluginIndex<>(getEncoders(), "encoder", "NullEncoder");
         encoderIndex.build(getInputs());
         encoderIndex.build(getOutputs());
 

@@ -7,6 +7,7 @@ import io.cozmic.usher.plugins.core.NullDecoder;
 import io.cozmic.usher.plugins.core.NullSplitter;
 import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
 
 /**
  * This class is a factory that creates new MessageParsers. Each new input is wrapped by a MessageParser.
@@ -49,7 +50,9 @@ public class InPipelineFactoryImpl implements InPipelineFactory {
     public InPipeline createDefaultInPipeline(String pluginName, DuplexStream<Buffer, Buffer> duplexStream) {
         SplitterPlugin splitterPlugin = createSplitter(pluginName);
         DecoderPlugin decoderPlugin = createDecoder(pluginName);
-        return new DefaultInPipeline(duplexStream, splitterPlugin, decoderPlugin);
+        JsonObject splitterConfig = splitterIndex.getConfig(pluginName);
+        JsonObject decoderConfig = decoderIndex.getConfig(pluginName);
+        return new DefaultInPipeline(duplexStream, splitterConfig, splitterPlugin, decoderConfig, decoderPlugin);
     }
 
 

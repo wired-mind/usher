@@ -1,6 +1,7 @@
 package io.cozmic.usher.core;
 
 import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.Handler;
 import io.vertx.core.streams.ReadStream;
@@ -10,7 +11,7 @@ import io.vertx.core.streams.WriteStream;
  * Given a stream of data, create one or more outgoing streams (demux). Can also be bidirectional. Responses from each
  * outgoing stream can be turned back into a single stream (mux)
  */
-public interface StreamMux extends WriteStream<Message>, ReadStream<Message> {
+public interface StreamMux extends WriteStream<PipelinePack>, ReadStream<PipelinePack> {
     @Override
     StreamMux exceptionHandler(Handler<Throwable> handler);
 

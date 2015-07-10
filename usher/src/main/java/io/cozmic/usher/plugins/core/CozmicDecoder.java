@@ -2,6 +2,7 @@ package io.cozmic.usher.plugins.core;
 
 import io.cozmic.usher.core.DecoderPlugin;
 import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -15,18 +16,21 @@ public class CozmicDecoder implements DecoderPlugin {
     private Vertx vertx;
 
     @Override
-    public void decode(Buffer record, Handler<Message> messageHandler) {
-        int pos = 0;
-        final int messageLength = record.getInt(pos);
-        pos += 4;
-        final int messageIdLength = record.getInt(pos);
-        pos += 4;
-        String messageId = record.getString(pos, pos + messageIdLength);
-        pos += messageIdLength;
-
-        final Buffer body = record.getBuffer(pos, record.length());
-        messageHandler.handle(new Message(body));
+    public void decode(PipelinePack pack, Handler<PipelinePack> messageHandler) {
+//        Message message = pack.getMessage();
+//        int pos = 0;
+//        final int messageLength = pack.getInt(pos);
+//        pos += 4;
+//        final int messageIdLength = pack.getInt(pos);
+//        pos += 4;
+//        String messageId = pack.getString(pos, pos + messageIdLength);
+//        pos += messageIdLength;
+//
+//        final Buffer body = pack.getBuffer(pos, pack.length());
+//        messageHandler.handle(new Message(body));
     }
+
+
 
     @Override
     public DecoderPlugin createNew() {

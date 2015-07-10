@@ -4,6 +4,7 @@ import io.cozmic.usher.core.MessageMatcher;
 import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.WriteStreamPool;
 import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.Handler;
 import io.vertx.core.streams.WriteStream;
 
@@ -25,21 +26,21 @@ public class FilteredOutPipeline implements OutPipeline {
     }
 
     @Override
-    public WriteStream<Message> exceptionHandler(Handler<Throwable> exceptionHandler) {
+    public WriteStream<PipelinePack> exceptionHandler(Handler<Throwable> exceptionHandler) {
         outPipeline.exceptionHandler(exceptionHandler);
         return this;
     }
 
     @Override
-    public WriteStream<Message> write(Message message) {
-        if (messageMatcher.matches(message)) {
-            outPipeline.write(message);
+    public WriteStream<PipelinePack> write(PipelinePack pipelinePack) {
+        if (messageMatcher.matches(pipelinePack)) {
+            outPipeline.write(pipelinePack);
         }
         return this;
     }
 
     @Override
-    public WriteStream<Message> setWriteQueueMaxSize(int maxSize) {
+    public WriteStream<PipelinePack> setWriteQueueMaxSize(int maxSize) {
         outPipeline.setWriteQueueMaxSize(maxSize);
         return this;
     }
@@ -50,7 +51,7 @@ public class FilteredOutPipeline implements OutPipeline {
     }
 
     @Override
-    public WriteStream<Message> drainHandler(Handler<Void> handler) {
+    public WriteStream<PipelinePack> drainHandler(Handler<Void> handler) {
         outPipeline.drainHandler(handler);
         return this;
     }

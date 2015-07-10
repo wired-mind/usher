@@ -2,6 +2,7 @@ package io.cozmic.usher.plugins.tcp;
 
 import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.OutputPlugin;
+import io.cozmic.usher.message.Message;
 import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
@@ -41,7 +42,8 @@ public class TcpOutput implements OutputPlugin {
 
             final WriteStream<Buffer> writeStream = asyncResult.result();
             NetSocket socket = (NetSocket)writeStream;
-            duplexStreamAsyncResultHandler.handle(Future.succeededFuture(new DuplexStream<>(socket, socket, message -> {
+            duplexStreamAsyncResultHandler.handle(Future.succeededFuture(new DuplexStream<>(socket, socket, pack -> {
+                final Message message = pack.getMessage();
                 message.setRemoteAddress(socket.remoteAddress());
                 message.setLocalAddress(socket.localAddress());
             })));

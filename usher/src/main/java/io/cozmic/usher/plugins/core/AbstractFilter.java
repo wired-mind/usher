@@ -4,7 +4,7 @@ import io.cozmic.usher.core.FilterPlugin;
 import io.cozmic.usher.core.InPipeline;
 import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.WriteStreamPool;
-import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
@@ -40,7 +40,7 @@ public abstract class AbstractFilter implements FilterPlugin {
 
     private class FilterStream implements InPipeline, OutPipeline {
         Logger logger = LoggerFactory.getLogger(FilterStream.class.getName());
-        private Handler<Message> dataHandler;
+        private Handler<PipelinePack> dataHandler;
         private boolean paused;
         private Handler<Void> drainHandler;
         private Handler<Throwable> exceptionHandler;
@@ -52,22 +52,22 @@ public abstract class AbstractFilter implements FilterPlugin {
         }
 
         @Override
-        public WriteStream<Message> write(Message message) {
-            handleRequest(message, asyncResult -> {
+        public WriteStream<PipelinePack> write(PipelinePack pipelinePack) {
+            handleRequest(pipelinePack, asyncResult -> {
                 if (asyncResult.failed()) {
                     final Throwable cause = asyncResult.cause();
                     logger.error(cause.getMessage(), cause);
                     if (exceptionHandler != null) exceptionHandler.handle(cause);
                     return;
                 }
-                final Message response = asyncResult.result();
+                final PipelinePack response = asyncResult.result();
                 dataHandler.handle(response);
             });
             return this;
         }
 
         @Override
-        public WriteStream<Message> setWriteQueueMaxSize(int maxSize) {
+        public WriteStream<PipelinePack> setWriteQueueMaxSize(int maxSize) {
             //no op
             return this;
         }
@@ -78,25 +78,25 @@ public abstract class AbstractFilter implements FilterPlugin {
         }
 
         @Override
-        public WriteStream<Message> drainHandler(Handler<Void> drainHandler) {
+        public WriteStream<PipelinePack> drainHandler(Handler<Void> drainHandler) {
             this.drainHandler = drainHandler;
             return this;
         }
 
         @Override
-        public ReadStream<Message> handler(Handler<Message> dataHandler) {
+        public ReadStream<PipelinePack> handler(Handler<PipelinePack> dataHandler) {
             this.dataHandler = dataHandler;
             return this;
         }
 
         @Override
-        public ReadStream<Message> pause() {
+        public ReadStream<PipelinePack> pause() {
             paused = true;
             return this;
         }
 
         @Override
-        public ReadStream<Message> resume() {
+        public ReadStream<PipelinePack> resume() {
             paused = false;
             vertx.runOnContext(v -> callDrainHandler());
             return this;
@@ -111,7 +111,7 @@ public abstract class AbstractFilter implements FilterPlugin {
         }
 
         @Override
-        public ReadStream<Message> endHandler(Handler<Void> endHandler) {
+        public ReadStream<PipelinePack> endHandler(Handler<Void> endHandler) {
             return this;
         }
 
@@ -121,5 +121,5 @@ public abstract class AbstractFilter implements FilterPlugin {
         }
     }
 
-    public abstract void handleRequest(Message message, AsyncResultHandler<Message> asyncResultHandler);
+    public abstract void handleRequest(PipelinePack pipelinePack, AsyncResultHandler<PipelinePack> asyncResultHandler);
 }

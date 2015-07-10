@@ -1,6 +1,6 @@
 package io.cozmic.usher.streams;
 
-import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.Handler;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
@@ -11,16 +11,16 @@ import io.vertx.core.streams.WriteStream;
 public class DuplexStream<R, W> {
     private final ReadStream<R> readStream;
     private final WriteStream<W> writeStream;
-    private Handler<Message> messageDecorator;
+    private Handler<PipelinePack> packDecorator;
 
     public DuplexStream(ReadStream<R> readStream, WriteStream<W> writeStream) {
         this.readStream = readStream;
         this.writeStream = writeStream;
     }
 
-    public DuplexStream(ReadStream<R> readStream, WriteStream<W> writeStream, Handler<Message> messageDecorator) {
+    public DuplexStream(ReadStream<R> readStream, WriteStream<W> writeStream, Handler<PipelinePack> packDecorator) {
         this(readStream, writeStream);
-        this.messageDecorator = messageDecorator;
+        this.packDecorator = packDecorator;
     }
 
     public WriteStream<W> getWriteStream() {
@@ -40,13 +40,13 @@ public class DuplexStream<R, W> {
     }
 
 
-    public void decorate(Message message, Handler<Message> decoratedHandler) {
-        if (messageDecorator == null) {
-            decoratedHandler.handle(message);
+    public void decorate(PipelinePack pack, Handler<PipelinePack> decoratedHandler) {
+        if (packDecorator == null) {
+            decoratedHandler.handle(pack);
             return;
         }
 
-        messageDecorator.handle(message);
-        decoratedHandler.handle(message);
+        packDecorator.handle(pack);
+        decoratedHandler.handle(pack);
     }
 }

@@ -28,7 +28,7 @@ import static org.junit.Assert.fail;
 /**
  * Created by chuck on 6/29/15.
  */
-@RunWith(VertxUnitRunner.class)
+//@RunWith(VertxUnitRunner.class)
 public class EncoderTests {
 
     Vertx vertx;
@@ -50,38 +50,38 @@ public class EncoderTests {
      * confirm encoding behavior
      * @param context
      */
-    @Test
-    public void testCanEchoEncodedStream(TestContext context) {
-        final DeploymentOptions options = new DeploymentOptions();
-
-        final JsonObject config = new JsonObject();
-        final JsonObject output = buildOutput();
-        output.put("encoder", "CozmicEncoder");
-        config
-                .put("Router", buildInput())
-                .put("EchoBackend", output)
-                .put("CozmicEncoder", buildCozmicEncoder());
-        options.setConfig(config);
-        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
-            final Async async = context.async();
-            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
-                final NetSocket socket = asyncResult.result();
-                socket.write("Hello World");
-                socket.handler(buffer -> {
-                    context.assertNotNull(buffer);
-
-                    async.complete();
-
-                });
-            });
-            vertx.setTimer(5000, new Handler<Long>() {
-                @Override
-                public void handle(Long event) {
-                    context.fail("timed out");
-                }
-            });
-        }));
-    }
+//    @Test
+//    public void testCanEchoEncodedStream(TestContext context) {
+//        final DeploymentOptions options = new DeploymentOptions();
+//
+//        final JsonObject config = new JsonObject();
+//        final JsonObject output = buildOutput();
+//        output.put("encoder", "CozmicEncoder");
+//        config
+//                .put("Router", buildInput())
+//                .put("EchoBackend", output)
+//                .put("CozmicEncoder", buildCozmicEncoder());
+//        options.setConfig(config);
+//        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+//            final Async async = context.async();
+//            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+//                final NetSocket socket = asyncResult.result();
+//                socket.write("Hello World");
+//                socket.handler(buffer -> {
+//                    context.assertNotNull(buffer);
+//
+//                    async.complete();
+//
+//                });
+//            });
+//            vertx.setTimer(5000, new Handler<Long>() {
+//                @Override
+//                public void handle(Long event) {
+//                    context.fail("timed out");
+//                }
+//            });
+//        }));
+//    }
 
     private JsonObject buildCozmicEncoder() {
         return new JsonObject().put("type", "CozmicEncoder");

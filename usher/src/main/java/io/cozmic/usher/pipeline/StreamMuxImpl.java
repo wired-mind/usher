@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import io.cozmic.usher.core.MuxRegistration;
 import io.cozmic.usher.core.StreamMux;
 import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -22,7 +23,7 @@ public class StreamMuxImpl implements StreamMux {
     private final Vertx vertx;
     private List<MuxRegistrationImpl> demuxes = Lists.newArrayList();
     private Handler<Void> drainHandler;
-    private Handler<Message> messageHandler;
+    private Handler<PipelinePack> messageHandler;
     private boolean muxPaused;
     private Handler<Void> endHandler;
     private Handler<Throwable> exceptionHandler;
@@ -38,19 +39,19 @@ public class StreamMuxImpl implements StreamMux {
     }
 
     @Override
-    public ReadStream<Message> handler(Handler<Message> messageHandler) {
+    public ReadStream<PipelinePack> handler(Handler<PipelinePack> messageHandler) {
         this.messageHandler = messageHandler;
         return this;
     }
 
     @Override
-    public ReadStream<Message> pause() {
+    public ReadStream<PipelinePack> pause() {
         muxPaused = true;
         return this;
     }
 
     @Override
-    public ReadStream<Message> resume() {
+    public ReadStream<PipelinePack> resume() {
         muxPaused = false;
         for (MuxRegistrationImpl demux : demuxes) {
             vertx.runOnContext(v -> demux.callDrainHandler());
@@ -60,7 +61,7 @@ public class StreamMuxImpl implements StreamMux {
     }
 
     @Override
-    public ReadStream<Message> endHandler(Handler<Void> endHandler) {
+    public ReadStream<PipelinePack> endHandler(Handler<Void> endHandler) {
         this.endHandler = endHandler;
         return this;
     }
@@ -90,7 +91,7 @@ public class StreamMuxImpl implements StreamMux {
 
 
     @Override
-    public WriteStream<Message> write(Message data) {
+    public WriteStream<PipelinePack> write(PipelinePack data) {
         for (MuxRegistrationImpl demux : demuxes) {
             demux.handle(data);        //TODO: probably want to clone data. not doing it just yet. we'll see
         }
@@ -99,7 +100,7 @@ public class StreamMuxImpl implements StreamMux {
     }
 
     @Override
-    public WriteStream<Message> setWriteQueueMaxSize(int maxSize) {
+    public WriteStream<PipelinePack> setWriteQueueMaxSize(int maxSize) {
         return this;
     }
 
@@ -113,7 +114,7 @@ public class StreamMuxImpl implements StreamMux {
     }
 
     @Override
-    public WriteStream<Message> drainHandler(Handler<Void> drainHandler) {
+    public WriteStream<PipelinePack> drainHandler(Handler<Void> drainHandler) {
         this.drainHandler = drainHandler;
         vertx.runOnContext(v -> callMuxDrainHandler());
         return this;
@@ -129,10 +130,10 @@ public class StreamMuxImpl implements StreamMux {
     /**
      * Created by chuck on 7/6/15.
      */
-    public class MuxRegistrationImpl implements MuxRegistration, Handler<Message> {
+    public class MuxRegistrationImpl implements MuxRegistration, Handler<PipelinePack> {
         private Pump demuxPump;
         private Pump muxPump;
-        private Handler<Message> handler;
+        private Handler<PipelinePack> handler;
         private Handler<Void> endHandler;
         private boolean paused;
         private Handler<Throwable> exceptionHandler;
@@ -161,13 +162,13 @@ public class StreamMuxImpl implements StreamMux {
         }
 
         @Override
-        public WriteStream<Message> write(Message data) {
+        public WriteStream<PipelinePack> write(PipelinePack data) {
             if (messageHandler != null) messageHandler.handle(data);
             return this;
         }
 
         @Override
-        public WriteStream<Message> setWriteQueueMaxSize(int maxSize) {
+        public WriteStream<PipelinePack> setWriteQueueMaxSize(int maxSize) {
             return this;
         }
 
@@ -177,7 +178,7 @@ public class StreamMuxImpl implements StreamMux {
         }
 
         @Override
-        public WriteStream<Message> drainHandler(Handler<Void> drainHandler) {
+        public WriteStream<PipelinePack> drainHandler(Handler<Void> drainHandler) {
             this.drainHandler = drainHandler;
             vertx.runOnContext(v -> callDrainHandler());
             return this;
@@ -191,33 +192,33 @@ public class StreamMuxImpl implements StreamMux {
         }
 
         @Override
-        public ReadStream<Message> handler(Handler<Message> handler) {
+        public ReadStream<PipelinePack> handler(Handler<PipelinePack> handler) {
             this.handler = handler;
             return this;
         }
 
         @Override
-        public ReadStream<Message> pause() {
+        public ReadStream<PipelinePack> pause() {
             paused = true;
             return this;
         }
 
         @Override
-        public ReadStream<Message> resume() {
+        public ReadStream<PipelinePack> resume() {
             paused = false;
             vertx.runOnContext(v -> callMuxDrainHandler());
             return this;
         }
 
         @Override
-        public ReadStream<Message> endHandler(Handler<Void> endHandler) {
+        public ReadStream<PipelinePack> endHandler(Handler<Void> endHandler) {
             this.endHandler = endHandler;
             return this;
         }
 
 
         @Override
-        public void handle(Message data) {
+        public void handle(PipelinePack data) {
             if (handler != null) handler.handle(data);
         }
 

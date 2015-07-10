@@ -5,12 +5,13 @@ import io.cozmic.usher.core.MessageMatcher;
 import io.cozmic.usher.message.Message;
 import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.InPipeline;
+import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.pipeline.FilteredOutPipeline;
 
 /**
  * Created by chuck on 6/30/15.
  */
-public class MessageStream extends DuplexStream<Message, Message> {
+public class MessageStream extends DuplexStream<PipelinePack, PipelinePack> {
     private final InPipeline inPipeline;
     private final OutPipeline outPipeline;
 

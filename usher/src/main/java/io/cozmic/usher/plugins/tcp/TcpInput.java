@@ -1,6 +1,7 @@
 package io.cozmic.usher.plugins.tcp;
 
 import io.cozmic.usher.core.InputPlugin;
+import io.cozmic.usher.message.Message;
 import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
@@ -25,7 +26,8 @@ public class TcpInput implements InputPlugin {
 
         netServer.connectHandler(socket -> {
 
-            duplexStreamHandler.handle(new DuplexStream<>(socket, socket, message -> {
+            duplexStreamHandler.handle(new DuplexStream<>(socket, socket, pack -> {
+                final Message message = pack.getMessage();
                 message.setRemoteAddress(socket.remoteAddress());
                 message.setLocalAddress(socket.localAddress());
             }));

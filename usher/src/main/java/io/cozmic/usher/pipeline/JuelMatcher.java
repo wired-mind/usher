@@ -3,6 +3,7 @@ package io.cozmic.usher.pipeline;
 import de.odysseus.el.util.SimpleContext;
 import io.cozmic.usher.core.MessageMatcher;
 import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.net.SocketAddress;
 
 import javax.el.ExpressionFactory;
@@ -22,12 +23,17 @@ public class JuelMatcher implements MessageMatcher {
     }
 
     @Override
-    public boolean matches(Message message) {
+    public boolean matches(PipelinePack pipelinePack) {
         SimpleContext runtimeContext = new SimpleContext();
-        factory.createValueExpression(runtimeContext, "${localPort}", int.class).setValue(runtimeContext, message.getLocalAddress().port());
-        factory.createValueExpression(runtimeContext, "${localHost}", String.class).setValue(runtimeContext, message.getLocalAddress().host());
-        factory.createValueExpression(runtimeContext, "${remotePort}", int.class).setValue(runtimeContext, message.getRemoteAddress().port());
-        factory.createValueExpression(runtimeContext, "${remoteHost}", String.class).setValue(runtimeContext, message.getRemoteAddress().host());
+
+        //This needs some improvement
+        if (pipelinePack.getMessage() instanceof Message) {
+            Message message = pipelinePack.getMessage();
+            factory.createValueExpression(runtimeContext, "${localPort}", int.class).setValue(runtimeContext, message.getLocalAddress().port());
+            factory.createValueExpression(runtimeContext, "${localHost}", String.class).setValue(runtimeContext, message.getLocalAddress().host());
+            factory.createValueExpression(runtimeContext, "${remotePort}", int.class).setValue(runtimeContext, message.getRemoteAddress().port());
+            factory.createValueExpression(runtimeContext, "${remoteHost}", String.class).setValue(runtimeContext, message.getRemoteAddress().host());
+        }
 
         return (boolean) expression.getValue(runtimeContext);
     }
