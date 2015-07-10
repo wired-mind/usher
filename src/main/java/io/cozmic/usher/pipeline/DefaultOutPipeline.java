@@ -34,9 +34,9 @@ public class DefaultOutPipeline implements OutPipeline {
     }
 
     @Override
-    public WriteStream<PipelinePack> write(PipelinePack message) {
-        if (messageMatcher.matches(message)) {
-            encoderPlugin.encode(message, frameEncoderPlugin::encodeAndWrite);
+    public WriteStream<PipelinePack> write(PipelinePack pack) {
+        if (messageMatcher.matches(pack)) {
+            encoderPlugin.encode(pack, frameEncoderPlugin::encodeAndWrite);
         }
         return this;
     }

@@ -1,5 +1,6 @@
 package io.cozmic.usher.plugins.v1protocol;
 
+import io.cozmic.usher.core.FramingSplitter;
 import io.cozmic.usher.core.SplitterPlugin;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -10,7 +11,7 @@ import io.vertx.core.parsetools.RecordParser;
 /**
  * Created by chuck on 7/10/15.
  */
-public class UsherV1FramingSplitter implements SplitterPlugin {
+public class UsherV1FramingSplitter implements SplitterPlugin, FramingSplitter {
     private JsonObject configObj;
     private Vertx vertx;
 

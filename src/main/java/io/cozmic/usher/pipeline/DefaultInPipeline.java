@@ -1,6 +1,7 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.DecoderPlugin;
+import io.cozmic.usher.core.FramingSplitter;
 import io.cozmic.usher.core.InPipeline;
 import io.cozmic.usher.core.SplitterPlugin;
 import io.cozmic.usher.message.Message;
@@ -39,7 +40,8 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
         this.splitterPlugin = splitterPlugin;
         this.decoderPlugin = decoderPlugin;
 
-        useMsgBytes = splitterConfig.getBoolean("useMsgBytes", false);
+        final boolean useMessageBytesDefault = splitterPlugin instanceof FramingSplitter;
+        useMsgBytes = splitterConfig.getBoolean("useMessageBytes", useMessageBytesDefault);
 
         innerReadStream.handler(this);
 
