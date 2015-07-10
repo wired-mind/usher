@@ -13,5 +13,6 @@
     "messageMatcher": "#{localPort == 2500}",
     "reconnectAttempts": -1,
     "reconnectInterval": 3000
-  }
+  },
+  "PayloadEncoder": {}
 }

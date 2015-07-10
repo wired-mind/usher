@@ -58,8 +58,8 @@ public class JsonObjectTests {
                 final NetSocket socket = asyncResult.result();
                 socket.write("{}");
                 socket.handler(buffer -> {
-                    final String expected = new JsonObject("{\"hello\":\"world\",\"original\":{}}").toString();
-                    context.assertEquals(expected, buffer.toString());
+
+                    context.assertEquals("{\"hello\":\"world\",\"original\":{}}", buffer.toString());
 
                     async.complete();
 

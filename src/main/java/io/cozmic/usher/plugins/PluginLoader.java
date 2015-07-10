@@ -49,10 +49,10 @@ public class PluginLoader {
         splitterPlugins.put("NullSplitter", Maps.immutableEntry((SplitterPlugin) new NullSplitter(), new JsonObject()));
         decoderPlugins.put("NullDecoder", Maps.immutableEntry((DecoderPlugin) new NullDecoder(), new JsonObject()));
         encoderPlugins.put("NullEncoder", Maps.immutableEntry((EncoderPlugin) new NullEncoder(), new JsonObject()));
-        encoderPlugins.put("PayloadEncoder", Maps.immutableEntry((EncoderPlugin) new PayloadEncoder(), new JsonObject()));
+
         for (String pluginName : config.fieldNames()) {
             final JsonObject pluginConfig = config.getJsonObject(pluginName);
-            String pluginType = pluginConfig.getString("type");
+            String pluginType = pluginConfig.getString("type", pluginName);
             final boolean noPackage = !pluginType.contains(".");
             if (noPackage) {
                 pluginType = enrichPluginTypeWithWellKnownPackages(pluginType);

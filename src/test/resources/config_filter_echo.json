@@ -8,5 +8,6 @@
   "EchoBackend": {
     "type": "EchoFilter",
     "messageMatcher": "#{localPort == 2500}"
-  }
+  },
+  "PayloadEncoder": {}
 }

@@ -58,6 +58,7 @@ public class RoutingTests {
 
 
         config
+                .put("PayloadEncoder", new JsonObject())
                 .put("FooRouter", buildFooInput())
                 .put("BarRouter", buildBarInput())
                 .put("FooBackend", buildFooOutput(2500))
@@ -104,6 +105,7 @@ public class RoutingTests {
 
 
         config
+                .put("PayloadEncoder", new JsonObject())
                 .put("FooBarRouter", buildFooBarInput())
                 .put("FooBackend", buildFooOutput(2500))
                 .put("BarBackend", buildBarOutput(2500));
