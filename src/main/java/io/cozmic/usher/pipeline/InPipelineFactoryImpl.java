@@ -29,19 +29,11 @@ public class InPipelineFactoryImpl implements InPipelineFactory {
 
 
     private SplitterPlugin createSplitter(String pluginName) {
-        if (!splitterIndex.exists(pluginName)) {
-            return new NullSplitter();
-        }
-
         final SplitterPlugin splitterPlugin = splitterIndex.get(pluginName);
         return splitterPlugin.createNew();
     }
 
     private DecoderPlugin createDecoder(String pluginName) {
-        if (!decoderIndex.exists(pluginName)) {
-            return new NullDecoder();
-        }
-
         final DecoderPlugin decoderPlugin = decoderIndex.get(pluginName);
         return decoderPlugin.createNew();
     }

@@ -1,10 +1,10 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.*;
-import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.WriteStream;
 
 /**
@@ -12,13 +12,19 @@ import io.vertx.core.streams.WriteStream;
  */
 public class DefaultOutPipeline implements OutPipeline {
     private final WriteStream<Buffer> innerWriteStream;
+    private final JsonObject config;
     private final EncoderPlugin encoderPlugin;
+    private final FrameEncoderPlugin frameEncoderPlugin;
     private final MessageMatcher messageMatcher;
 
-    public DefaultOutPipeline(WriteStream<Buffer> writeStream, EncoderPlugin encoderPlugin, MessageMatcher messageMatcher) {
+    public DefaultOutPipeline(WriteStream<Buffer> writeStream, JsonObject config, EncoderPlugin encoderPlugin, FrameEncoderPlugin frameEncoderPlugin, MessageMatcher messageMatcher) {
         this.innerWriteStream = writeStream;
+        this.config = config;
         this.encoderPlugin = encoderPlugin;
+        this.frameEncoderPlugin = frameEncoderPlugin;
         this.messageMatcher = messageMatcher;
+
+        frameEncoderPlugin.setWriteHandler(innerWriteStream::write);
     }
 
     @Override
@@ -30,7 +36,7 @@ public class DefaultOutPipeline implements OutPipeline {
     @Override
     public WriteStream<PipelinePack> write(PipelinePack message) {
         if (messageMatcher.matches(message)) {
-            encoderPlugin.encode(message, innerWriteStream::write);
+            encoderPlugin.encode(message, frameEncoderPlugin::encodeAndWrite);
         }
         return this;
     }

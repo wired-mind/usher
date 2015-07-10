@@ -46,7 +46,7 @@ public class PluginFactory {
 
         for (Map.Entry<String, Map.Entry<FilterPlugin, JsonObject>> filterSpec : filters.entrySet()) {
             final Map.Entry<FilterPlugin, JsonObject> filter = filterSpec.getValue();
-            filterRunners.add(createFilterRunner(filterSpec.getKey(), filter.getValue(), filter.getKey(), messageParserFactory, messageFilterFactory));
+            filterRunners.add(createFilterRunner(filterSpec.getKey(), filter.getValue(), filter.getKey()));
         }
     }
 
@@ -55,7 +55,7 @@ public class PluginFactory {
     public InputRunner createInputRunner(String pluginName, JsonObject inputObj, InputPlugin inputPlugin, InPipelineFactoryImpl inOutParserFactory, OutPipelineFactoryImpl outInFilterFactory) {
         final String expressionVal = inputObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.always() : new JuelMatcher(expressionVal);
-        return new InputRunnerImpl(pluginName, inputPlugin, messageMatcher, inOutParserFactory, outInFilterFactory);
+        return new InputRunnerImpl(pluginName, inputObj, inputPlugin, messageMatcher, inOutParserFactory, outInFilterFactory);
     }
 
 
@@ -63,11 +63,11 @@ public class PluginFactory {
     public OutputRunner createOutputRunner(String pluginName, JsonObject outputObj, OutputPlugin outputPlugin, InPipelineFactoryImpl outInParserFactory, OutPipelineFactoryImpl inOutFilterFactory) {
         final String expressionVal = outputObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.never() : new JuelMatcher(expressionVal);
-        return new OutputRunnerImpl(pluginName, outputPlugin, messageMatcher, outInParserFactory, inOutFilterFactory);
+        return new OutputRunnerImpl(pluginName, outputObj, outputPlugin, messageMatcher, outInParserFactory, inOutFilterFactory);
     }
 
 
-    private FilterRunner createFilterRunner(String pluginName, JsonObject filterObj, FilterPlugin filterPlugin, InPipelineFactoryImpl outInParserFactory, OutPipelineFactoryImpl inOutFilterFactory) {
+    private FilterRunner createFilterRunner(String pluginName, JsonObject filterObj, FilterPlugin filterPlugin) {
         final String expressionVal = filterObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.never() : new JuelMatcher(expressionVal);
         return new FilterRunnerImpl(pluginName, filterPlugin, messageMatcher);

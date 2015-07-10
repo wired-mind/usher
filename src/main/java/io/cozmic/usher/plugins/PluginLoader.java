@@ -2,10 +2,9 @@ package io.cozmic.usher.plugins;
 
 import com.google.common.collect.Maps;
 import io.cozmic.usher.core.*;
-import io.cozmic.usher.plugins.core.NullDecoder;
-import io.cozmic.usher.plugins.core.NullEncoder;
-import io.cozmic.usher.plugins.core.NullSplitter;
-import io.cozmic.usher.plugins.core.PayloadEncoder;
+import io.cozmic.usher.plugins.core.*;
+import io.cozmic.usher.plugins.v1protocol.UsherV1FrameEncoder;
+import io.cozmic.usher.plugins.v1protocol.UsherV1FramingSplitter;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
@@ -29,8 +28,10 @@ public class PluginLoader {
     private Map<String, Map.Entry<DecoderPlugin, JsonObject>> decoderPlugins = Maps.newConcurrentMap();
     private Map<String, Map.Entry<OutputPlugin, JsonObject>> outputPlugins = Maps.newConcurrentMap();
     private Map<String, Map.Entry<EncoderPlugin, JsonObject>> encoderPlugins = Maps.newConcurrentMap();
+    private Map<String, Map.Entry<FrameEncoderPlugin, JsonObject>> frameEncoderPlugins = Maps.newConcurrentMap();
     private Map<String, Map.Entry<FilterPlugin, JsonObject>> filterPlugins = Maps.newConcurrentMap();
     private Map<String, String> wellKnownPackages;
+    private PluginIndex<FrameEncoderPlugin> frameEncoderIndex;
 
 
     private Properties loadTypePackages() throws IOException {
@@ -47,8 +48,11 @@ public class PluginLoader {
     public PluginLoader(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException {
         wellKnownPackages = Maps.fromProperties(loadTypePackages());
         splitterPlugins.put("NullSplitter", Maps.immutableEntry((SplitterPlugin) new NullSplitter(), new JsonObject()));
+        splitterPlugins.put("UsherV1FramingSplitter", Maps.immutableEntry((SplitterPlugin) new UsherV1FramingSplitter(), new JsonObject()));
         decoderPlugins.put("NullDecoder", Maps.immutableEntry((DecoderPlugin) new NullDecoder(), new JsonObject()));
         encoderPlugins.put("NullEncoder", Maps.immutableEntry((EncoderPlugin) new NullEncoder(), new JsonObject()));
+        frameEncoderPlugins.put("NullFrameEncoder", Maps.immutableEntry((FrameEncoderPlugin) new NullFrameEncoder(), new JsonObject()));
+        frameEncoderPlugins.put("UsherV1FrameEncoder", Maps.immutableEntry((FrameEncoderPlugin) new UsherV1FrameEncoder(), new JsonObject()));
 
         for (String pluginName : config.fieldNames()) {
             final JsonObject pluginConfig = config.getJsonObject(pluginName);
@@ -66,21 +70,18 @@ public class PluginLoader {
 
             if (pluginType.endsWith("Input")) {
                 inputPlugins.put(pluginName, Maps.immutableEntry((InputPlugin) plugin, pluginConfig));
-            }
-            else if (pluginType.endsWith("Output")) {
+            } else if (pluginType.endsWith("Output")) {
                 outputPlugins.put(pluginName, Maps.immutableEntry((OutputPlugin) plugin, pluginConfig));
-            }
-            else if (pluginType.endsWith("Splitter")) {
+            } else if (pluginType.endsWith("Splitter")) {
                 splitterPlugins.put(pluginName, Maps.immutableEntry((SplitterPlugin) plugin, pluginConfig));
-            }
-            else if (pluginType.endsWith("Decoder")) {
+            } else if (pluginType.endsWith("Decoder")) {
                 decoderPlugins.put(pluginName, Maps.immutableEntry((DecoderPlugin) plugin, pluginConfig));
-            }
-            else if (pluginType.endsWith("Encoder")) {
+            } else if (pluginType.endsWith("Encoder")) {
                 encoderPlugins.put(pluginName, Maps.immutableEntry((EncoderPlugin) plugin, pluginConfig));
-            }
-            else if (pluginType.endsWith("Filter")) {
+            } else if (pluginType.endsWith("Filter")) {
                 filterPlugins.put(pluginName, Maps.immutableEntry((FilterPlugin) plugin, pluginConfig));
+            } else if (pluginType.endsWith("FrameEncoder")) {
+                frameEncoderPlugins.put(pluginName, Maps.immutableEntry((FrameEncoderPlugin) plugin, pluginConfig));
             }
         }
 
@@ -96,6 +97,10 @@ public class PluginLoader {
         encoderIndex.build(getInputs());
         encoderIndex.build(getOutputs());
 
+
+        frameEncoderIndex = new PluginIndex<>(getFrameEncoders(), "frameEncoder", "NullFrameEncoder");
+        frameEncoderIndex.build(getInputs());
+        frameEncoderIndex.build(getOutputs());
     }
 
 
@@ -130,6 +135,12 @@ public class PluginLoader {
         return filterPlugins;
     }
 
+    public Map<String,Map.Entry<FrameEncoderPlugin,JsonObject>> getFrameEncoders() {
+        return frameEncoderPlugins;
+    }
+
+
+
     public PluginIndex<SplitterPlugin> getSplitterIndex() {
         return splitterIndex;
     }
@@ -140,5 +151,9 @@ public class PluginLoader {
 
     public PluginIndex<EncoderPlugin> getEncoderIndex() {
         return encoderIndex;
+    }
+
+    public PluginIndex<FrameEncoderPlugin> getFrameEncoderIndex() {
+        return frameEncoderIndex;
     }
 }
