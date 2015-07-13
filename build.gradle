@@ -29,10 +29,13 @@ if (!JavaVersion.current().java8Compatible) {
 }
 
 repositories {
-    mavenCentral()
     maven {
-        url = 'http://oss.sonatype.org/content/repositories/snapshots/'
-    }
+        credentials {
+            username sonatypeUsername
+            password sonatypePassword
+        }
+        url 'https://nexus.cyberphysicalsystems.io/content/groups/public/' }
+    mavenLocal()
 }
 
 dependencies {
