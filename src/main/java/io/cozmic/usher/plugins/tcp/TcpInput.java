@@ -9,6 +9,8 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.NetServer;
 import io.vertx.core.net.NetServerOptions;
 
@@ -16,9 +18,11 @@ import io.vertx.core.net.NetServerOptions;
  * Created by chuck on 6/26/15.
  */
 public class TcpInput implements InputPlugin {
+    Logger logger = LoggerFactory.getLogger(TcpInput.class.getName());
 
     private NetServer netServer;
-
+    private JsonObject configObj;
+    private Vertx vertx;
 
 
     @Override
@@ -38,7 +42,7 @@ public class TcpInput implements InputPlugin {
                 startupHandler.handle(Future.failedFuture(netServerAsyncResult.cause()));
                 return;
             }
-
+            logger.info("Tcp Server started: " + configObj);
             startupHandler.handle(Future.succeededFuture());
         });
     }
@@ -46,6 +50,8 @@ public class TcpInput implements InputPlugin {
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
+        this.configObj = configObj;
+        this.vertx = vertx;
         netServer = vertx.createNetServer(buildOptions(configObj));
     }
 
