@@ -65,7 +65,7 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
                 pipelinePack = new PipelinePack(record);
             } else {
                 final Message message = new Message();
-                message.setPayload(record.toString());
+                message.setPayload(record);
                 message.setMessageId(UUID.randomUUID());
                 message.setTimestamp(System.currentTimeMillis());
                 pipelinePack = new PipelinePack(message);

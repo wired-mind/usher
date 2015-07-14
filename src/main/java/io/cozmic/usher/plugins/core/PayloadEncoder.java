@@ -18,7 +18,7 @@ public class PayloadEncoder implements EncoderPlugin {
     @Override
     public void encode(PipelinePack pipelinePack, Handler<Buffer> bufferHandler) {
         final Message message = pipelinePack.getMessage();
-        bufferHandler.handle(Buffer.buffer(message.getPayload()));
+        bufferHandler.handle(message.getPayload());
     }
 
     @Override

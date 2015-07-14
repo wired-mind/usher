@@ -17,7 +17,7 @@ public class JsonDecoder implements DecoderPlugin {
     @Override
     public void decode(PipelinePack pack, Handler<PipelinePack> pipelinePackHandler) {
         final Message message = pack.getMessage();
-        final JsonObject jsonObject = new JsonObject(message.getPayload());
+        final JsonObject jsonObject = new JsonObject(message.getPayload().toString());
         pack.setMessage(jsonObject);
 
         pipelinePackHandler.handle(pack);

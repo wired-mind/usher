@@ -12,17 +12,17 @@ import java.util.UUID;
  */
 public class Message implements Shareable {
     private UUID messageId;
-    private String payload;
+    private Buffer payload;
     private SocketAddress remoteAddress;
     private SocketAddress localAddress;
     private long timestamp;
 
 
-    public String getPayload() {
+    public Buffer getPayload() {
         return payload;
     }
 
-    public void setPayload(String payload) {
+    public void setPayload(Buffer payload) {
         this.payload = payload;
     }
 
