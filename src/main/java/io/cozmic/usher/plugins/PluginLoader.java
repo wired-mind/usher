@@ -47,12 +47,6 @@ public class PluginLoader {
 
     public PluginLoader(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException {
         wellKnownPackages = Maps.fromProperties(loadTypePackages());
-        splitterPlugins.put("NullSplitter", Maps.immutableEntry((SplitterPlugin) new NullSplitter(), new JsonObject()));
-        splitterPlugins.put("UsherV1FramingSplitter", Maps.immutableEntry((SplitterPlugin) new UsherV1FramingSplitter(), new JsonObject()));
-        decoderPlugins.put("NullDecoder", Maps.immutableEntry((DecoderPlugin) new NullDecoder(), new JsonObject()));
-        encoderPlugins.put("NullEncoder", Maps.immutableEntry((EncoderPlugin) new NullEncoder(), new JsonObject()));
-        frameEncoderPlugins.put("NullFrameEncoder", Maps.immutableEntry((FrameEncoderPlugin) new NullFrameEncoder(), new JsonObject()));
-        frameEncoderPlugins.put("UsherV1FrameEncoder", Maps.immutableEntry((FrameEncoderPlugin) new UsherV1FrameEncoder(), new JsonObject()));
 
         for (String pluginName : config.fieldNames()) {
             final JsonObject pluginConfig = config.getJsonObject(pluginName);
@@ -76,12 +70,12 @@ public class PluginLoader {
                 splitterPlugins.put(pluginName, Maps.immutableEntry((SplitterPlugin) plugin, pluginConfig));
             } else if (pluginType.endsWith("Decoder")) {
                 decoderPlugins.put(pluginName, Maps.immutableEntry((DecoderPlugin) plugin, pluginConfig));
+            } else if (pluginType.endsWith("FrameEncoder")) {
+                frameEncoderPlugins.put(pluginName, Maps.immutableEntry((FrameEncoderPlugin) plugin, pluginConfig));
             } else if (pluginType.endsWith("Encoder")) {
                 encoderPlugins.put(pluginName, Maps.immutableEntry((EncoderPlugin) plugin, pluginConfig));
             } else if (pluginType.endsWith("Filter")) {
                 filterPlugins.put(pluginName, Maps.immutableEntry((FilterPlugin) plugin, pluginConfig));
-            } else if (pluginType.endsWith("FrameEncoder")) {
-                frameEncoderPlugins.put(pluginName, Maps.immutableEntry((FrameEncoderPlugin) plugin, pluginConfig));
             }
         }
 

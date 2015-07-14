@@ -2,6 +2,7 @@ package io.cozmic.usher;
 
 
 import com.codahale.metrics.*;
+import com.typesafe.config.*;
 import io.cozmic.usher.pipeline.PipelineVerticle;
 import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
@@ -38,11 +39,12 @@ public class Start extends AbstractVerticle {
                 startConsoleReporter(usher);
             }
         }
+        final JsonObject finalUsherConfig = buildUsherConfig();
 
         final int pipelineInstances = Runtime.getRuntime().availableProcessors();
         final DeploymentOptions options = new DeploymentOptions();
         options.setInstances(pipelineInstances);
-        options.setConfig(config());
+        options.setConfig(finalUsherConfig);
 
 
         vertx.deployVerticle(PipelineVerticle.class.getName(), options, deployId -> {
@@ -56,6 +58,43 @@ public class Start extends AbstractVerticle {
             startedResult.complete();
 
         });
+    }
+
+    /**
+     * Provides a "Convention over Configuration" approach to config files for usher.
+     *
+     * Services built with usher can put an application.conf file in the classpath and call it good.
+     * However, they can also use the USHER_ENV environment variable to specify a runtime environment
+     * and load/merge values from other config files.
+     * @return
+     */
+    private JsonObject buildUsherConfig() {
+        //https://github.com/typesafehub/config#standard-behavior
+        final Config refConfig = ConfigFactory.parseResourcesAnySyntax("reference");
+        final Config defaultConfig = ConfigFactory.parseResourcesAnySyntax("application");
+
+        //load a production.conf if any
+        String env = System.getenv("USHER_ENV");
+        if (env == null) {
+            env = "production";
+        }
+        final Config envConfig = ConfigFactory.parseResourcesAnySyntax(String.format("%s.conf", env));
+
+        JsonObject runtimeConfig = config();
+        if (runtimeConfig == null) {
+            runtimeConfig = new JsonObject();
+        }
+
+        final Config runtimeOverrides = ConfigFactory.parseString(runtimeConfig.toString(), ConfigParseOptions.defaults());
+        Config resolvedConfigs;
+        resolvedConfigs = runtimeOverrides
+                .withFallback(envConfig)
+                .withFallback(defaultConfig)
+                .withFallback(refConfig)
+                .resolve();
+
+
+        return new JsonObject(resolvedConfigs.root().render(ConfigRenderOptions.concise()));
     }
 
     public void startConsoleReporter(MetricRegistry usher) {
@@ -81,19 +120,6 @@ public class Start extends AbstractVerticle {
             logger.error("Could not configure data dog reporter. Right now datadog integration only works with EC2");
         }
     }
-
-    private static JsonObject buildOutput() {
-        return new JsonObject().put("type", "TcpOutput").put("host", "www.cnn.com").put("port", 80);
-    }
-
-    private static JsonObject buildTokenSplitter(String delimiter) {
-        return new JsonObject().put("type", "TokenSplitter").put("delimiter", delimiter);
-    }
-
-    private static JsonObject buildInput() {
-        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500);
-    }
-
 }
 
 
