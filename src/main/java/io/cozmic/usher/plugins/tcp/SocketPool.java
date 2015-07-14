@@ -30,7 +30,7 @@ public class SocketPool extends WriteStreamPool {
     @Override
     protected void initialize(int minIdle) {
         host = configObj.getString("host");
-        port = configObj.getInteger("port");
+        port = Integer.parseInt(configObj.getValue("port").toString());
         netClient = vertx.createNetClient(buildOptions(configObj));
         super.initialize(minIdle);
     }
