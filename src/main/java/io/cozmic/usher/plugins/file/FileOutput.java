@@ -112,7 +112,7 @@ public class FileOutput implements OutputPlugin {
         @Override
         public WriteStream<Buffer> write(Buffer data) {
             file.write(data);
-            if (configObj.getBoolean("successResponse")) {
+            if (configObj.getBoolean("successResponse", false)) {
                 dataHandler.handle(Buffer.buffer(new byte[] {0x1}));
             }
             return this;
