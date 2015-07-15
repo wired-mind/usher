@@ -13,6 +13,7 @@ import io.vertx.core.file.FileSystem;
 import io.vertx.core.file.OpenOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.metrics.MetricsOptions;
+import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetSocket;
 import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
 import io.vertx.ext.unit.Async;
@@ -67,11 +68,12 @@ public class FileOutputTests {
         final DeploymentOptions options = buildDeploymentOptions();
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
-            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+            final NetClient netClient = vertx.createNetClient();
+            netClient.connect(2500, "localhost", asyncResult -> {
                 final NetSocket socket = asyncResult.result();
                 socket.write("Hello File");
                 socket.handler(buffer -> {
-                    context.assertEquals((byte)0x1, buffer.getByte(0));
+                    context.assertEquals((byte) 0x1, buffer.getByte(0));
                     final Buffer fileContents = vertx.fileSystem().readFileBlocking("/tmp/debug_log");
                     context.assertEquals("Hello File", fileContents.toString());
                     async.complete();

@@ -119,6 +119,7 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
         public TypeMapRule(JsonObject config) {
             super(config);
             final JsonArray typeMap = config.getJsonArray("typeMap");
+            final Integer radix = config.getInteger("radix", 16);
             if (typeMap == null) {
                 throw new RuntimeException("Expecting an array of map objects ");
             }
@@ -137,7 +138,7 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
                 byte[] key = new byte[keySize];
                 for (int i = 0; i < keySize; i++) {
                     final Object objByte = byteList.get(i);
-                    key[i] = Byte.parseByte((String) objByte);
+                    key[i] = Byte.parseByte((String) objByte, radix);
                 }
 
                 final String encodedKey = new String(key, keyEncodingCharset);
