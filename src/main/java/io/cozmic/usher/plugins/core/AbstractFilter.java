@@ -38,6 +38,14 @@ public abstract class AbstractFilter implements FilterPlugin {
         this.vertx = vertx;
     }
 
+    public JsonObject getConfigObj() {
+        return configObj;
+    }
+
+    public Vertx getVertx() {
+        return vertx;
+    }
+
     private class FilterStream implements InPipeline, OutPipeline {
         Logger logger = LoggerFactory.getLogger(FilterStream.class.getName());
         private Handler<PipelinePack> dataHandler;
