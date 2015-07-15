@@ -54,9 +54,16 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
                 }
 
                 final int nextLength = currentRule.length(buffer);
-                if (nextLength > 0) {
-                    innerParser.fixedSizeMode(nextLength);
+                if (nextLength == 0) {
+                    outputHandler.handle(buff);
+                    buff = null;
+                    currentRule = firstRule;
+                    innerParser.fixedSizeMode(currentRule.length(null));
+                    currentRule = currentRule.nextRule(null);
+                    return;
                 }
+
+                innerParser.fixedSizeMode(nextLength);
                 currentRule = currentRule.nextRule(buffer);
             }
         });
@@ -117,7 +124,7 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
             }
             final List mapEntries = typeMap.getList();
             for (Object objEntry : mapEntries) {
-                final JsonObject entry = (JsonObject)objEntry;
+                final JsonObject entry = (objEntry instanceof JsonObject) ? (JsonObject)objEntry : new JsonObject((Map<String, Object>) objEntry);
                 final Integer length = entry.getInteger("length");
                 final JsonObject nextRuleConfig = entry.getJsonObject("nextRule", new JsonObject());
                 final JsonArray byteArray = entry.getJsonArray("bytes");
@@ -191,9 +198,9 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
                 throw new IllegalArgumentException("Length per segment is required");
             }
 
-            final boolean validCounterSize = counterSize == 2 || counterSize == 4 || counterSize == 8;
+            final boolean validCounterSize = counterSize == 1 || counterSize == 2 || counterSize == 4 || counterSize == 8;
             if (!validCounterSize) {
-                throw new IllegalArgumentException("Counter size must be 2, 4, or 8");
+                throw new IllegalArgumentException("Counter size must be 1, 2, 4, or 8");
             }
 
         }
@@ -202,6 +209,9 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
         public int length(Buffer buffer) {
             long count = 0;
             switch (counterSize) {
+                case 1:
+                    count = buffer.getByte(counterPosition) & 0xFF;
+                    break;
                 case 2:
                     count = (long) buffer.getShort(counterPosition);
                     break;
