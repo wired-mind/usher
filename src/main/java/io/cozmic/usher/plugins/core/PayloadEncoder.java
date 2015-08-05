@@ -7,6 +7,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
+import org.apache.commons.codec.binary.Hex;
 
 /**
  * Created by chuck on 7/9/15.
@@ -14,10 +15,19 @@ import io.vertx.core.json.JsonObject;
 public class PayloadEncoder implements EncoderPlugin {
     private JsonObject configObj;
     private Vertx vertx;
+    private boolean hex;
 
     @Override
     public void encode(PipelinePack pipelinePack, Handler<Buffer> bufferHandler) {
         final Message message = pipelinePack.getMessage();
+
+
+        if (hex) {
+            final char[] chars = Hex.encodeHex(message.getPayload().getBytes());
+            bufferHandler.handle(Buffer.buffer(new String(chars)));
+            return;
+        }
+
         bufferHandler.handle(message.getPayload());
     }
 
@@ -31,5 +41,7 @@ public class PayloadEncoder implements EncoderPlugin {
 
         this.configObj = configObj;
         this.vertx = vertx;
+
+        this.hex = configObj.getBoolean("hex", false);
     }
 }
