@@ -1,0 +1,21 @@
+{
+  "Router": {
+    "type": "TcpInput",
+    "host": "0.0.0.0",
+    "encoder": "PayloadEncoder",
+    "port": 2500
+  },
+  "LogBackend": {
+    "type": "LogOutput",
+    "name": "test_logger",
+    "successResponse": true,
+    "encoder": "HexPayloadEncoder",
+    "messageMatcher": "#{1 == 1}"
+  },
+  "PayloadEncoder": {
+  },
+  "HexPayloadEncoder": {
+    "type": "PayloadEncoder",
+    "hex": true
+  }
+}
