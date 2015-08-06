@@ -28,36 +28,45 @@ public class Start extends AbstractVerticle {
 
     public void start(final Future<Void> startedResult) {
 
-        if (vertx.isMetricsEnabled()) {
-            logger.info("Enabling metrics");
-            final MetricRegistry usher = SharedMetricRegistries.getOrCreate("usher");
+        vertx.executeBlocking(future -> {
+            if (vertx.isMetricsEnabled()) {
+                logger.info("Enabling metrics");
+                final MetricRegistry usher = SharedMetricRegistries.getOrCreate("usher");
 
-            final String datadogApiKey = System.getenv("DATADOG_API_KEY");
-            if (datadogApiKey != null) {
-                startDatadogReporter(usher, datadogApiKey);
-            } else {
-                startConsoleReporter(usher);
+                final String datadogApiKey = System.getenv("DATADOG_API_KEY");
+                if (datadogApiKey != null) {
+                    startDatadogReporter(usher, datadogApiKey);
+
+
+                } else {
+                    startConsoleReporter(usher);
+                }
             }
-        }
-        final JsonObject finalUsherConfig = buildUsherConfig();
+            future.complete();
+        }, asyncResult -> {
+            final JsonObject finalUsherConfig = buildUsherConfig();
 
-        final int pipelineInstances = Runtime.getRuntime().availableProcessors();
-        final DeploymentOptions options = new DeploymentOptions();
-        options.setInstances(pipelineInstances);
-        options.setConfig(finalUsherConfig);
+            final int pipelineInstances = Runtime.getRuntime().availableProcessors();
+            final DeploymentOptions options = new DeploymentOptions();
+            options.setInstances(pipelineInstances);
+            options.setConfig(finalUsherConfig);
 
 
-        vertx.deployVerticle(PipelineVerticle.class.getName(), options, deployId -> {
-            if (deployId.failed()) {
-                final Throwable cause = deployId.cause();
-                logger.error(cause.getMessage(), cause);
-                startedResult.fail(deployId.cause());
-                return;
-            }
-            logger.info("Finished launching pipeline " + deployId.result());
-            startedResult.complete();
+            vertx.deployVerticle(PipelineVerticle.class.getName(), options, deployId -> {
+                if (deployId.failed()) {
+                    final Throwable cause = deployId.cause();
+                    logger.error(cause.getMessage(), cause);
+                    startedResult.fail(deployId.cause());
+                    return;
+                }
+                logger.info("Finished launching pipeline " + deployId.result());
+                startedResult.complete();
 
+            });
         });
+
+
+
     }
 
     /**
@@ -116,6 +125,7 @@ public class Start extends AbstractVerticle {
                     .withExpansions(expansions)
                     .build();
             reporter.start(10, TimeUnit.SECONDS);
+            logger.info("Datadog reporting started.");
         } catch (IOException e) {
             logger.error("Could not configure data dog reporter. Right now datadog integration only works with EC2");
         }
