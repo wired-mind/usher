@@ -10,6 +10,11 @@ import io.vertx.core.Future;
  */
 public class EchoFilter extends AbstractFilter {
     @Override
+    protected void start(AsyncResultHandler<Void> resultHandler) {
+        resultHandler.handle(Future.succeededFuture());
+    }
+
+    @Override
     public void handleRequest(PipelinePack pipelinePack, AsyncResultHandler<PipelinePack> asyncResultHandler) {
         //would normally mutate the pipelinePack or create a new response pipelinePack
         asyncResultHandler.handle(Future.succeededFuture(pipelinePack));

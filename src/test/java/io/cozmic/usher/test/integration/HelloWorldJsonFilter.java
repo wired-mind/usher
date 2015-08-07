@@ -12,6 +12,11 @@ import io.vertx.core.json.JsonObject;
  */
 public class HelloWorldJsonFilter extends AbstractFilter {
     @Override
+    protected void start(AsyncResultHandler<Void> resultHandler) {
+        resultHandler.handle(Future.succeededFuture());
+    }
+
+    @Override
     public void handleRequest(PipelinePack pipelinePack, AsyncResultHandler<PipelinePack> asyncResultHandler) {
         final JsonObject message = pipelinePack.getMessage();
         pipelinePack.setMessage(new JsonObject().put("hello", "world").put("original", message));

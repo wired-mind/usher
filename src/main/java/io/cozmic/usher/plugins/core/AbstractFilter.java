@@ -6,10 +6,7 @@ import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.WriteStreamPool;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
-import io.vertx.core.AsyncResultHandler;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -27,9 +24,18 @@ public abstract class AbstractFilter implements FilterPlugin {
 
     @Override
     public void run(AsyncResultHandler<MessageStream> messageStreamAsyncResultHandler) {
-        final FilterStream filterStream = new FilterStream();
-        messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(filterStream, filterStream)));
+        start(result -> {
+            if (result.failed()) {
+                messageStreamAsyncResultHandler.handle(Future.failedFuture(result.cause()));
+                return;
+            }
+
+            final FilterStream filterStream = new FilterStream();
+            messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(filterStream, filterStream)));
+        });
     }
+
+    protected abstract void start(AsyncResultHandler<Void> resultHandler);
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
