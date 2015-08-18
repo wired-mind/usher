@@ -5,7 +5,6 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
@@ -15,10 +14,10 @@ import static com.codahale.metrics.MetricRegistry.name;
 
 /**
  * Inspired by easy-pool (https://github.com/ova2/easy-pool) but adapted for vertx
+ *
  * @param <T>
  */
-public abstract class ObjectPool<T>
-{
+public abstract class ObjectPool<T> {
     protected final JsonObject configObj;
     protected Vertx vertx;
     private ConcurrentLinkedQueue<T> pool;
@@ -56,7 +55,7 @@ public abstract class ObjectPool<T>
         this.vertx = vertx;
         final Integer minIdle = configObj.getInteger("minIdle", 3);
         final Integer maxIdle = configObj.getInteger("maxIdle", 100);
-        final Integer validationInterval = configObj.getInteger("validationInterval", 5);
+        final Integer validationInterval = configObj.getInteger("validationInterval", 60);
         // initialize pool
         vertx.runOnContext(v -> {
             initialize(minIdle);
@@ -65,25 +64,28 @@ public abstract class ObjectPool<T>
         // check pool conditions in a separate thread
         timerId = vertx.setPeriodic(validationInterval * 1000, timeoutId -> {
             int size = pool.size();
-            if (size < minIdle) {
-                int sizeToBeAdded = minIdle - size;
-                for (int i = 0; i < sizeToBeAdded; i++) {
-                    createObject(asyncResult -> {
-                        if (asyncResult.succeeded()) {
-                            pool.add(asyncResult.result());
-                            poolSize.inc();
-                        }
-                    });
-                }
-            } else if (size > maxIdle) {
-                int sizeToBeRemoved = size - maxIdle;
-                for (int i = 0; i < sizeToBeRemoved; i++) {
-                    final T obj = doRemoveFromPool();
-                    if (obj != null) {
-                        destroyObject(obj);
-                    }
+            int sizeToBeRemoved = size;
+
+            // First, let's remove all the objects from the pool (reset to zero)
+            for (int i = 0; i < sizeToBeRemoved; i++) {
+                final T obj = doRemoveFromPool();
+                if (obj != null) {
+                    destroyObject(obj);
                 }
             }
+
+            // Then, let's recreate the minIdle count. (This way we don't continue to reuse an object for ever. We slowly replace them.)
+
+            int sizeToBeAdded = minIdle;
+            for (int i = 0; i < sizeToBeAdded; i++) {
+                createObject(asyncResult -> {
+                    if (asyncResult.succeeded()) {
+                        pool.add(asyncResult.result());
+                        poolSize.inc();
+                    }
+                });
+            }
+
         });
     }
 
