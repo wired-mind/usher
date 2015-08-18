@@ -1,6 +1,8 @@
 package io.cozmic.usher.pipeline;
 
-import io.cozmic.usher.core.*;
+import io.cozmic.usher.core.ChannelFactory;
+import io.cozmic.usher.core.CountDownFutureResult;
+import io.cozmic.usher.core.InputRunner;
 import io.cozmic.usher.plugins.PluginFactory;
 import io.cozmic.usher.streams.ChannelFactoryImpl;
 import io.vertx.core.AbstractVerticle;
@@ -37,14 +39,17 @@ public class PipelineVerticle extends AbstractVerticle {
 
     public void start(final Future<Void> startedResult) throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
 
-        PluginFactory pluginFactory = new PluginFactory(getVertx(), config());
+        final JsonObject config = config();
+        final JsonObject usherConfig = config.getJsonObject("usher", new JsonObject());
+        config.remove("usher");
+        PluginFactory pluginFactory = new PluginFactory(getVertx(), config);
         List<InputRunner> inputRunners = pluginFactory.getInputRunners();
 
         final int inputCount = inputRunners.size();
 
         CountDownFutureResult<Void> dynamicStarter = CountDownFutureResult.dynamicStarter(inputCount);
 
-        final OutputStreamMuxPool outputStreamMuxPool = new OutputStreamMuxPool(new JsonObject(), vertx, pluginFactory);
+        final OutputStreamMuxPool outputStreamMuxPool = new OutputStreamMuxPool(usherConfig, vertx, pluginFactory);
         final ChannelFactory channelFactory = new ChannelFactoryImpl(outputStreamMuxPool);
 
 
@@ -72,7 +77,6 @@ public class PipelineVerticle extends AbstractVerticle {
             startedResult.complete();
         });
     }
-
 
 
 }
