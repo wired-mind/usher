@@ -46,7 +46,7 @@ public class FileOutput implements OutputPlugin {
             duplexStreamAsyncResultHandler.handle(Future.succeededFuture(new DuplexStream<>(fileStream, fileStream, pack -> {
                 final Message message = pack.getMessage();
 
-            })));
+            }, v->{fileStream.close();})));
         });
 
 
@@ -156,6 +156,10 @@ public class FileOutput implements OutputPlugin {
         public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
             this.endHandler = endHandler;
             return this;
+        }
+
+        public void close() {
+            file.close();
         }
     }
 }

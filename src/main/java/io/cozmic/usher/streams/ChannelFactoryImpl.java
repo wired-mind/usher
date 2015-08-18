@@ -1,7 +1,11 @@
 package io.cozmic.usher.streams;
 
 import io.cozmic.usher.core.*;
+import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
+import io.cozmic.usher.vertx.parsers.PacketParsingException;
 import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.streams.Pump;
@@ -61,6 +65,17 @@ public class ChannelFactoryImpl implements ChannelFactory {
             inPipeline.endHandler(v -> {
                 if (endHandler != null) endHandler.handle(null);
                 doStop();
+            });
+
+            inPipeline.exceptionHandler(t -> {
+                if (t instanceof PacketParsingException) {
+                    PacketParsingException exception = (PacketParsingException)t;
+                    PipelinePack data = exception.getPipelinePack();
+                    outPipeline.write(data);
+                }
+
+                doStop();
+                inPipeline.close();
             });
         }
 

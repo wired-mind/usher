@@ -112,6 +112,43 @@ public class SplitterTests {
         }));
     }
 
+    @Test
+    public void testInvalidPacketShouldError(TestContext context) {
+        final DeploymentOptions options = new DeploymentOptions();
+        JsonObject inputConfig = buildInput();
+        inputConfig.put("splitter", "PacketSplitter");
+        final JsonObject config = new JsonObject();
+        config
+                .put("PayloadEncoder", new JsonObject())
+                .put("Router", inputConfig)
+                .put("EchoBackend", buildOutput())
+                .put("PacketSplitter", buildPacketSplitter());
+        options.setConfig(config);
+        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+            final Async async = context.async();
+            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+                final NetSocket socket = asyncResult.result();
+                final Buffer bogusPacket = Buffer.buffer("bogus");
+                socket.write(bogusPacket);
+                socket.handler(buffer -> {
+                    final short response = buffer.getShort(0);
+                    context.assertEquals((short)0xff00, Short.reverseBytes(response));
+
+                });
+
+                // Expect the server to close the socket on us
+                socket.closeHandler(v->{
+                    async.complete();
+                });
+            });
+
+            vertx.setTimer(5000, event -> {
+                context.fail("timed out");
+            });
+
+        }));
+    }
+
     protected Buffer createFakeStartupPacket() {
         final Buffer fakeStartupPacket = Buffer.buffer();
         fakeStartupPacket.appendByte((byte) 0x03);

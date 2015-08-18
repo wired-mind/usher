@@ -39,33 +39,30 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
         final Rule firstRule = Rule.build(config);
         currentRule = firstRule;
 
-        innerParser = RecordParser.newFixed(currentRule.length(null), new Handler<Buffer>() {
-            @Override
-            public void handle(Buffer buffer) {
-                if (buff == null) {
-                    buff = buffer;
-                } else {
-                    buff.appendBuffer(buffer);
-                }
-                if (currentRule == null) {
-                    outputHandler.handle(buff);
-                    buff = null;
-                    currentRule = firstRule;
-                }
-
-                final int nextLength = currentRule.length(buffer);
-                if (nextLength == 0) {
-                    outputHandler.handle(buff);
-                    buff = null;
-                    currentRule = firstRule;
-                    innerParser.fixedSizeMode(currentRule.length(null));
-                    currentRule = currentRule.nextRule(null);
-                    return;
-                }
-
-                innerParser.fixedSizeMode(nextLength);
-                currentRule = currentRule.nextRule(buffer);
+        innerParser = RecordParser.newFixed(currentRule.length(null), buffer -> {
+            if (buff == null) {
+                buff = buffer;
+            } else {
+                buff.appendBuffer(buffer);
             }
+            if (currentRule == null) {
+                outputHandler.handle(buff);
+                buff = null;
+                currentRule = firstRule;
+            }
+
+            final int nextLength = currentRule.length(buffer);
+            if (nextLength == 0) {
+                outputHandler.handle(buff);
+                buff = null;
+                currentRule = firstRule;
+                innerParser.fixedSizeMode(currentRule.length(null));
+                currentRule = currentRule.nextRule(null);
+                return;
+            }
+
+            innerParser.fixedSizeMode(nextLength);
+            currentRule = currentRule.nextRule(buffer);
         });
 
         currentRule = currentRule.nextRule(null);
@@ -115,9 +112,11 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
         Map<String, Rule> mapOfNextRules = new HashMap<>();
         private final String keyEncoding = "UTF-8";
         private final Charset keyEncodingCharset = Charset.forName("UTF-8");
+        private short invalidFormatCode;
 
         public TypeMapRule(JsonObject config) {
             super(config);
+            invalidFormatCode = Short.reverseBytes(config.getInteger("invalidFormatCode", -256).shortValue());
             final JsonArray typeMap = config.getJsonArray("typeMap");
             final Integer radix = config.getInteger("radix", 16);
             if (typeMap == null) {
@@ -154,10 +153,13 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
          * @return Length defined in typemap for the specified key
          */
         @Override
-        public int length(Buffer buffer) {
+        public int length(Buffer buffer) throws PacketParsingException {
             final String key = buffer.getString(0, buffer.length(), keyEncoding);
             final Integer length = mapOfLengths.get(key);
-            return length != null ? length : 0;
+            if (length == null) {
+                throw new PacketParsingException("Invalid typemap key found in packet parsing.", invalidFormatCode);
+            }
+            return length;
         }
 
         /**

@@ -46,7 +46,7 @@ public class TcpOutput implements OutputPlugin {
                 final Message message = pack.getMessage();
                 message.setRemoteAddress(socket.remoteAddress());
                 message.setLocalAddress(socket.localAddress());
-            })));
+            }, v->{socket.close();})));
         });
 
     }

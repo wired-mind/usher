@@ -34,7 +34,7 @@ public class TcpInput implements InputPlugin {
                 final Message message = pack.getMessage();
                 message.setRemoteAddress(socket.remoteAddress());
                 message.setLocalAddress(socket.localAddress());
-            }));
+            }, v->{socket.close();}));
         });
 
         netServer.listen(netServerAsyncResult -> {

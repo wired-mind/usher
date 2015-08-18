@@ -7,6 +7,7 @@ import io.cozmic.usher.core.SplitterPlugin;
 import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.DuplexStream;
+import io.cozmic.usher.vertx.parsers.PacketParsingException;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -31,6 +32,7 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
     private Handler<PipelinePack> handler;
     private Boolean useMsgBytes;
     private Handler<PipelinePack> deliveryHandler;
+    private Handler<Throwable> exceptionHandler;
 
     public DefaultInPipeline(DuplexStream<Buffer, Buffer> duplexStream, JsonObject splitterConfig, SplitterPlugin splitterPlugin, JsonObject decoderConfig, DecoderPlugin decoderPlugin) {
         this.duplexStream = duplexStream;
@@ -57,29 +59,39 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
     }
 
     @Override
+    public void close() {
+        duplexStream.close();
+    }
+
+
+    @Override
     public void handle(Buffer buffer) {
 
-        splitterPlugin.findRecord(buffer, record -> {
-            final PipelinePack pipelinePack;
-            if (useMsgBytes) {
-                pipelinePack = new PipelinePack(record);
-            } else {
-                final Message message = new Message();
-                message.setPayload(record);
-                message.setMessageId(UUID.randomUUID());
-                message.setTimestamp(System.currentTimeMillis());
-                pipelinePack = new PipelinePack(message);
-            }
-
-
-            decoderPlugin.decode(pipelinePack, pack -> {
-                if (pack.getMessage() instanceof Message) {
-                    duplexStream.decorate(pack, deliveryHandler);
+        try {
+            splitterPlugin.findRecord(buffer, record -> {
+                final PipelinePack pipelinePack;
+                if (useMsgBytes) {
+                    pipelinePack = new PipelinePack(record);
                 } else {
-                    deliveryHandler.handle(pack);
+                    final Message message = new Message();
+                    message.setPayload(record);
+                    message.setMessageId(UUID.randomUUID());
+                    message.setTimestamp(System.currentTimeMillis());
+                    pipelinePack = new PipelinePack(message);
                 }
+
+
+                decoderPlugin.decode(pipelinePack, pack -> {
+                    if (pack.getMessage() instanceof Message) {
+                        duplexStream.decorate(pack, deliveryHandler);
+                    } else {
+                        deliveryHandler.handle(pack);
+                    }
+                });
             });
-        });
+        } catch (PacketParsingException ppe) {
+            if (exceptionHandler != null) exceptionHandler.handle(ppe);
+        }
     }
 
 
@@ -92,12 +104,12 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
         }
     }
 
-
     @Override
     public ReadStream<PipelinePack> endHandler(Handler<Void> endHandler) {
         innerReadStream.endHandler(endHandler);
         return this;
     }
+
 
     @Override
     public ReadStream<PipelinePack> handler(final Handler<PipelinePack> handler) {
@@ -105,7 +117,6 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
         if (handler != null) purgeReadBuffers();
         return this;
     }
-
 
     @Override
     public ReadStream<PipelinePack> pause() {
@@ -123,8 +134,9 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
     }
 
     @Override
-    public ReadStream<PipelinePack> exceptionHandler(Handler<Throwable> handler) {
-        innerReadStream.exceptionHandler(handler);
+    public ReadStream<PipelinePack> exceptionHandler(Handler<Throwable> exceptionHandler) {
+        this.exceptionHandler = exceptionHandler;
+        innerReadStream.exceptionHandler(exceptionHandler);
         return this;
     }
 }

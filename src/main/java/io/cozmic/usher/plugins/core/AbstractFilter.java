@@ -60,6 +60,11 @@ public abstract class AbstractFilter implements FilterPlugin {
         private Handler<Throwable> exceptionHandler;
 
         @Override
+        public void close() {
+            //no op
+        }
+
+        @Override
         public FilterStream exceptionHandler(Handler<Throwable> exceptionHandler) {
             this.exceptionHandler = exceptionHandler;
             return this;

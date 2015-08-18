@@ -12,6 +12,7 @@ public class DuplexStream<R, W> {
     private final ReadStream<R> readStream;
     private final WriteStream<W> writeStream;
     private Handler<PipelinePack> packDecorator;
+    private Handler<Void> closeHandler;
 
     public DuplexStream(ReadStream<R> readStream, WriteStream<W> writeStream) {
         this.readStream = readStream;
@@ -19,8 +20,13 @@ public class DuplexStream<R, W> {
     }
 
     public DuplexStream(ReadStream<R> readStream, WriteStream<W> writeStream, Handler<PipelinePack> packDecorator) {
+        this(readStream, writeStream, packDecorator, null);
+    }
+
+    public DuplexStream(ReadStream<R> readStream, WriteStream<W> writeStream, Handler<PipelinePack> packDecorator, Handler<Void> closeHandler) {
         this(readStream, writeStream);
         this.packDecorator = packDecorator;
+        this.closeHandler = closeHandler;
     }
 
     public WriteStream<W> getWriteStream() {
@@ -48,5 +54,9 @@ public class DuplexStream<R, W> {
 
         packDecorator.handle(pack);
         decoratedHandler.handle(pack);
+    }
+
+    public void close() {
+        if (closeHandler != null) closeHandler.handle(null);
     }
 }
