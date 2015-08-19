@@ -20,6 +20,8 @@ public class RawEchoChamber extends AbstractVerticle {
     public static final int ECHO_SERVICE_PORT = 9193;
     public static final String ECHO_SERVICE_HOST = "localhost";
     Logger logger = LoggerFactory.getLogger(RawEchoChamber.class.getName());
+    private AtomicInteger connectionCount = new AtomicInteger();
+
 
     public void start(final Future<Void> startedResult) {
 
@@ -30,8 +32,13 @@ public class RawEchoChamber extends AbstractVerticle {
         logger.info("Echo is Hello world!");
         netServer
                 .connectHandler(socket -> {
+                    connectionCount.incrementAndGet();
                     socket.exceptionHandler(event -> {
                         logger.error("Socket error on echo service socket", event);
+                    });
+
+                    socket.closeHandler(v -> {
+                        connectionCount.decrementAndGet();
                     });
 
 
@@ -50,5 +57,9 @@ public class RawEchoChamber extends AbstractVerticle {
                 });
 
 
+    }
+
+    public int getConnectionCount() {
+        return connectionCount.get();
     }
 }

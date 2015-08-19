@@ -1,6 +1,6 @@
 {
   "usher": {
-    "minIdle": 0,
+    "minIdle": -1,
     "pipelineInstances": 1
   },
   "Router": {
@@ -13,7 +13,7 @@
     "type": "TcpOutput",
     "host": "localhost",
     "port": 9193,
-    "minIdle": 0,
+    "minIdle": -1,
     "encoder": "PayloadEncoder",
     "messageMatcher": "#{localPort == 2500}",
     "reconnectAttempts": -1,

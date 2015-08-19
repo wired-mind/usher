@@ -8,7 +8,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.metrics.MetricsOptions;
 import io.vertx.core.net.NetSocket;
 import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
 import io.vertx.ext.unit.Async;
@@ -34,11 +33,13 @@ import static org.junit.Assert.fail;
 public class SimpleSmokeTests {
 
     Vertx vertx;
+    private RawEchoChamber rawEchoChamber;
 
     @Before
     public void before(TestContext context) {
         vertx = Vertx.vertx(new VertxOptions().setMetricsOptions(new DropwizardMetricsOptions().setEnabled(true)));
-        vertx.deployVerticle(RawEchoChamber.class.getName(), context.asyncAssertSuccess());
+        rawEchoChamber = new RawEchoChamber();
+        vertx.deployVerticle(rawEchoChamber, context.asyncAssertSuccess());
     }
 
     @After
@@ -49,7 +50,7 @@ public class SimpleSmokeTests {
 
     @Test
     public void testCanStart(TestContext context) {
-        final DeploymentOptions options = buildDeploymentOptions();
+        final DeploymentOptions options = buildDeploymentOptions("/config_simple_echo.json");
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             vertx.undeploy(deploymentID, context.asyncAssertSuccess());
         }));
@@ -59,19 +60,16 @@ public class SimpleSmokeTests {
 
     @Test
     public void testCanEcho(TestContext context) {
-        final DeploymentOptions options = buildDeploymentOptions();
+        final DeploymentOptions options = buildDeploymentOptions("/config_simple_echo.json");
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
             vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
                 final NetSocket socket = asyncResult.result();
-                socket.write("Hello");
                 socket.handler(buffer -> {
                     context.assertEquals("Hello", buffer.toString());
-
-
-                         async.complete();
-
+                    async.complete();
                 });
+                socket.write("Hello");
             });
 
             vertx.setTimer(5000, new Handler<Long>() {
@@ -84,10 +82,76 @@ public class SimpleSmokeTests {
         }));
     }
 
-    public DeploymentOptions buildDeploymentOptions() {
+    @Test
+    public void muxShouldKeepBackendSocketOpen(TestContext context) {
+        final DeploymentOptions options = buildDeploymentOptions("/config_simple_echo.json");
+        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+            final Async async = context.async();
+            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+                final NetSocket socket = asyncResult.result();
+                socket.handler(buffer -> {
+                    context.assertEquals("Hello", buffer.toString());
+                    socket.close();
+                });
+
+                // One second after we disconnect, verify the proper server behavior
+                socket.closeHandler(v -> {
+                    vertx.setTimer(1000, timerId -> {
+                        context.assertEquals(1, rawEchoChamber.getConnectionCount(), "After closing a socket the backend socket should still be open under normal circumstances. See minIdle documentation on ObjectPool for different scenarios.");
+                        async.complete();
+                    });
+                });
+
+                socket.write("Hello");
+            });
+
+            vertx.setTimer(5000, new Handler<Long>() {
+                @Override
+                public void handle(Long event) {
+                    context.fail("timed out");
+                }
+            });
+
+        }));
+    }
+
+    @Test
+    public void muxShouldCloseBackendSocketWhenObjectPoolingIsDisabled(TestContext context) {
+        final DeploymentOptions options = buildDeploymentOptions("/config_simple_echo_no_pooling.json");
+        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+            final Async async = context.async();
+            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+                final NetSocket socket = asyncResult.result();
+                socket.handler(buffer -> {
+                    context.assertEquals("Hello", buffer.toString());
+                    socket.close();
+                });
+
+                // One second after we disconnect, verify the proper server behavior
+                socket.closeHandler(v -> {
+                    vertx.setTimer(1000, timerId -> {
+                        context.assertEquals(0, rawEchoChamber.getConnectionCount(), "After closing a socket the backend socket should be closed because object pooling is disabled. See minIdle documentation on ObjectPool for different scenarios.");
+                        async.complete();
+                    });
+                });
+
+                socket.write("Hello");
+            });
+
+            vertx.setTimer(5000, new Handler<Long>() {
+                @Override
+                public void handle(Long event) {
+                    context.fail("timed out");
+                }
+            });
+
+        }));
+    }
+
+    public DeploymentOptions buildDeploymentOptions(String configFile) {
         JsonObject config = null;
         try {
-            final URI uri = getClass().getResource("/config_simple_echo.json").toURI();
+            final URI uri = getClass().getResource(configFile).toURI();
             final String configString = new String(Files.readAllBytes(Paths.get(uri)));
             config = new JsonObject(configString);
         } catch (URISyntaxException | IOException e) {

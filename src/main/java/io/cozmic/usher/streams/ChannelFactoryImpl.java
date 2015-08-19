@@ -54,6 +54,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
 
         public FullDuplexMuxChannel(MessageStream messageStream, StreamMux outStreamMux) {
             this.messageStream = messageStream;
+            this.outStreamMux = outStreamMux;
             //Pause the in stream until the out stream is ready
             messageStream.pause();
 
