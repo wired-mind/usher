@@ -46,9 +46,10 @@ public class Start extends AbstractVerticle {
         }, asyncResult -> {
             final JsonObject finalUsherConfig = buildUsherConfig();
 
+            final JsonObject globalUsherConfig = finalUsherConfig.getJsonObject("usher", new JsonObject());
             final int pipelineInstances = Runtime.getRuntime().availableProcessors();
             final DeploymentOptions options = new DeploymentOptions();
-            options.setInstances(pipelineInstances);
+            options.setInstances(globalUsherConfig.getInteger("pipelineInstances", pipelineInstances));
             options.setConfig(finalUsherConfig);
 
 

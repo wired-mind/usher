@@ -15,6 +15,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Created by chuck on 7/1/15.
@@ -48,7 +49,9 @@ public class PluginLoader {
     public PluginLoader(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException {
         wellKnownPackages = Maps.fromProperties(loadTypePackages());
 
-        for (String pluginName : config.fieldNames()) {
+        final Set<String> pluginNames = config.fieldNames();
+        pluginNames.remove("usher");
+        for (String pluginName : pluginNames) {
             final JsonObject pluginConfig = config.getJsonObject(pluginName);
             String pluginType = pluginConfig.getString("type", pluginName);
             final boolean noPackage = !pluginType.contains(".");

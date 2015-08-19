@@ -41,7 +41,6 @@ public class PipelineVerticle extends AbstractVerticle {
 
         final JsonObject config = config();
         final JsonObject usherConfig = config.getJsonObject("usher", new JsonObject());
-        config.remove("usher");
         PluginFactory pluginFactory = new PluginFactory(getVertx(), config);
         List<InputRunner> inputRunners = pluginFactory.getInputRunners();
 
