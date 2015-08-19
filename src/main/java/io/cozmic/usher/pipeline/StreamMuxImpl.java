@@ -21,7 +21,7 @@ import java.util.Objects;
 public class StreamMuxImpl implements StreamMux {
 
     private final Vertx vertx;
-    private List<MuxRegistrationImpl> demuxes = Lists.newArrayList();
+    private List<MuxRegistrationImpl> demuxes = Lists.newCopyOnWriteArrayList();
     private Handler<Void> drainHandler;
     private Handler<PipelinePack> messageHandler;
     private boolean muxPaused;
