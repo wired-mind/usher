@@ -5,6 +5,9 @@ import com.codahale.metrics.*;
 import com.typesafe.config.*;
 import io.cozmic.usher.pipeline.PipelineVerticle;
 import io.vertx.core.*;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -24,6 +27,7 @@ import static org.coursera.metrics.datadog.DatadogReporter.Expansion.*;
  */
 public class Start extends AbstractVerticle {
 
+    public static final int DEFAULT_HEALTH_CHECK_PORT = 8080;
     static Logger logger = LoggerFactory.getLogger(Start.class.getName());
 
     public void start(final Future<Void> startedResult) {
@@ -52,6 +56,16 @@ public class Start extends AbstractVerticle {
             options.setInstances(globalUsherConfig.getInteger("pipelineInstances", pipelineInstances));
             options.setConfig(finalUsherConfig);
 
+
+            // To start, we'll just always return 200. Later we can inspect backend servers for health too
+            final Integer healthCheckPort = globalUsherConfig.getInteger("healthCheckPort", DEFAULT_HEALTH_CHECK_PORT);
+            vertx.createHttpServer()
+                    .requestHandler(request -> {
+                        final HttpServerResponse response = request.response();
+                        response.setStatusCode(200);
+                        response.end();
+                    })
+                    .listen(healthCheckPort);
 
             vertx.deployVerticle(PipelineVerticle.class.getName(), options, deployId -> {
                 if (deployId.failed()) {

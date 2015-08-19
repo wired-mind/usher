@@ -7,6 +7,7 @@ import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
+import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetSocket;
 import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
@@ -51,10 +52,16 @@ public class SimpleSmokeTests {
     @Test
     public void testCanStart(TestContext context) {
         final DeploymentOptions options = buildDeploymentOptions("/config_simple_echo.json");
+        final Async async = context.async();
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
-            vertx.undeploy(deploymentID, context.asyncAssertSuccess());
-        }));
+            final HttpClient httpClient = vertx.createHttpClient();
+            httpClient.getNow(8080, "localhost", "/", response -> {
+                context.assertEquals(200, response.statusCode());
+                vertx.undeploy(deploymentID, context.asyncAssertSuccess());
+                async.complete();
+            });
 
+        }));
 
     }
 
