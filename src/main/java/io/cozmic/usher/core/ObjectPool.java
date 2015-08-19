@@ -3,9 +3,7 @@ package io.cozmic.usher.core;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
-import io.vertx.core.AsyncResultHandler;
-import io.vertx.core.Future;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -20,7 +18,8 @@ import static com.codahale.metrics.MetricRegistry.name;
  * @param <T>
  */
 public abstract class ObjectPool<T> {
-    Logger logger = LoggerFactory.getLogger(ObjectPool.class.getName());
+    private final int minIdle;
+    Logger logger = LoggerFactory.getLogger(className());
     protected final JsonObject configObj;
     protected Vertx vertx;
     private ConcurrentLinkedQueue<T> pool;
@@ -28,7 +27,7 @@ public abstract class ObjectPool<T> {
     private MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate("usher");
     private final Counter poolSize = metricRegistry.counter(name(className(), "pool-size"));
     private final Counter poolMisses = metricRegistry.counter(name(className(), "pool-misses"));
-    private String poolName;
+
 
     protected abstract Class className();
 
@@ -39,6 +38,7 @@ public abstract class ObjectPool<T> {
      * @param minIdle minimum number of objects residing in the pool
      */
     public ObjectPool(final int minIdle) {
+        this.minIdle = minIdle;
         this.configObj = new JsonObject();
         // initialize pool
         initialize(minIdle);
@@ -46,6 +46,8 @@ public abstract class ObjectPool<T> {
 
     /**
      * Creates the pool.
+     *
+     * Use minIdle = -1 to prevent the pool from sharing objects. Essentially it disables the pooling behavior.
      *
      * @param minIdle            minimum number of objects residing in the pool
      * @param maxIdle            maximum number of objects residing in the pool
@@ -57,11 +59,11 @@ public abstract class ObjectPool<T> {
     public ObjectPool(JsonObject configObj, Vertx vertx) {
         this.configObj = configObj;
         this.vertx = vertx;
-        final Integer minIdle = configObj.getInteger("minIdle", 3);
+        minIdle = configObj.getInteger("minIdle", 3);
         final Integer maxIdle = configObj.getInteger("maxIdle", 100);
         final Integer validationInterval = configObj.getInteger("validationInterval", 60);
-        poolName = getClass().getName();
-        logger.info(String.format("Creating %s pool. MinIdle: %d", poolName, minIdle));
+
+        logger.info(String.format("Creating %s pool. MinIdle: %d", className(), minIdle));
         // initialize pool
         vertx.runOnContext(v -> {
             initialize(minIdle);
@@ -72,7 +74,7 @@ public abstract class ObjectPool<T> {
             int size = pool.size();
             int sizeToBeRemoved = size;
 
-            logger.info(String.format("Removing all %d objects from %s", sizeToBeRemoved, poolName));
+            logger.info(String.format("Removing all %d objects from %s", sizeToBeRemoved, className()));
             // First, let's remove all the objects from the pool (reset to zero)
             for (int i = 0; i < sizeToBeRemoved; i++) {
                 final T obj = doRemoveFromPool();
@@ -84,7 +86,7 @@ public abstract class ObjectPool<T> {
             // Then, let's recreate the minIdle count. (This way we don't continue to reuse an object for ever. We slowly replace them.)
 
             int sizeToBeAdded = minIdle;
-            logger.info(String.format("Recreating %d objects in %s", sizeToBeAdded, poolName));
+            logger.info(String.format("Recreating %d objects in %s", sizeToBeAdded, className()));
             for (int i = 0; i < sizeToBeAdded; i++) {
                 createObject(asyncResult -> {
                     if (asyncResult.succeeded()) {
@@ -103,7 +105,7 @@ public abstract class ObjectPool<T> {
      *
      * @return T borrowed object
      */
-    public void borrowObject(AsyncResultHandler<T> readyHandler) {
+    public void borrowObject(Handler<AsyncResult<T>> readyHandler) {
         T object;
         if ((object = doRemoveFromPool()) == null) {
             createObject(asyncResult -> {
@@ -111,14 +113,14 @@ public abstract class ObjectPool<T> {
                     readyHandler.handle(Future.failedFuture(asyncResult.cause()));
                     return;
                 }
-                logger.info(String.format("Tried to borrow object from %s. Miss. Created new object.", poolName));
+                logger.info(String.format("Tried to borrow object from %s. Miss. Created new object.", className()));
                 poolMisses.inc();
                 readyHandler.handle(Future.succeededFuture(asyncResult.result()));
             });
             return;
         }
 
-        logger.info(String.format("Borrowing object from %s", poolName));
+        logger.info(String.format("Borrowing object from %s", className()));
         readyHandler.handle(Future.succeededFuture(object));
     }
 
@@ -138,7 +140,14 @@ public abstract class ObjectPool<T> {
             return;
         }
 
-        logger.info(String.format("Returning object to %s", poolName));
+        final boolean poolDisabled = minIdle == -1;
+        if (poolDisabled) {
+            logger.info(String.format("Returning object to %s. Pool is disabled. Destroying object.", className()));
+            destroyObject(object);
+            return;
+        }
+
+        logger.info(String.format("Returning object to %s", className()));
         this.pool.offer(object);
         poolSize.inc();
     }
@@ -170,5 +179,9 @@ public abstract class ObjectPool<T> {
                 }
             });
         }
+    }
+
+    public int getPoolSize() {
+        return pool.size();
     }
 }
