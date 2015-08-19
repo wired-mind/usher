@@ -116,13 +116,14 @@ public class RoutingTests {
             netClient.connect(2500, "localhost", fooBarAsyncResult -> {
                 final NetSocket fooBarSocket = fooBarAsyncResult.result();
                 final String payload = "Hello Foo and Bar";
-                fooBarSocket.write(payload);
                 fooBarSocket.handler(fooBuffer -> {
                     context.assertEquals("foo", fooBuffer.toString());
                     context.assertEquals(payload, fooService.getLastBuffer().toString());
                     context.assertEquals(payload, barService.getLastBuffer().toString());
                     async.complete();
                 });
+
+                fooBarSocket.write(payload);
             });
             vertx.setTimer(5000, new Handler<Long>() {
                 @Override

@@ -76,14 +76,13 @@ public class LogOutputTests {
             final NetClient netClient = vertx.createNetClient();
             netClient.connect(2500, "localhost", asyncResult -> {
                 final NetSocket socket = asyncResult.result();
-                socket.write("Hello Log");
                 socket.handler(buffer -> {
                     context.assertEquals((byte) 0x1, buffer.getByte(0));
-
-
                     context.assertEquals(Hex.encodeHexString("Hello Log".getBytes()), fakeLogHandler.lastRecord.getMessage());
                     async.complete();
                 });
+
+                socket.write("Hello Log");
             });
 
             vertx.setTimer(5000, new Handler<Long>() {
