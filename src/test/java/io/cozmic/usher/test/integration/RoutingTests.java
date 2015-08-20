@@ -17,6 +17,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.Assert.fail;
 
 /**
@@ -116,11 +119,22 @@ public class RoutingTests {
             netClient.connect(2500, "localhost", fooBarAsyncResult -> {
                 final NetSocket fooBarSocket = fooBarAsyncResult.result();
                 final String payload = "Hello Foo and Bar";
+                AtomicInteger responseCount = new AtomicInteger();
                 fooBarSocket.handler(fooBuffer -> {
-                    context.assertEquals("foo", fooBuffer.toString());
-                    context.assertEquals(payload, fooService.getLastBuffer().toString());
-                    context.assertEquals(payload, barService.getLastBuffer().toString());
-                    async.complete();
+
+                    final String response = fooBuffer.toString();
+                    int responses = 0;
+                    if (Objects.equals(response, "foo")) {
+                        context.assertEquals(payload, fooService.getLastBuffer().toString());
+                        responses = responseCount.incrementAndGet();
+                    }
+                    if (Objects.equals(response, "bar")) {
+                        context.assertEquals(payload, barService.getLastBuffer().toString());
+                        responses = responseCount.incrementAndGet();
+                    }
+                    if (responses == 2) {
+                        async.complete();
+                    }
                 });
 
                 fooBarSocket.write(payload);
@@ -135,7 +149,7 @@ public class RoutingTests {
     }
 
     private JsonObject buildFooBarInput() {
-        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("encoder", "PayloadEncoder").put("messageMatcher", String.format("#{remotePort == %s}", 9192));
+        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("encoder", "PayloadEncoder");
     }
 
     private JsonObject buildBarInput() {

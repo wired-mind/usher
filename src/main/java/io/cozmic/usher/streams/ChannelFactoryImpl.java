@@ -25,6 +25,8 @@ public class ChannelFactoryImpl implements ChannelFactory {
 
     @Override
     public void createFullDuplexMuxChannel(MessageStream inputStream) {
+        //Pause the in stream until the out stream is ready
+        inputStream.pause();
         outStreamMuxPool.borrowObject(asyncResult -> {
             StreamMux outStreamMux = asyncResult.result();
             ensureStreamMux(outStreamMux);
@@ -55,8 +57,6 @@ public class ChannelFactoryImpl implements ChannelFactory {
         public FullDuplexMuxChannel(MessageStream messageStream, StreamMux outStreamMux) {
             this.messageStream = messageStream;
             this.outStreamMux = outStreamMux;
-            //Pause the in stream until the out stream is ready
-            messageStream.pause();
 
             final InPipeline inPipeline = messageStream.getInPipeline();
             final OutPipeline outPipeline = messageStream.getOutPipeline();

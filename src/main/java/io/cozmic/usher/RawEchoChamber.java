@@ -19,14 +19,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RawEchoChamber extends AbstractVerticle {
     public static final int ECHO_SERVICE_PORT = 9193;
     public static final String ECHO_SERVICE_HOST = "localhost";
+
     Logger logger = LoggerFactory.getLogger(RawEchoChamber.class.getName());
     private AtomicInteger connectionCount = new AtomicInteger();
 
 
     public void start(final Future<Void> startedResult) {
-
-
-        final Integer delay = config().getInteger("delay", 1);
 
         final NetServer netServer = vertx.createNetServer(new NetServerOptions().setAcceptBacklog(10000));
         logger.info("Echo is Hello world!");
@@ -42,7 +40,9 @@ public class RawEchoChamber extends AbstractVerticle {
                     });
 
 
+
                     Pump.pump(socket, socket).start();
+
 
                 })
                 .listen(ECHO_SERVICE_PORT, ECHO_SERVICE_HOST, event -> {

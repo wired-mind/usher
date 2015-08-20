@@ -38,7 +38,7 @@ public class SimpleSmokeTests {
 
     @Before
     public void before(TestContext context) {
-        vertx = Vertx.vertx(new VertxOptions().setMetricsOptions(new DropwizardMetricsOptions().setEnabled(true)));
+        vertx = Vertx.vertx();
         rawEchoChamber = new RawEchoChamber();
         vertx.deployVerticle(rawEchoChamber, context.asyncAssertSuccess());
     }
@@ -154,6 +154,7 @@ public class SimpleSmokeTests {
 
         }));
     }
+
 
     public DeploymentOptions buildDeploymentOptions(String configFile) {
         JsonObject config = null;
