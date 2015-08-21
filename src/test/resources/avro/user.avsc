@@ -1,0 +1,29 @@
+{
+  "namespace": "io.cozmic.usher.test",
+  "type": "record",
+  "name": "User",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "phone",
+      "type": "string"
+    },
+    {
+      "name": "favorite_number",
+      "type": [
+        "int",
+        "null"
+      ]
+    },
+    {
+      "name": "favorite_color",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  ]
+}

@@ -54,10 +54,41 @@ dependencies {
     compile "org.coursera:metrics-datadog:1.0.2"
     compile 'com.google.guava:guava:18.0'
     compile 'org.apache.kafka:kafka_2.11:0.8.2.1'
+    compile 'org.apache.avro:avro:1.7.7'
     testCompile "io.vertx:vertx-unit:$vertxVersion"
     testCompile "junit:junit:$junitVersion"
 }
 
+// Begin gradle avro plugin: https://github.com/commercehub-oss/gradle-avro-plugin
+apply plugin: 'com.commercehub.gradle.plugin.avro-base'
+
+buildscript {
+    repositories { jcenter() }
+    dependencies {
+        classpath 'com.commercehub.gradle.plugin:gradle-avro-plugin:0.3.4'
+    }
+}
+
+avro {
+    stringType = "string"
+    encoding = "UTF-8"
+}
+
+task generateAvro(type: com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask) {
+    source("src/test/resources/avro")
+    outputDir = file("src/test/generated-sources")
+}
+
+compileTestJava.source(generateAvro.outputs)
+
+sourceSets {
+    test {
+        java {
+            srcDir generateAvro.outputDir
+        }
+    }
+}
+// End gradle avro plugin
 
 shadowJar {
     classifier = 'fat'
