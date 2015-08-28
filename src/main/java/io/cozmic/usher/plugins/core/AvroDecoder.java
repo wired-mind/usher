@@ -35,6 +35,8 @@ public class AvroDecoder implements DecoderPlugin {
         final Message message = pack.getMessage();
         final Buffer buffer = message.getPayload();
 
+        // TODO: data = pack.getMsgBytes()
+
         DatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
 
         GenericRecord genericRecord = new GenericData.Record(schema);

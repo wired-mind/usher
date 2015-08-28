@@ -57,6 +57,8 @@ dependencies {
     compile 'org.apache.avro:avro:1.7.7'
     testCompile "io.vertx:vertx-unit:$vertxVersion"
     testCompile "junit:junit:$junitVersion"
+    testCompile 'org.apache.kafka:kafka_2.11:0.8.2.1:test'
+    testCompile 'org.apache.curator:curator-test:2.8.0'
 }
 
 // Begin gradle avro plugin: https://github.com/commercehub-oss/gradle-avro-plugin
