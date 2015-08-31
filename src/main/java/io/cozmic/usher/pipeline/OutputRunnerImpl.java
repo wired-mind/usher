@@ -1,7 +1,6 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.*;
-import io.cozmic.usher.plugins.core.AvroEncoder;
 import io.cozmic.usher.streams.DuplexStream;
 import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.AsyncResultHandler;

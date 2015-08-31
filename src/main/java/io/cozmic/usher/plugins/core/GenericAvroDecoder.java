@@ -23,8 +23,8 @@ import org.apache.avro.io.DecoderFactory;
  * Created by Craig Earley on 8/19/15.
  * Copyright (c) 2015 All Rights Reserved
  */
-public class AvroDecoder implements DecoderPlugin {
-    Logger logger = LoggerFactory.getLogger(AvroDecoder.class.getName());
+public class GenericAvroDecoder implements DecoderPlugin {
+    Logger logger = LoggerFactory.getLogger(GenericAvroDecoder.class.getName());
 
     private JsonObject configObj;
     private Vertx vertx;
@@ -53,7 +53,7 @@ public class AvroDecoder implements DecoderPlugin {
 
     @Override
     public DecoderPlugin createNew() {
-        final AvroDecoder avroDecoder = new AvroDecoder();
+        final GenericAvroDecoder avroDecoder = new GenericAvroDecoder();
         avroDecoder.init(configObj, vertx);
         return avroDecoder;
     }

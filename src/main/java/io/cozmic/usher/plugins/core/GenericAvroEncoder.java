@@ -23,8 +23,8 @@ import java.io.IOException;
  * <p>
  * Created by chuck on 7/10/15.
  */
-public class AvroEncoder implements EncoderPlugin {
-    Logger logger = LoggerFactory.getLogger(AvroEncoder.class.getName());
+public class GenericAvroEncoder implements EncoderPlugin {
+    Logger logger = LoggerFactory.getLogger(GenericAvroEncoder.class.getName());
 
     private JsonObject configObj;
     private Vertx vertx;
@@ -52,7 +52,7 @@ public class AvroEncoder implements EncoderPlugin {
 
     @Override
     public EncoderPlugin createNew() {
-        final AvroEncoder avroEncoder = new AvroEncoder();
+        final GenericAvroEncoder avroEncoder = new GenericAvroEncoder();
         avroEncoder.init(configObj, vertx);
         return avroEncoder;
     }
