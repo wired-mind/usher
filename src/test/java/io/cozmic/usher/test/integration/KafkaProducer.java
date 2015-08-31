@@ -6,9 +6,7 @@ import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.NetServer;
 import io.vertx.core.net.NetServerOptions;
 import io.vertx.core.streams.Pump;
-import kafka.javaapi.producer.Producer;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.util.Enumeration;
 import java.util.Properties;
@@ -21,16 +19,14 @@ import java.util.ResourceBundle;
  */
 public class KafkaProducer extends AbstractVerticle {
 
-    private static final Logger LOG = LoggerFactory.getLogger(KafkaProducer.class);
-
-    public static final String KAFKA_BROKERS = "metadata.broker.list";
-    public static final String KAFKA_CONFIG = "kafkaConfig";
+    public static final String KAFKA_BROKERS = "bootstrap.servers";
+    public static final String KAFKA_CONFIG = "kafkaProducer";
     public static final String TCP_HOST = "tcpHost";
     public static final String TCP_PORT = "tcpPort";
     public static final String TOPIC = "topic";
-
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaProducer.class);
     private int tcpPort;
-    private Producer<String, String> kafkaProducer;
+    private org.apache.kafka.clients.producer.KafkaProducer<String, byte[]> kafkaProducer;
     private String tcpHost;
     private String topic;
 
@@ -49,16 +45,15 @@ public class KafkaProducer extends AbstractVerticle {
                 String key = keys.nextElement();
                 kafkaProducerProps.put(key, kafkaProducerBundle.getString(key));
             }
+
+            if (config().containsKey(KAFKA_BROKERS)) {
+                kafkaProducerProps.put(KAFKA_BROKERS, config().getString(KAFKA_BROKERS));
+            }
+
+            kafkaProducer = new org.apache.kafka.clients.producer.KafkaProducer<>(kafkaProducerProps);
         } catch (Exception e) {
             LOG.error(e.getMessage(), e);
         }
-
-        if (config().containsKey(KAFKA_BROKERS)) {
-            kafkaProducerProps.put(KAFKA_BROKERS, config().getString(KAFKA_BROKERS));
-        }
-
-        ProducerConfig kafkaProducerConfig = new ProducerConfig(kafkaProducerProps);
-        kafkaProducer = new Producer<>(kafkaProducerConfig);
 
         NetServer server = vertx.createNetServer(
                 new NetServerOptions().setPort(tcpPort).setHost(tcpHost)
@@ -66,9 +61,8 @@ public class KafkaProducer extends AbstractVerticle {
         server.connectHandler(sock -> {
             Pump.pump(sock, sock).start();
             sock.handler(buffer -> {
-                String str = buffer.toString().trim();
-                LOG.info("Sending message '" + str + "' to Kafka topic '" + topic + "'");
-                sendMessage(topic, str);
+                byte[] bytes = buffer.getBytes();
+                sendMessage(topic, "test-key", bytes);
                 sock.write(buffer);
             });
         }).listen();
@@ -85,8 +79,15 @@ public class KafkaProducer extends AbstractVerticle {
      * Send a message to Kafka using pattern as found at
      * https://cwiki.apache.org/confluence/display/KAFKA/0.8.0+Producer+Example#
      */
-    private void sendMessage(String topicName, String message) {
-        KeyedMessage<String, String> data = new KeyedMessage<>(topicName, message);
-        kafkaProducer.send(data);
+    private void sendMessage(String topic, String key, byte[] value) {
+        ProducerRecord<String, byte[]> data = new ProducerRecord<>(topic, key, value);
+        kafkaProducer.send(data, (metadata, e) -> {
+            if (e != null) {
+                LOG.error("Error sending message: ", e);
+                return;
+            }
+            LOG.info(String.format("Sent message: offset: %d, topic: %s, partition: %d",
+                    metadata.offset(), metadata.topic(), metadata.partition()));
+        });
     }
 }

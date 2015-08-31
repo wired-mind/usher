@@ -1,8 +1,10 @@
 package io.cozmic.usher.test.integration;
 
 import io.cozmic.usher.Start;
+import io.cozmic.usher.test.User;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetSocket;
@@ -14,12 +16,18 @@ import kafka.server.KafkaServer;
 import kafka.utils.*;
 import kafka.zk.EmbeddedZookeeper;
 import org.I0Itec.zkclient.ZkClient;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -65,7 +73,7 @@ public class KafkaInputTests {
 
         vertx.deployVerticle(KafkaProducer.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject()
-                        .put("metadata.broker.list", "localhost:" + port)
+                        .put("bootstrap.servers", "localhost:" + port)
                         .put(KafkaProducer.TOPIC, topic)
                         .put(KafkaProducer.TCP_HOST, "localhost")), event -> {
 
@@ -106,7 +114,7 @@ public class KafkaInputTests {
                         client.close();
                     });
                     // Send message data to KafkaProducer
-                    socket.write(expected + "\n");
+                    socket.write(expected);
                 } else {
                     System.out.println("NetClient failed to connect");
                     context.fail(res.cause());
@@ -124,6 +132,70 @@ public class KafkaInputTests {
                 }
             });
         }));
+    }
+
+    /**
+     * Test Object -> Avro -> Kafka -> KafkaInput -> AvroDecoder -> EventBusFilter -> Object
+     */
+    @Test
+    public void testConsumeAvroMessage(TestContext context) throws Exception {
+
+        // TODO: This test is valid but it would be better to include the AvroDecoder as outlined above
+
+        final DeploymentOptions options = buildDeploymentOptions();
+
+        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+            final Async async = context.async();
+
+            // Given
+            User user = new User("Test", "#000-0000", 1, "red");
+            final byte[] expected = serializedRecord(user);
+
+            // When
+            NetClient client = vertx.createNetClient();
+            client.connect(1234, "localhost", res -> {
+                if (res.succeeded()) {
+                    NetSocket socket = res.result();
+                    socket.handler(buffer -> {
+                        String response = buffer.toString("UTF-8");
+                        System.out.println("NetClient handled message: " + response);
+                        client.close();
+                    });
+                    // Send message data to KafkaProducer
+                    socket.write(new String(expected));
+                } else {
+                    System.out.println("NetClient failed to connect");
+                    context.fail(res.cause());
+                }
+            });
+
+            // Then
+            StringDeserializer stringDeserializer = new StringDeserializer();
+            vertx.eventBus().<byte[]>consumer(EVENT_BUS_ADDRESS, msg -> {
+                Buffer buffer = Buffer.buffer(msg.body());
+                String message = stringDeserializer.deserialize("", msg.body());
+                if (expected.equals(buffer.getBytes())) {
+                    async.complete();
+                } else {
+                    context.fail(String.format("Expected '%s' but received '%s'", expected, message));
+                }
+            });
+        }));
+    }
+
+    private static <T extends SpecificRecord> byte[] serializedRecord(T object) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
+
+        DatumWriter<T> writer = new SpecificDatumWriter<>(object.getSchema());
+        try {
+            writer.write(object, encoder);
+            encoder.flush();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return out.toByteArray();
     }
 
     private DeploymentOptions buildDeploymentOptions() {
