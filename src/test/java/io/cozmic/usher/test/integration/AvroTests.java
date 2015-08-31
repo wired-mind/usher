@@ -2,15 +2,23 @@ package io.cozmic.usher.test.integration;
 
 import io.cozmic.usher.RawEchoChamber;
 import io.cozmic.usher.Start;
-import io.cozmic.usher.test.User;
+import io.cozmic.usher.test.Pojo;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetSocket;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import org.apache.avro.io.*;
+
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.junit.After;
@@ -18,8 +26,16 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.avro.AvroFactory;
+import com.fasterxml.jackson.dataformat.avro.AvroSchema;
+import com.fasterxml.jackson.dataformat.avro.schema.AvroSchemaGenerator;
+import com.google.common.base.Charsets;
+import com.google.common.io.Resources;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.Charset;
 
 /**
@@ -31,12 +47,19 @@ import java.nio.charset.Charset;
 public class AvroTests {
 
     Vertx vertx;
-    String avroSchema;
+    String externalSchema;
+    AvroSchema jacksonSchema;
+    ObjectMapper mapper = new ObjectMapper(new AvroFactory());
 
     @Before
     public void before(TestContext context) throws IOException {
         vertx = Vertx.vertx();
-        avroSchema = User.getClassSchema().toString();
+        
+        AvroSchemaGenerator gen = new AvroSchemaGenerator();
+        mapper.acceptJsonFormatVisitor(Pojo.class, gen);
+        jacksonSchema = gen.getGeneratedSchema();
+        
+        externalSchema = Resources.toString(Resources.getResource("avro/pojo.avsc"), Charsets.UTF_8);
 
         vertx.deployVerticle(RawEchoChamber.class.getName(), context.asyncAssertSuccess());
     }
@@ -47,7 +70,7 @@ public class AvroTests {
     }
 
     @Test
-    public void testCanDoSimpleAvroFilter(TestContext context) throws IOException {
+    public void testCanDoSimpleAvroPojoFilter(TestContext context) throws IOException {
         final Async async = context.async();
 
         String color = "red";
@@ -56,26 +79,20 @@ public class AvroTests {
         final DeploymentOptions options = new DeploymentOptions();
 
         final JsonObject config = new JsonObject();
-        final JsonObject avroFilter = buildAvroFilter();
 
         config
                 .put("Router", buildInput())
-                .put("AvroUserFilter", avroFilter)
-                .put("AvroEncoder", buildAvroEncoder())
-                .put("AvroDecoder", buildAvroDecoder());
+                .put("AvroPojoFilter", buildAvroFilter("io.cozmic.usher.test.integration.AvroPojoFilter"))
+                .put("AvroEncoder", buildAvroEncoder("AvroEncoder"))
+                .put("AvroDecoder", buildAvroDecoder("AvroDecoder"));
         options.setConfig(config);
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
 
             vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
                 // Create serialized User object
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
-
-                DatumWriter<User> writer = new SpecificDatumWriter<>(User.getClassSchema());
+            	byte[] serializedObject = null;
                 try {
-                    writer.write(new User("Test", "#000-0000", 1, color), encoder);
-                    encoder.flush();
-                    out.close();
+					serializedObject = mapper.writer(jacksonSchema).writeValueAsBytes(new Pojo("Test", "#000-0000", 1, color));
                 } catch (IOException e) {
                     e.printStackTrace();
                     context.fail("failed to encode User object");
@@ -84,7 +101,7 @@ public class AvroTests {
                 final NetSocket socket = asyncResult.result();
 
                 // Write serialized data to socket
-                socket.write(new String(out.toByteArray(), Charset.forName("UTF8")));
+                socket.write(Buffer.buffer(serializedObject));
                 socket.handler(buffer -> {
                     /*
                      * By default, first 4 bytes is message length
@@ -92,13 +109,9 @@ public class AvroTests {
                      */
                     String buf = buffer.getBuffer(4, buffer.length()).toString();
 
-                    // Get User object from serialized data
-                    SpecificDatumReader<User> reader = new SpecificDatumReader<>(User.getClassSchema());
-
-                    Decoder decoder = DecoderFactory.get().binaryDecoder(buf.getBytes(), null);
-                    User user = new User();
+                    Pojo user = new Pojo();
                     try {
-                        user = reader.read(null, decoder);
+                        user = mapper.reader(Pojo.class).with(jacksonSchema).readValue(buf.getBytes());
                     } catch (IOException e) {
                         e.printStackTrace();
                         context.fail("failed to decode data");
@@ -111,20 +124,85 @@ public class AvroTests {
         }));
     }
 
-    private JsonObject buildAvroEncoder() {
-        return new JsonObject().put("type", "AvroEncoder").put("Schema", avroSchema);
+// Commenting out.  It does not appear easy to ser/deser to pojo and avro generic simultaneously
+//    @Test
+//    public void testCanDoSimpleAvroGenericFilter(TestContext context) throws IOException {
+//        final Async async = context.async();
+//
+//        String color = "red";
+//        String expectedColor = "green";
+//
+//        final DeploymentOptions options = new DeploymentOptions();
+//
+//        final JsonObject config = new JsonObject();
+//
+//        config
+//                .put("Router", buildInput())
+//                .put("AvroPGenericFilter", buildAvroFilter("io.cozmic.usher.test.integration.AvroGenericFilter"))
+//                .put("AvroEncoder", buildAvroEncoder("GenericAvroEncoder"))
+//                .put("AvroDecoder", buildAvroDecoder("GenericAvroDecoder"));
+//        options.setConfig(config);
+//        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+//
+//            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+//                // Create serialized User object
+//                ByteArrayOutputStream out = new ByteArrayOutputStream();
+//                BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
+//
+//                DatumWriter<Pojo> writer = new SpecificDatumWriter<>(new Schema.Parser().parse(externalSchema));
+//                try {
+//                    writer.write(new Pojo("Test", "#000-0000", 1, color), encoder);
+//                    encoder.flush();
+//                    out.close();
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                    context.fail("failed to encode User object");
+//                }
+//
+//                final NetSocket socket = asyncResult.result();
+//
+//                // Write serialized data to socket
+//                socket.write(new String(out.toByteArray(), Charset.forName("UTF8")));
+//                socket.handler(buffer -> {
+//                    /*
+//                     * By default, first 4 bytes is message length
+//                     * See {@link io.cozmic.usher.pipeline.OutPipelineFactoryImpl}
+//                     */
+//                    String buf = buffer.getBuffer(4, buffer.length()).toString();
+//
+//                    // Get User object from serialized data
+//                    SpecificDatumReader<Pojo> reader = new SpecificDatumReader<>(new Schema.Parser().parse(externalSchema));
+//
+//                    Decoder decoder = DecoderFactory.get().binaryDecoder(buf.getBytes(), null);
+//                    Pojo user = new Pojo();
+//                    try {
+//                        user = reader.read(null, decoder);
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                        context.fail("failed to decode data");
+//                    }
+//                    context.assertEquals(user.getFavoriteColor(), expectedColor);
+//                    async.complete();
+//                });
+//            });
+//            vertx.setTimer(5000, event -> context.fail("timed out"));
+//        }));
+//    }
+
+    private JsonObject buildAvroEncoder(String type) {
+        return new JsonObject().put("type", type).put("Schema",externalSchema);
     }
 
-    private JsonObject buildAvroDecoder() {
-        return new JsonObject().put("type", "AvroDecoder").put("Schema", avroSchema);
+    private JsonObject buildAvroDecoder(String type) {
+        return new JsonObject().put("type", type).put("Schema",externalSchema)
+        		.put("avro", new JsonObject().put("type", "io.cozmic.usher.test.Pojo"));
     }
 
-    private JsonObject buildAvroFilter() {
-        return new JsonObject().put("type", "io.cozmic.usher.test.integration.AvroUserFilter").put("messageMatcher", "#{1==1}");
+    private JsonObject buildAvroFilter(String type) {
+        return new JsonObject().put("type", type).put("messageMatcher", "#{1==1}");
     }
 
     private JsonObject buildInput() {
         return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("decoder", "AvroDecoder").put("encoder", "AvroEncoder");
     }
-
 }

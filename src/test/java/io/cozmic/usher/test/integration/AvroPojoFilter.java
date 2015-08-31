@@ -2,9 +2,9 @@ package io.cozmic.usher.test.integration;
 
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.plugins.core.AbstractFilter;
+import io.cozmic.usher.test.Pojo;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
-import org.apache.avro.generic.GenericRecord;
 
 /**
  * Filter 'User' GenericRecord.
@@ -12,7 +12,7 @@ import org.apache.avro.generic.GenericRecord;
  * Created by Craig Earley on 8/19/15.
  * Copyright (c) 2015 All Rights Reserved
  */
-public class AvroUserFilter extends AbstractFilter {
+public class AvroPojoFilter extends AbstractFilter {
 
     @Override
     protected void start(AsyncResultHandler<Void> resultHandler) {
@@ -21,12 +21,12 @@ public class AvroUserFilter extends AbstractFilter {
 
     @Override
     public void handleRequest(PipelinePack pipelinePack, AsyncResultHandler<PipelinePack> asyncResultHandler) {
-        final GenericRecord user = pipelinePack.getMessage();
+        final Pojo pojo = pipelinePack.getMessage();
 
         // Set favorite color to green
-        user.put("favorite_color", "green");
+        pojo.setFavoriteColor("green");
 
-        pipelinePack.setMessage(user);
+        pipelinePack.setMessage(pojo);
         asyncResultHandler.handle(Future.succeededFuture(pipelinePack));
     }
 }

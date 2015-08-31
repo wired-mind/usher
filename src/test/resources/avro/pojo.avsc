@@ -1,7 +1,7 @@
 {
   "namespace": "io.cozmic.usher.test",
   "type": "record",
-  "name": "User",
+  "name": "Pojo",
   "fields": [
     {
       "name": "name",
@@ -12,14 +12,14 @@
       "type": "string"
     },
     {
-      "name": "favorite_number",
+      "name": "favoriteNumber",
       "type": [
         "int",
         "null"
       ]
     },
     {
-      "name": "favorite_color",
+      "name": "favoriteColor",
       "type": [
         "string",
         "null"

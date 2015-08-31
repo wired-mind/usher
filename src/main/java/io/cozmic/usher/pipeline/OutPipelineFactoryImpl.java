@@ -3,6 +3,7 @@ package io.cozmic.usher.pipeline;
 import io.cozmic.usher.core.*;
 import io.cozmic.usher.plugins.PluginIndex;
 import io.cozmic.usher.plugins.PluginLoader;
+import io.cozmic.usher.plugins.core.AvroEncoder;
 import io.cozmic.usher.plugins.core.GenericAvroEncoder;
 import io.cozmic.usher.plugins.core.NullFrameEncoder;
 import io.cozmic.usher.plugins.v1protocol.UsherV1FrameEncoder;
@@ -32,7 +33,7 @@ public class OutPipelineFactoryImpl implements OutPipelineFactory {
         FrameEncoderPlugin frameEncoderPlugin = createFrameEncoder(pluginName);
 
 
-        boolean isAvroEncoder = encoderPlugin instanceof GenericAvroEncoder || encoderPlugin instanceof AvroEncoder;
+        boolean isAvroEncoder = encoderPlugin instanceof AvroEncoder;
         final boolean isFrameEncoderNotExplicitlySet = frameEncoderPlugin instanceof NullFrameEncoder;
 
         boolean useFramingDefault = isAvroEncoder && isFrameEncoderNotExplicitlySet;
