@@ -5,14 +5,14 @@ import java.io.Serializable;
 public class Pojo implements Serializable {
 	String favoriteColor;
 	String name;
-	String something;
-	Integer num;
+	String phone;
+	Integer favoriteNumber;
 	
-	public Pojo(String name, String something, int num, String favoriteColor) {
+	public Pojo(String name, String phone, int favoriteNumber, String favoriteColor) {
 		this.favoriteColor = favoriteColor;
 		this.name = name;
-		this.something = something;
-		this.num = num;
+		this.phone = phone;
+		this.favoriteNumber = favoriteNumber;
 	};
 	
 	public String getFavoriteColor() {
@@ -29,20 +29,20 @@ public class Pojo implements Serializable {
 		this.name = name;
 	}
 
-	public String getSomething() {
-		return something;
+	public String getPhone() {
+		return phone;
 	}
 
-	public void setSomething(String something) {
-		this.something = something;
+	public void setPhone(String phone) {
+		this.phone = phone;
 	}
 
-	public Integer getNum() {
-		return num;
+	public int getFavoriteNumber() {
+		return favoriteNumber;
 	}
 
-	public void setNum(Integer num) {
-		this.num = num;
+	public void setFavoriteNumber(int favoriteNumber) {
+		this.favoriteNumber = favoriteNumber;
 	}
 
 	public void setFavoriteColor(String favoriteColor) {

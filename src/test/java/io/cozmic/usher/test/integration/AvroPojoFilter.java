@@ -25,6 +25,7 @@ public class AvroPojoFilter extends AbstractFilter {
 
         // Set favorite color to green
         pojo.setFavoriteColor("green");
+        pojo.setName("changed");
 
         pipelinePack.setMessage(pojo);
         asyncResultHandler.handle(Future.succeededFuture(pipelinePack));

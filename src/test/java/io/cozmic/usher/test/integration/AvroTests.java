@@ -117,6 +117,7 @@ public class AvroTests {
                         context.fail("failed to decode data");
                     }
                     context.assertEquals(user.getFavoriteColor(), expectedColor);
+                    context.assertEquals(user.getName(), "changed");
                     async.complete();
                 });
             });
@@ -195,7 +196,8 @@ public class AvroTests {
 
     private JsonObject buildAvroDecoder(String type) {
         return new JsonObject().put("type", type).put("Schema",externalSchema)
-        		.put("avro", new JsonObject().put("type", "io.cozmic.usher.test.Pojo"));
+        		.put("avro", new JsonObject().put("type", "io.cozmic.usher.test.Pojo")
+        						.put("schema", externalSchema));
     }
 
     private JsonObject buildAvroFilter(String type) {

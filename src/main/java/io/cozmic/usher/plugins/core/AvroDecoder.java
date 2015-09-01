@@ -2,6 +2,8 @@ package io.cozmic.usher.plugins.core;
 
 import java.io.IOException;
 
+import org.apache.avro.Schema;
+
 import io.cozmic.usher.core.DecoderPlugin;
 import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
@@ -41,7 +43,7 @@ public class AvroDecoder<T> implements DecoderPlugin {
 		try {
 			Class<?> clazz = Class.forName(configObj.getJsonObject("avro").getString("type"));
             mapper.acceptJsonFormatVisitor(clazz, schemaGenerator);
-			record = mapper.reader(clazz).with(schemaGenerator.getGeneratedSchema())
+			record = mapper.reader(clazz).with(getSchema())
 							.readValue(buffer.getBytes());
 		} catch (JsonProcessingException e) {
 			logger.error("Error deserializing pojo", e);
@@ -54,7 +56,17 @@ public class AvroDecoder<T> implements DecoderPlugin {
         pipelinePackHandler.handle(pack);
     }
 
-    @Override
+    private AvroSchema getSchema() {
+    	AvroSchema schema = null;
+		if (configObj.getJsonObject("avro").containsKey("schema")) {
+			schema = new AvroSchema(new Schema.Parser().parse(configObj.getJsonObject("avro").getString("schema")));
+		} else {
+			schema = schemaGenerator.getGeneratedSchema();
+		} 	
+    	return schema;
+	}
+
+	@Override
     public DecoderPlugin createNew() {
         final AvroDecoder<T> avroDecoder = new AvroDecoder<T>();
         avroDecoder.init(configObj, vertx);

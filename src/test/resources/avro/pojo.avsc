@@ -1,29 +1,32 @@
-{
-  "namespace": "io.cozmic.usher.test",
-  "type": "record",
-  "name": "Pojo",
-  "fields": [
-    {
-      "name": "name",
-      "type": "string"
-    },
-    {
-      "name": "phone",
-      "type": "string"
-    },
-    {
-      "name": "favoriteNumber",
-      "type": [
-        "int",
-        "null"
-      ]
-    },
-    {
-      "name": "favoriteColor",
-      "type": [
-        "string",
-        "null"
-      ]
-    }
-  ]
+{  
+   "type":"record",
+   "name":"Pojo",
+   "namespace":"io.cozmic.usher.test",
+   "doc":"Schema for io.cozmic.usher.test.Pojo",
+   "fields":[  
+      {  
+         "name":"favoriteColor",
+         "type":[  
+            "null",
+            "string"
+         ]
+      },
+      {  
+         "name":"favoriteNumber",
+         "type":[  
+            "null",
+            "int"
+         ]
+      },
+      {  
+         "name":"name",
+         "type":
+            "string"
+      },
+      {  
+         "name":"phone",
+         "type":
+            "string"
+       }
+   ]
 }
