@@ -1,7 +1,7 @@
 package io.cozmic.usher.test.integration;
 
 import io.cozmic.usher.Start;
-import io.cozmic.usher.test.User;
+import io.cozmic.usher.test.Pojo;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -15,6 +15,7 @@ import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import kafka.utils.*;
 import kafka.zk.EmbeddedZookeeper;
+
 import org.I0Itec.zkclient.ZkClient;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
@@ -27,12 +28,17 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.avro.AvroFactory;
+import com.fasterxml.jackson.dataformat.avro.schema.AvroSchemaGenerator;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Properties;
 
 import static io.cozmic.usher.test.integration.EventBusFilter.EVENT_BUS_ADDRESS;
@@ -148,7 +154,7 @@ public class KafkaInputTests {
             final Async async = context.async();
 
             // Given
-            User user = new User("Test", "#000-0000", 1, "red");
+            Pojo user = new Pojo("Test", "#000-0000", 1, "red");
             final byte[] expected = serializedRecord(user);
 
             // When
@@ -174,7 +180,7 @@ public class KafkaInputTests {
             vertx.eventBus().<byte[]>consumer(EVENT_BUS_ADDRESS, msg -> {
                 Buffer buffer = Buffer.buffer(msg.body());
                 String message = stringDeserializer.deserialize("", msg.body());
-                if (expected.equals(buffer.getBytes())) {
+                if (Arrays.equals(expected, buffer.getBytes())) {
                     async.complete();
                 } else {
                     context.fail(String.format("Expected '%s' but received '%s'", expected, message));
@@ -183,19 +189,17 @@ public class KafkaInputTests {
         }));
     }
 
-    private static <T extends SpecificRecord> byte[] serializedRecord(T object) {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
-
-        DatumWriter<T> writer = new SpecificDatumWriter<>(object.getSchema());
+    private static <T> byte[] serializedRecord(T object) {
+      	byte[] serializedObject = null;
+        ObjectMapper mapper = new ObjectMapper(new AvroFactory());
+        AvroSchemaGenerator gen = new AvroSchemaGenerator();
         try {
-            writer.write(object, encoder);
-            encoder.flush();
-            out.close();
+            mapper.acceptJsonFormatVisitor(object.getClass(), gen);
+			serializedObject = mapper.writer(gen.getGeneratedSchema()).writeValueAsBytes(object);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return out.toByteArray();
+        return serializedObject;
     }
 
     private DeploymentOptions buildDeploymentOptions() {
