@@ -28,6 +28,7 @@ import org.junit.runner.RunWith;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.avro.AvroFactory;
+import com.fasterxml.jackson.dataformat.avro.AvroMapper;
 import com.fasterxml.jackson.dataformat.avro.AvroSchema;
 import com.fasterxml.jackson.dataformat.avro.schema.AvroSchemaGenerator;
 import com.google.common.base.Charsets;
@@ -49,15 +50,13 @@ public class AvroTests {
     Vertx vertx;
     String externalSchema;
     AvroSchema jacksonSchema;
-    ObjectMapper mapper = new ObjectMapper(new AvroFactory());
+    AvroMapper mapper = new AvroMapper();
 
     @Before
     public void before(TestContext context) throws IOException {
         vertx = Vertx.vertx();
         
-        AvroSchemaGenerator gen = new AvroSchemaGenerator();
-        mapper.acceptJsonFormatVisitor(Pojo.class, gen);
-        jacksonSchema = gen.getGeneratedSchema();
+        jacksonSchema = mapper.schemaFor(Pojo.class);
         
         externalSchema = Resources.toString(Resources.getResource("avro/pojo.avsc"), Charsets.UTF_8);
 

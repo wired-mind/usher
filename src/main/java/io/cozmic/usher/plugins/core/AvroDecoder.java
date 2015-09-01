@@ -15,10 +15,9 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.avro.AvroFactory;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.dataformat.avro.AvroMapper;
 import com.fasterxml.jackson.dataformat.avro.AvroSchema;
-import com.fasterxml.jackson.dataformat.avro.schema.AvroSchemaGenerator;
 
 /**
  * Decode serialized data to GenericRecord.
@@ -31,8 +30,7 @@ public class AvroDecoder<T> implements DecoderPlugin {
 
     private JsonObject configObj;
     private Vertx vertx;
-    private ObjectMapper mapper = new ObjectMapper(new AvroFactory());
-    private AvroSchemaGenerator schemaGenerator = new AvroSchemaGenerator();
+    private AvroMapper mapper = new AvroMapper();
 
     @Override
     public void decode(PipelinePack pack, Handler<PipelinePack> pipelinePackHandler) {
@@ -42,8 +40,7 @@ public class AvroDecoder<T> implements DecoderPlugin {
         T record = null;
 		try {
 			Class<?> clazz = Class.forName(configObj.getJsonObject("avro").getString("type"));
-            mapper.acceptJsonFormatVisitor(clazz, schemaGenerator);
-			record = mapper.reader(clazz).with(getSchema())
+			record = mapper.reader(clazz).with(getSchema(clazz))
 							.readValue(buffer.getBytes());
 		} catch (JsonProcessingException e) {
 			logger.error("Error deserializing pojo", e);
@@ -56,12 +53,12 @@ public class AvroDecoder<T> implements DecoderPlugin {
         pipelinePackHandler.handle(pack);
     }
 
-    private AvroSchema getSchema() {
+    private AvroSchema getSchema(Class<?> clazz) throws JsonMappingException {
     	AvroSchema schema = null;
 		if (configObj.getJsonObject("avro").containsKey("schema")) {
 			schema = new AvroSchema(new Schema.Parser().parse(configObj.getJsonObject("avro").getString("schema")));
 		} else {
-			schema = schemaGenerator.getGeneratedSchema();
+			schema = mapper.schemaFor(clazz);
 		} 	
     	return schema;
 	}
