@@ -1,5 +1,6 @@
 package io.cozmic.usher.test.integration;
 
+import com.cyberphysical.streamprocessing.verticles.KafkaProducerVerticle;
 import io.cozmic.usher.Start;
 import io.cozmic.usher.test.Pojo;
 import io.vertx.core.DeploymentOptions;
@@ -77,11 +78,11 @@ public class KafkaInputTests {
 
         final Async async = context.async();
 
-        vertx.deployVerticle(KafkaProducer.class.getName(),
+        vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject()
                         .put("bootstrap.servers", "localhost:" + port)
-                        .put(KafkaProducer.TOPIC, topic)
-                        .put(KafkaProducer.TCP_HOST, "localhost")), event -> {
+                        .put("topic", topic)
+                        .put("tcpHost", "localhost")), event -> {
 
                     async.complete();
                 });
@@ -119,7 +120,7 @@ public class KafkaInputTests {
                         System.out.println("NetClient handled message: " + response);
                         client.close();
                     });
-                    // Send message data to KafkaProducer
+                    // Send message data to KafkaProducerVerticle
                     socket.write(expected);
                 } else {
                     System.out.println("NetClient failed to connect");
@@ -167,7 +168,7 @@ public class KafkaInputTests {
                         System.out.println("NetClient handled message: " + response);
                         client.close();
                     });
-                    // Send message data to KafkaProducer
+                    // Send message data to KafkaProducerVerticle
                     socket.write(new String(expected));
                 } else {
                     System.out.println("NetClient failed to connect");
