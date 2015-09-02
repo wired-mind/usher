@@ -79,7 +79,7 @@ avro {
 }
 
 task generateAvro(type: com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask) {
-    source("src/test/resources/avro")
+    source("src/test/resources/avro/User.java")
     outputDir = file("src/test/generated-sources")
 }
 
