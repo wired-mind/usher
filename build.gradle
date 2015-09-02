@@ -64,7 +64,8 @@ dependencies {
 }
 
 // Begin gradle avro plugin: https://github.com/commercehub-oss/gradle-avro-plugin
-apply plugin: 'com.commercehub.gradle.plugin.avro-base'
+// TODO: Uncomment to test avro code-generation from schema files.
+/*apply plugin: 'com.commercehub.gradle.plugin.avro-base'
 
 buildscript {
     repositories { jcenter() }
@@ -79,7 +80,7 @@ avro {
 }
 
 task generateAvro(type: com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask) {
-    source("src/test/resources/avro/User.java")
+    source("src/test/resources/avro")
     outputDir = file("src/test/generated-sources")
 }
 
@@ -91,8 +92,12 @@ sourceSets {
             srcDir generateAvro.outputDir
         }
     }
-}
+}*/
 // End gradle avro plugin
+
+test {
+    exclude 'io.cozmic.usher.test.integration/KafkaInputTests'
+}
 
 shadowJar {
     classifier = 'fat'
