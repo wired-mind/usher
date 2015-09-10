@@ -74,7 +74,6 @@ public abstract class ObjectPool<T> {
             int size = pool.size();
             int sizeToBeRemoved = size;
 
-            logger.info(String.format("Removing all %d objects from %s", sizeToBeRemoved, className()));
             // First, let's remove all the objects from the pool (reset to zero)
             for (int i = 0; i < sizeToBeRemoved; i++) {
                 final T obj = doRemoveFromPool();
@@ -86,7 +85,6 @@ public abstract class ObjectPool<T> {
             // Then, let's recreate the minIdle count. (This way we don't continue to reuse an object for ever. We slowly replace them.)
 
             int sizeToBeAdded = minIdle;
-            logger.info(String.format("Recreating %d objects in %s", sizeToBeAdded, className()));
             for (int i = 0; i < sizeToBeAdded; i++) {
                 createObject(asyncResult -> {
                     if (asyncResult.succeeded()) {
@@ -113,14 +111,12 @@ public abstract class ObjectPool<T> {
                     readyHandler.handle(Future.failedFuture(asyncResult.cause()));
                     return;
                 }
-                logger.info(String.format("Tried to borrow object from %s. Miss. Created new object.", className()));
                 poolMisses.inc();
                 readyHandler.handle(Future.succeededFuture(asyncResult.result()));
             });
             return;
         }
 
-        logger.info(String.format("Borrowing object from %s", className()));
         readyHandler.handle(Future.succeededFuture(object));
     }
 
@@ -142,12 +138,10 @@ public abstract class ObjectPool<T> {
 
         final boolean poolDisabled = minIdle == -1;
         if (poolDisabled) {
-            logger.info(String.format("Returning object to %s. Pool is disabled. Destroying object.", className()));
             destroyObject(object);
             return;
         }
 
-        logger.info(String.format("Returning object to %s", className()));
         this.pool.offer(object);
         poolSize.inc();
     }
