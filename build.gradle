@@ -103,6 +103,12 @@ task wrapper(type: Wrapper) {
 group = modowner
 archivesBaseName = modname
 
+jar {
+    manifest {
+        attributes 'Main-Verticle': 'java:io.cozmic.usher.Start'
+    }
+}
+
 /*
 If you're uploading stuff to Maven, Gradle needs to generate a POM.
 Please edit the details below.
