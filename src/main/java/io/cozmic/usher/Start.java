@@ -8,6 +8,7 @@ import io.vertx.core.*;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -31,26 +32,32 @@ public class Start extends AbstractVerticle {
     static Logger logger = LoggerFactory.getLogger(Start.class.getName());
 
     public void start(final Future<Void> startedResult) {
+        final JsonObject finalUsherConfig = buildUsherConfig();
+        final JsonObject globalUsherConfig = finalUsherConfig.getJsonObject("usher", new JsonObject());
 
         vertx.executeBlocking(future -> {
             if (vertx.isMetricsEnabled()) {
-                logger.info("Enabling metrics");
-                final MetricRegistry usher = SharedMetricRegistries.getOrCreate("usher");
+                final JsonArray metricRegistries = globalUsherConfig.getJsonArray("metricRegistries");
+                for (Object metricRegistry : metricRegistries) {
+                    JsonObject metricRegistryObj = (JsonObject)metricRegistry;
+                    final String registryName = metricRegistryObj.getString("name");
+                    final String dataDogKey = metricRegistryObj.getString("dataDogKey");
 
-                final String datadogApiKey = System.getenv("DATADOG_API_KEY");
-                if (datadogApiKey != null) {
-                    startDatadogReporter(usher, datadogApiKey);
+                    logger.info(String.format("Enabling %s metrics", registryName));
+                    final MetricRegistry registry = SharedMetricRegistries.getOrCreate(registryName);
 
-
-                } else {
-                    startConsoleReporter(usher);
+                    if (dataDogKey != null) {
+                        startDatadogReporter(registry, dataDogKey);
+                    } else {
+                        startConsoleReporter(registry);
+                    }
                 }
             }
             future.complete();
         }, asyncResult -> {
-            final JsonObject finalUsherConfig = buildUsherConfig();
 
-            final JsonObject globalUsherConfig = finalUsherConfig.getJsonObject("usher", new JsonObject());
+
+
             final int pipelineInstances = Runtime.getRuntime().availableProcessors();
             final DeploymentOptions options = new DeploymentOptions();
             options.setInstances(globalUsherConfig.getInteger("pipelineInstances", pipelineInstances));
