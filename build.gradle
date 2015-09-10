@@ -8,15 +8,11 @@ buildscript {
             }
             url 'https://nexus.cyberphysicalsystems.io/content/groups/public' }
         }
-    dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:1.1.1'
-    }
 }
 
 apply plugin: 'idea'
 apply plugin: 'java'
 apply from: "gradle/maven.gradle"
-apply plugin: 'com.github.johnrengelman.shadow'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -97,17 +93,6 @@ sourceSets {
 
 test {
     exclude 'io.cozmic.usher.test.integration/KafkaInputTests'
-}
-
-shadowJar {
-    classifier = 'fat'
-    manifest {
-        attributes 'Main-Class': 'io.vertx.core.Starter'
-        attributes 'Main-Verticle': 'java:io.cozmic.usher.Start'
-    }
-    mergeServiceFiles {
-        include 'META-INF/services/io.vertx.core.spi.VerticleFactory'
-    }
 }
 
 task wrapper(type: Wrapper) {
