@@ -131,9 +131,10 @@ public class KafkaInput implements InputPlugin {
             if (consumer != null) {
                 consumer.shutdown();
             }
-            if (executor != null) {
-                executor.shutdown();
+            if (executor == null) {
+                return;
             }
+            executor.shutdown();
             try {
                 if (!executor.awaitTermination(5000, TimeUnit.MILLISECONDS)) {
                     logger.error("Timed out waiting for consumer threads to shut down, exiting uncleanly");
@@ -154,7 +155,17 @@ public class KafkaInput implements InputPlugin {
 
             int threadNumber = 0;
             for (final KafkaStream stream : streams) {
-                executor.submit(new KafkaStreamReader(stream, threadNumber));
+                final int finalThreadNumber = threadNumber;
+                executor.submit(() -> {
+                    // Note: iterator blocks until messages available.
+                    ConsumerIterator<byte[], byte[]> it = stream.iterator();
+                    while (it.hasNext()) {
+                        byte[] data = it.next().message();
+                        logger.debug("Thread " + finalThreadNumber + ": " + new String(data));
+                        handler.handle(Buffer.buffer(data));
+                    }
+                    logger.debug("Shutting down Thread: " + finalThreadNumber);
+                });
                 threadNumber++;
             }
         }
@@ -204,27 +215,6 @@ public class KafkaInput implements InputPlugin {
         @Override
         public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
             return this;
-        }
-
-        private class KafkaStreamReader implements Runnable {
-            private KafkaStream stream;
-            private int threadNumber;
-
-            public KafkaStreamReader(KafkaStream stream, int threadNumber) {
-                this.threadNumber = threadNumber;
-                this.stream = stream;
-            }
-
-            public void run() {
-                // Note: This iterator will block if there are no new messages available.
-                ConsumerIterator<byte[], byte[]> it = stream.iterator();
-                while (it.hasNext()) {
-                    byte[] data = it.next().message();
-                    logger.debug("Thread " + threadNumber + ": " + new String(data));
-                    handler.handle(Buffer.buffer(data));
-                }
-                logger.debug("Shutting down Thread: " + threadNumber);
-            }
         }
     }
 }

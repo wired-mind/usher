@@ -124,6 +124,7 @@ public class KafkaInputTests {
                     socket.write(expected);
                 } else {
                     System.out.println("NetClient failed to connect");
+                    client.close();
                     context.fail(res.cause());
                 }
             });
@@ -172,6 +173,7 @@ public class KafkaInputTests {
                     socket.write(new String(expected));
                 } else {
                     System.out.println("NetClient failed to connect");
+                    client.close();
                     context.fail(res.cause());
                 }
             });
