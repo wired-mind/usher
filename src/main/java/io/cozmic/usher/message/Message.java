@@ -13,8 +13,11 @@ import java.util.UUID;
 public class Message implements Shareable {
     private UUID messageId;
     private Buffer payload;
-    private SocketAddress remoteAddress;
-    private SocketAddress localAddress;
+    private String remoteHost;
+    private int remotePort;
+    private String localHost;
+    private int localPort;
+
     private long timestamp;
 
 
@@ -26,22 +29,6 @@ public class Message implements Shareable {
         this.payload = payload;
     }
 
-    public void setRemoteAddress(SocketAddress remoteAddress) {
-        this.remoteAddress = remoteAddress;
-    }
-
-
-    public void setLocalAddress(SocketAddress localAddress) {
-        this.localAddress = localAddress;
-    }
-
-    public SocketAddress getRemoteAddress() {
-        return remoteAddress;
-    }
-
-    public SocketAddress getLocalAddress() {
-        return localAddress;
-    }
 
     public UUID getMessageId() {
         return messageId;
@@ -59,27 +46,45 @@ public class Message implements Shareable {
         return timestamp;
     }
 
-//    public static Message fromEnvelope(Buffer envelope) {
-//        int pos = 0;
-//        final int messageLength = envelope.getInt(pos);
-//        pos += 4;
-//        final int messageIdLength = envelope.getInt(pos);
-//        pos += 4;
-//        String messageId = envelope.getString(pos, pos + messageIdLength);
-//        pos += messageIdLength;
-//
-//        final Buffer body = envelope.getBuffer(pos, envelope.length());
-//        return new Message(messageId, body);
-//    }
-//
-//    public Message createReply(Buffer buffer) {
-//        Buffer reply = Buffer.buffer();
-//        reply.appendInt(messageId.length());
-//        reply.appendString(messageId);
-//        reply.appendBuffer(buffer);
-//        return new Message(messageId, reply);
-//    }
+    public String getRemoteHost() {
+        return remoteHost;
+    }
 
+    public void setRemoteHost(String remoteHost) {
+        this.remoteHost = remoteHost;
+    }
 
+    public int getRemotePort() {
+        return remotePort;
+    }
 
+    public void setRemotePort(int remotePort) {
+        this.remotePort = remotePort;
+    }
+
+    public String getLocalHost() {
+        return localHost;
+    }
+
+    public void setLocalHost(String localHost) {
+        this.localHost = localHost;
+    }
+
+    public int getLocalPort() {
+        return localPort;
+    }
+
+    public void setLocalPort(int localPort) {
+        this.localPort = localPort;
+    }
+
+    public void setRemoteAddress(SocketAddress socketAddress) {
+        remoteHost = socketAddress.host();
+        remotePort = socketAddress.port();
+    }
+
+    public void setLocalAddress(SocketAddress socketAddress) {
+        localHost = socketAddress.host();
+        localPort = socketAddress.port();
+    }
 }
