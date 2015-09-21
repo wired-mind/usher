@@ -72,16 +72,20 @@ public abstract class AbstractFilter implements FilterPlugin {
 
         @Override
         public WriteStream<PipelinePack> write(PipelinePack pipelinePack) {
-            handleRequest(pipelinePack, asyncResult -> {
-                if (asyncResult.failed()) {
-                    final Throwable cause = asyncResult.cause();
-                    logger.error(cause.getMessage(), cause);
-                    if (exceptionHandler != null) exceptionHandler.handle(cause);
-                    return;
-                }
-                final PipelinePack response = asyncResult.result();
-                dataHandler.handle(response);
-            });
+            try {
+                handleRequest(pipelinePack, asyncResult -> {
+                    if (asyncResult.failed()) {
+                        final Throwable cause = asyncResult.cause();
+                        logger.error(cause.getMessage(), cause);
+                        if (exceptionHandler != null) exceptionHandler.handle(cause);
+                        return;
+                    }
+                    final PipelinePack response = asyncResult.result();
+                    dataHandler.handle(response);
+                });
+            } catch (Throwable throwable) {
+                if (exceptionHandler != null) exceptionHandler.handle(throwable);
+            }
             return this;
         }
 

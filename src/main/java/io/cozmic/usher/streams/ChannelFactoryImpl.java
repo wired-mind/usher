@@ -78,6 +78,11 @@ public class ChannelFactoryImpl implements ChannelFactory {
                 doStop();
                 inPipeline.close();
             });
+
+            outStreamMux.exceptionHandler(t -> {
+                doStop();
+                inPipeline.close();
+            });
         }
 
 

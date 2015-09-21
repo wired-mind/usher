@@ -1,0 +1,13 @@
+{
+  "Router": {
+    "type": "TcpInput",
+    "host": "0.0.0.0",
+    "encoder": "PayloadEncoder",
+    "port": 2500
+  },
+  "EchoBackend": {
+    "type": "io.cozmic.usher.test.ErrFilter",
+    "messageMatcher": "#{msg.localPort == 2500}"
+  },
+  "PayloadEncoder": {}
+}

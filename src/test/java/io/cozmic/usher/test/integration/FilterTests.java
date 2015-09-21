@@ -1,16 +1,13 @@
 package io.cozmic.usher.test.integration;
 
 
-import io.cozmic.usher.RawEchoChamber;
 import io.cozmic.usher.Start;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
-import io.vertx.core.file.AsyncFile;
-import io.vertx.core.file.OpenOptions;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.metrics.MetricsOptions;
 import io.vertx.core.net.NetSocket;
 import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
 import io.vertx.ext.unit.Async;
@@ -51,7 +48,7 @@ public class FilterTests {
 
     @Test
     public void testFilterCanEcho(TestContext context) {
-        final DeploymentOptions options = buildDeploymentOptions();
+        final DeploymentOptions options = buildDeploymentOptions("/config_filter_echo.json");
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
             vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
@@ -73,10 +70,32 @@ public class FilterTests {
         }));
     }
 
-    public DeploymentOptions buildDeploymentOptions() {
+    @Test
+    public void testFilterWithExceptionShouldCloseSocket(TestContext context) {
+        final DeploymentOptions options = buildDeploymentOptions("/config_filter_w_err.json");
+        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+            final Async async = context.async();
+            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+                final NetSocket socket = asyncResult.result();
+                final Buffer bogusPacket = Buffer.buffer("bogus");
+                socket.write(bogusPacket);
+                // Expect the server to close the socket on us
+                socket.closeHandler(v -> {
+                    async.complete();
+                });
+            });
+
+            vertx.setTimer(5000, event -> {
+                context.fail("timed out");
+            });
+
+        }));
+    }
+
+    public DeploymentOptions buildDeploymentOptions(String configFIle) {
         JsonObject config = null;
         try {
-            final URI uri = getClass().getResource("/config_filter_echo.json").toURI();
+            final URI uri = getClass().getResource(configFIle).toURI();
             final String configString = new String(Files.readAllBytes(Paths.get(uri)));
             config = new JsonObject(configString);
         } catch (URISyntaxException | IOException e) {

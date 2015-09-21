@@ -1,12 +1,9 @@
 package io.cozmic.usher.test.unit;
 
-import io.cozmic.usher.RawEchoChamber;
 import io.cozmic.usher.message.PipelinePack;
-import io.cozmic.usher.pipeline.DefaultInPipeline;
-import io.cozmic.usher.pipeline.DefaultOutPipeline;
 import io.cozmic.usher.pipeline.StreamMuxImpl;
-import io.cozmic.usher.plugins.core.EchoFilter;
 import io.cozmic.usher.streams.MessageStream;
+import io.cozmic.usher.test.FakeFilter;
 import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;

@@ -1,4 +1,4 @@
-package io.cozmic.usher.test.unit;
+package io.cozmic.usher.test;
 
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.plugins.core.AbstractFilter;
@@ -6,12 +6,9 @@ import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 
 /**
- * Created by chuck on 8/19/15.
+ * Created by chuck on 9/21/15.
  */
-public class FakeFilter extends AbstractFilter {
-    private PipelinePack lastPipelinePack;
-
-
+public class ErrFilter extends AbstractFilter {
     @Override
     protected void start(AsyncResultHandler<Void> resultHandler) {
         resultHandler.handle(Future.succeededFuture());
@@ -19,13 +16,6 @@ public class FakeFilter extends AbstractFilter {
 
     @Override
     public void handleRequest(PipelinePack pipelinePack, AsyncResultHandler<PipelinePack> asyncResultHandler) {
-
-        this.lastPipelinePack = pipelinePack;
-        asyncResultHandler.handle(Future.succeededFuture(pipelinePack));
-
-    }
-
-    public PipelinePack getLastPipelinePack() {
-        return lastPipelinePack;
+          asyncResultHandler.handle(Future.failedFuture(new RuntimeException("Oops, I failed.")));
     }
 }

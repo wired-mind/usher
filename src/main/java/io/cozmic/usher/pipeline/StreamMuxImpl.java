@@ -35,6 +35,9 @@ public class StreamMuxImpl implements StreamMux {
     @Override
     public StreamMux exceptionHandler(Handler<Throwable> exceptionHandler) {
         this.exceptionHandler = exceptionHandler;
+        for (MuxRegistration muxRegistration : demuxes) {
+            muxRegistration.exceptionHandler(exceptionHandler);
+        }
         return this;
     }
 
@@ -131,6 +134,7 @@ public class StreamMuxImpl implements StreamMux {
      * Created by chuck on 7/6/15.
      */
     public class MuxRegistrationImpl implements MuxRegistration, Handler<PipelinePack> {
+        private final MessageStream messageStream;
         private Pump demuxPump;
         private Pump muxPump;
         private Handler<PipelinePack> handler;
@@ -140,6 +144,8 @@ public class StreamMuxImpl implements StreamMux {
         private Handler<Void> drainHandler;
 
         public MuxRegistrationImpl(MessageStream messageStream, boolean bidirectional) {
+            this.messageStream = messageStream;
+
             demuxPump = Pump.pump(this, messageStream.getOutPipeline()).start();
             if (bidirectional) {
                 muxPump = Pump.pump(messageStream.getInPipeline(), this).start();
@@ -158,6 +164,8 @@ public class StreamMuxImpl implements StreamMux {
         @Override
         public MuxRegistration exceptionHandler(Handler<Throwable> exceptionHandler) {
             this.exceptionHandler = exceptionHandler;
+            messageStream.getOutPipeline().exceptionHandler(exceptionHandler);
+            messageStream.getInPipeline().exceptionHandler(exceptionHandler);
             return this;
         }
 
