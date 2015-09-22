@@ -34,8 +34,7 @@ public class AvroDecoder<T> implements DecoderPlugin {
 
     @Override
     public void decode(PipelinePack pack, Handler<PipelinePack> pipelinePackHandler) {
-        final Message message = pack.getMessage();
-        final Buffer buffer = message.getPayload();
+        final Buffer buffer = pack.getMsgBytes();
 
         T record = null;
 		try {
@@ -56,7 +55,7 @@ public class AvroDecoder<T> implements DecoderPlugin {
     private AvroSchema getSchema(Class<?> clazz) throws JsonMappingException {
     	AvroSchema schema = null;
 		if (configObj.getJsonObject("avro").containsKey("schema")) {
-			schema = new AvroSchema(new Schema.Parser().parse(configObj.getJsonObject("avro").getString("schema")));
+			schema = new AvroSchema(new Schema.Parser().parse(configObj.getJsonObject("avro").getJsonObject("schema").encode()));
 		} else {
 			schema = mapper.schemaFor(clazz);
 		} 	
