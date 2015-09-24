@@ -1,10 +1,13 @@
 package io.cozmic.usher.plugins.journaling;
 
 import com.google.common.util.concurrent.SettableFuture;
+import com.nurkiewicz.asyncretry.AsyncRetryExecutor;
+import com.nurkiewicz.asyncretry.RetryExecutor;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.impl.ContextImpl;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -20,31 +23,50 @@ import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * KafkaConsumerImpl
+ * Consumes records from a Kafka cluster.
+ * <p>
+ * This consumer is (TODO: not yet) thread safe
+ * and should generally be shared  among all
+ * threads for best performance.
+ * <p>
  * Created by Craig Earley on 9/16/15.
  * Copyright (c) 2015 All Rights Reserved
  */
 public class KafkaConsumerImpl implements KafkaConsumer {
     private static final Logger logger = LoggerFactory.getLogger(KafkaConsumerImpl.class.getName());
     private static final String CLIENT = KafkaConsumerImpl.class.getSimpleName();
+    private static final Long DEFAULT_MAX_DELAY_MILLIS = 10_000L; // 10 seconds
+    private static final Integer DEFAULT_MAX_RETRIES = Integer.MAX_VALUE; // default number of connection retries
+    private static final Long DEFAULT_RETRY_DELAY_MILLIS = 500L; // 500ms
+    private static final Double DEFAULT_RETRY_DELAY_MULTIPLIER = 2D; // 500ms times 2 after each retry
     private static final int MAX_READS = 1; // First record since OffsetRequest.EarliestTime()
+    private static final String PUBLISHED_ERRORS_EVENTBUS_ADDRESS = "KafkaConsumer.Errors";
     private final int port;
     private final List<String> seedBrokers;
-    private final List<TopicAndPartition> topicAndPartitions = new CopyOnWriteArrayList<>();
+    private final Long maxDelayMillis;
+    private final Integer maxRetries;
+    private final Long retryDelayMillis;
+    private final Double retryDelayMultiplier;
     private final String groupId;
     private final Vertx vertx;
+    // Mutable fields
+    private final List<TopicAndPartition> topicAndPartitions = new CopyOnWriteArrayList<>();
     private SimpleConsumer consumer;
     private ConsumerOffsetsStrategy offsetsStrategy;
 
     private KafkaConsumerImpl() {
         this.seedBrokers = null;
         this.port = 0;
+        this.maxDelayMillis = null;
+        this.maxRetries = null;
+        this.retryDelayMillis = null;
+        this.retryDelayMultiplier = null;
         this.groupId = null;
         this.vertx = null;
     }
@@ -53,17 +75,80 @@ public class KafkaConsumerImpl implements KafkaConsumer {
         JsonArray brokers = config.getJsonArray("seed.brokers", new JsonArray());
         this.seedBrokers = brokers.getList();
         this.port = config.getInteger("port", 0);
+        this.maxDelayMillis = config.getLong("max_delay_millis", DEFAULT_MAX_DELAY_MILLIS);
+        this.maxRetries = config.getInteger("max_retries", DEFAULT_MAX_RETRIES);
+        this.retryDelayMillis = config.getLong("retry_delay_millis", DEFAULT_RETRY_DELAY_MILLIS);
+        this.retryDelayMultiplier = config.getDouble("retry_delay_multiplier", DEFAULT_RETRY_DELAY_MULTIPLIER);
         this.groupId = config.getString("group.id", "0");
         this.vertx = vertx;
     }
 
-    private static void debug_logMessages(ByteBufferMessageSet messageSet) throws UnsupportedEncodingException {
+    private static void debug_logMessages(ByteBufferMessageSet messageSet) throws Exception {
+        if (!logger.isDebugEnabled()) {
+            return;
+        }
+
+        StringBuilder builder = new StringBuilder("All uncommitted messages:\n");
         for (MessageAndOffset messageAndOffset : messageSet) {
             ByteBuffer payload = messageAndOffset.message().payload();
             byte[] bytes = new byte[payload.limit()];
             payload.get(bytes);
-            logger.info(String.valueOf(messageAndOffset.offset()) + ": " + new String(bytes, "UTF-8"));
+            builder.append(String.valueOf(messageAndOffset.offset()) + ": " + new String(bytes, "UTF-8") + "\n");
         }
+        logger.info(builder.toString());
+    }
+
+    private void doCommit(Map<TopicAndPartition, Long> offsets, Handler<AsyncResult<Void>> asyncResultHandler) {
+        RetryExecutor executor = getRetryExecutor();
+
+        Map.Entry<TopicAndPartition, Long> entry = offsets.entrySet().iterator().next();
+
+        executor.doWithRetry(context -> {
+            if (context.getRetryCount() > 0) {
+                if (context.getLastThrowable() != null) {
+                    vertx.eventBus().publish(PUBLISHED_ERRORS_EVENTBUS_ADDRESS, context.getLastThrowable().getMessage());
+                    logger.error("Unable to commit", context.getLastThrowable());
+                }
+                logger.info(String.format("Retry %d", context.getRetryCount()));
+            }
+            String leadBroker = findNewLeader("", entry.getKey());
+            offsetsStrategy = new KafkaOffsets(leadBroker, port, groupId);
+            offsetsStrategy.commitOffsets(offsets);
+        }).whenComplete((aVoid, throwable) -> {
+            if (throwable != null) {
+                asyncResultHandler.handle(Future.failedFuture(throwable));
+                return;
+            }
+            // Success
+            asyncResultHandler.handle(Future.succeededFuture());
+        });
+    }
+
+    private void doPoll(Handler<AsyncResult<Map<String, List<MessageAndOffset>>>> asyncResultHandler, TopicAndPartition... topicAndPartitions) {
+        RetryExecutor executor = getRetryExecutor();
+
+        Map<String, List<MessageAndOffset>> messages = new HashMap<>();
+
+        executor.doWithRetry(context -> {
+            if (context.getRetryCount() > 0) {
+                if (context.getLastThrowable() != null) {
+                    vertx.eventBus().publish(PUBLISHED_ERRORS_EVENTBUS_ADDRESS, context.getLastThrowable().getMessage());
+                    logger.error("Unable to fetch data", context.getLastThrowable());
+                }
+                messages.clear();
+                logger.info(String.format("Retry %d", context.getRetryCount()));
+            }
+            for (TopicAndPartition topicAndPartition : topicAndPartitions) {
+                messages.putAll(fetch(topicAndPartition, MAX_READS));
+            }
+        }).whenComplete((aVoid, throwable) -> {
+            if (throwable != null) {
+                asyncResultHandler.handle(Future.failedFuture(throwable));
+                return;
+            }
+            // Success
+            asyncResultHandler.handle(Future.succeededFuture(messages));
+        });
     }
 
     private Map<String, List<MessageAndOffset>> fetch(TopicAndPartition topicAndPartition, long maxReads) throws Exception {
@@ -76,9 +161,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
         String leadBroker = findNewLeader("", topicAndPartition);
         String clientName = CLIENT + "_" + topic + "_" + partition;
 
-        consumer = new SimpleConsumer(leadBroker, port, 100_000, 64 * 1024, clientName);
         offsetsStrategy = new KafkaOffsets(leadBroker, port, groupId);
-
         long readOffset = offsetsStrategy.getOffset(topicAndPartition);
 
         int numErrors = 0;
@@ -120,50 +203,23 @@ public class KafkaConsumerImpl implements KafkaConsumer {
             }
 
             if (numRead == 0) {
-                logger.info("No data found - Sleeping for 5 seconds...");
-                final boolean[] sleep = {true};
-                vertx.setTimer(5_000, timerId -> sleep[0] = false);
-                while (sleep[0]) {
-                }
-                logger.info("... resuming fetch after 5 second delay");
+                // TODO: This part no longer works - though it did before
+//                logger.info("No data found - Sleeping for 5 seconds...");
+//                final boolean[] sleep = {true};
+//                vertx.setTimer(5_000, timerId -> sleep[0] = false);
+//                while (sleep[0]) {
+//                }
+//                logger.info("... resuming fetch after 5 second delay");
+                logger.info("No data found.");
+                throw new Exception("No data found");
             }
         }
-        if (consumer != null) consumer.close();
+        if (consumer != null) {
+            consumer.close();
+            consumer = null;
+        }
         topicMap.put(topic, records);
         return topicMap;
-    }
-
-    private String findNewLeader(String oldLeader, TopicAndPartition topicAndPartition) throws Exception {
-        for (int i = 0; i < 3; i++) {
-            boolean goToSleep;
-
-            PartitionMetadata metadata = findLeader(topicAndPartition);
-            if (metadata == null) {
-                logger.info("Can't find metadata for Topic and Partition... will try again...");
-                goToSleep = true;
-            } else if (metadata.leader() == null) {
-                logger.info("Can't find Leader for Topic and Partition... will try again...");
-                goToSleep = true;
-            } else if (oldLeader.equalsIgnoreCase(metadata.leader().host()) && i == 0) {
-                // first time through if the leader hasn't changed give ZooKeeper a second to recover
-                // second time, assume the broker did recover before failover, or it was a non-Broker issue
-                //
-                goToSleep = true;
-            } else {
-                logger.info("Found metadata for Topic and Partition.");
-                return metadata.leader().host();
-            }
-            if (goToSleep) {
-                final boolean[] sleep = {true};
-                vertx.setTimer(5_000, timerId -> sleep[0] = false);
-                while (sleep[0]) {
-                }
-                logger.info("Resuming after 5 second delay");
-            }
-        }
-        String msg = "Unable to find new leader after Broker failure.";
-        logger.error(msg);
-        throw new Exception(msg);
     }
 
     private PartitionMetadata findLeader(TopicAndPartition topicAndPartition) {
@@ -199,47 +255,51 @@ public class KafkaConsumerImpl implements KafkaConsumer {
         return returnMetaData;
     }
 
-    private void doCommit(Map<TopicAndPartition, Long> offsets, Handler<AsyncResult<Void>> asyncResultHandler) {
-        // todo: retry with back-off
-        vertx.executeBlocking(future -> {
-            try {
-                Map.Entry<TopicAndPartition, Long> entry = offsets.entrySet().iterator().next();
-                String leadBroker = findNewLeader("", entry.getKey());
-                offsetsStrategy = new KafkaOffsets(leadBroker, port, groupId);
-                offsetsStrategy.commitOffsets(offsets);
-                future.complete();
-            } catch (Exception e) {
-                future.fail(e);
+    private String findNewLeader(String oldLeader, TopicAndPartition topicAndPartition) throws Exception {
+        for (int i = 0; i < 3; i++) {
+            boolean goToSleep;
+
+            PartitionMetadata metadata = findLeader(topicAndPartition);
+            if (metadata == null) {
+                logger.info("Can't find metadata for Topic and Partition... will try again...");
+                goToSleep = true;
+            } else if (metadata.leader() == null) {
+                logger.info("Can't find Leader for Topic and Partition... will try again...");
+                goToSleep = true;
+            } else if (oldLeader.equalsIgnoreCase(metadata.leader().host()) && i == 0) {
+                // first time through if the leader hasn't changed give ZooKeeper a second to recover
+                // second time, assume the broker did recover before failover, or it was a non-Broker issue
+                //
+                goToSleep = true;
+            } else {
+                logger.info("Found metadata for Topic and Partition.");
+                return metadata.leader().host();
             }
-        }, res -> {
-            if (res.failed()) {
-                asyncResultHandler.handle(Future.failedFuture(res.cause()));
-                return;
+            if (goToSleep) {
+                // TODO: This part no longer works - though it did before
+//                final boolean[] sleep = {true};
+//                vertx.setTimer(5_000, timerId -> sleep[0] = false);
+//                while (sleep[0]) {
+//                }
+//                logger.info("Resuming after 5 second delay");
+                logger.info("No leader found.");
+                throw new Exception("No leader found");
             }
-            asyncResultHandler.handle(Future.succeededFuture());
-        });
+        }
+        String msg = "Unable to find new leader after Broker failure.";
+        logger.error(msg);
+        throw new Exception(msg);
     }
 
-    private void doPoll(Handler<AsyncResult<Map<String, List<MessageAndOffset>>>> asyncResultHandler, TopicAndPartition... topicAndPartitions) {
-        // todo: retry with back-off
-        vertx.executeBlocking(future -> {
-            try {
-                Map<String, List<MessageAndOffset>> map = new HashMap<>();
-                for (TopicAndPartition topicAndPartition : topicAndPartitions) {
-                    map.putAll(fetch(topicAndPartition, MAX_READS));
-                }
-                future.complete(map);
-            } catch (Exception e) {
-                future.fail(e);
-            }
-        }, res -> {
-            if (res.failed()) {
-                asyncResultHandler.handle(Future.failedFuture(res.cause()));
-                return;
-            }
-            Map<String, List<MessageAndOffset>> result = (Map<String, List<MessageAndOffset>>) res.result();
-            asyncResultHandler.handle(Future.succeededFuture(result));
-        });
+    private RetryExecutor getRetryExecutor() {
+        ScheduledExecutorService scheduler = ((ContextImpl) vertx.getOrCreateContext()).eventLoop();
+
+        return new AsyncRetryExecutor(scheduler).
+                retryOn(Exception.class).
+                withExponentialBackoff(retryDelayMillis, retryDelayMultiplier).
+                withMaxDelay(maxDelayMillis).
+                withUniformJitter().    // add between +/- 100 ms randomly
+                withMaxRetries(maxRetries);
     }
 
     @Override

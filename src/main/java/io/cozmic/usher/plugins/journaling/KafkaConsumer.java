@@ -12,9 +12,6 @@ import java.util.Map;
 /**
  * A Kafka client that consumes records from a Kafka cluster.
  * <p>
- * This consumer is thread safe and should generally be shared
- * among all threads for best performance.
- * <p>
  * Created by Craig Earley on 9/16/15.
  * Copyright (c) 2015 All Rights Reserved
  */

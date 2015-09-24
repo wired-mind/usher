@@ -45,8 +45,6 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
         final boolean useMessageBytesDefault = splitterPlugin instanceof FramingSplitter;
         useMsgBytes = splitterConfig.getBoolean("useMessageBytes", useMessageBytesDefault);
 
-        innerReadStream.handler(this);
-
         deliveryHandler = pack -> {
             readBuffers.add(pack);
 
@@ -56,6 +54,8 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
 
             purgeReadBuffers();
         };
+
+        innerReadStream.handler(this);
     }
 
     @Override

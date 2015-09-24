@@ -41,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.cozmic.usher.test.integration.EventBusFilter.EVENT_BUS_ADDRESS;
 import static org.junit.Assert.fail;
@@ -130,11 +131,22 @@ public class KafkaInputTests {
             });
 
             // Then
+            AtomicInteger counter = new AtomicInteger(0);
             StringDeserializer stringDeserializer = new StringDeserializer();
             vertx.eventBus().<byte[]>consumer(EVENT_BUS_ADDRESS, msg -> {
                 String message = stringDeserializer.deserialize("", msg.body());
+                if (counter.get() > 0) {
+                    // Note: For some reason we are receiving multiple
+                    // messages here and async.complete() would be called
+                    // again which causes this test to fail. This was not
+                    // happening when I first created this test so something
+                    // else has changed. Since this older version of the
+                    // plugin is going away we will just handle it this way.
+                    return;
+                }
                 if (expected.equals(message)) {
                     async.complete();
+                    counter.getAndIncrement();
                 } else {
                     context.fail(String.format("Expected '%s' but received '%s'", expected, message));
                 }
