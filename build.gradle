@@ -41,7 +41,6 @@ dependencies {
     compile 'javax.el:el-api:2.2.1-b04'
     compile 'de.odysseus.juel:juel-impl:2.2.7'
     compile 'de.odysseus.juel:juel-spi:2.2.7'
-    compile 'com.nurkiewicz.asyncretry:asyncretry:0.0.7'
 
 
 
@@ -94,7 +93,7 @@ sourceSets {
 
 test {
     exclude 'io.cozmic.usher.test.integration/KafkaInputTests'
-    exclude 'io.cozmic.usher.test.integration/KafkaInputV2Tests'
+    exclude 'io.cozmic.usher.test.integration/KafkaConsumerTests'
 }
 
 task wrapper(type: Wrapper) {

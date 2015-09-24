@@ -11,18 +11,13 @@ import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
-import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerIterator;
-import kafka.consumer.KafkaStream;
-import kafka.javaapi.consumer.ConsumerConnector;
+import kafka.common.TopicAndPartition;
+import kafka.message.MessageAndOffset;
 
-import java.util.HashMap;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Connects to a Kafka broker and consumes messages
@@ -32,77 +27,45 @@ import java.util.concurrent.TimeUnit;
  * Copyright (c) 2015 All Rights Reserved
  */
 public class KafkaInput implements InputPlugin {
-    private static final String AUTO_COMMIT_INTERVAL_MS = "auto.commit.interval.ms";
-    private static final String GROUP_ID = "group.id";
     private static final String TOPIC = "topic";
-    private static final String ZOOKEEPER_CONNECT = "zookeeper.connect";
-    private static final String ZOOKEEPER_SESSION_TIMEOUT_MS = "zookeeper.session.timeout.ms";
-    private static final String ZOOKEEPER_SYNC_TIME_MS = "zookeeper.sync.time.ms";
+    private static final String PARTITION = "partition";
+    private static final String CONSUMER_ADDRESS = KafkaInput.class.getName();
+    private static final String EVT_RUN = "run";
     private static final Logger logger = LoggerFactory.getLogger(KafkaInput.class.getName());
-    private ConsumerConfig consumerConfig;
     private JsonObject configObj;
     private Vertx vertx;
+    private KafkaLogListener kafkaLogListener;
 
     @Override
     public void run(AsyncResultHandler<Void> startupHandler, Handler<DuplexStream<Buffer, Buffer>> duplexStreamHandler) {
 
-        getKafkaConsumerStream(asyncResult -> {
+        kafkaLogListener.logHandler(stream -> duplexStreamHandler.handle(new DuplexStream<>(stream, stream, pack -> {
+            final Message message = pack.getMessage();
+            // Data should enter the pipeline here.
+            message.setLocalAddress(EmptyAddress.emptyAddress());
+            message.setRemoteAddress(EmptyAddress.emptyAddress());
+        }, v -> stream.close())));
+
+        String topic = configObj.getString(TOPIC);
+        Integer partition = configObj.getInteger(PARTITION, 0);
+
+        TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
+
+        kafkaLogListener.listen(topicAndPartition, asyncResult -> {
             if (asyncResult.failed()) {
                 startupHandler.handle(Future.failedFuture(asyncResult.cause()));
                 return;
             }
+            logger.info("KafkaLogListener started: " + configObj);
             startupHandler.handle(Future.succeededFuture());
-
-            final KafkaConsumer kafkaconsumer = asyncResult.result();
-
-            duplexStreamHandler.handle(new DuplexStream<>(kafkaconsumer, kafkaconsumer, pack -> {
-                final Message message = pack.getMessage();
-                // Data should enter the pipeline here.
-                message.setLocalAddress(EmptyAddress.emptyAddress());
-                message.setRemoteAddress(EmptyAddress.emptyAddress());
-            }, v -> {
-                final String message = "KafkaInput stopping unexpectedly. V1 expects the stream to stay open continuously.";
-                logger.error(message);
-                kafkaconsumer.stop();
-                throw new RuntimeException(message);
-            }));
-            /*
-             * TODO: The number of threads revolves around the number of partitions
-             * in the topic and there are some very specific rules. (Read the docs)
-             */
-            kafkaconsumer.run(1);
         });
     }
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
         this.configObj = configObj;
-        this.consumerConfig = createConsumerConfig();
         this.vertx = vertx;
-    }
-
-    private void getKafkaConsumerStream(AsyncResultHandler<KafkaConsumer> asyncResultHandler) {
-        vertx.executeBlocking(event -> {
-            event.complete(new KafkaConsumer());
-        }, new Handler<AsyncResult<KafkaConsumer>>() {
-            @Override
-            public void handle(AsyncResult<KafkaConsumer> result) {
-                asyncResultHandler.handle(result);
-            }
-        });
-    }
-
-    private ConsumerConfig createConsumerConfig() {
-        Properties props = new Properties();
-        props.put(ZOOKEEPER_CONNECT, configObj.getString(ZOOKEEPER_CONNECT, ""));
-        props.put(GROUP_ID, configObj.getString(GROUP_ID, ""));
-        props.put(ZOOKEEPER_SESSION_TIMEOUT_MS, configObj.getInteger(ZOOKEEPER_SESSION_TIMEOUT_MS, 400).toString());
-        props.put(ZOOKEEPER_SYNC_TIME_MS, configObj.getInteger(ZOOKEEPER_SYNC_TIME_MS, 200).toString());
-        props.put("auto.commit.interval.ms", configObj.getInteger(AUTO_COMMIT_INTERVAL_MS, 1000).toString());
-        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        props.put("auto.offset.reset", "smallest");
-        return new ConsumerConfig(props);
+        kafkaLogListener = new KafkaLogListener(vertx, configObj);
     }
 
     private static class EmptyAddress implements SocketAddress {
@@ -121,76 +84,121 @@ public class KafkaInput implements InputPlugin {
         }
     }
 
-    private class KafkaConsumer implements ReadStream<Buffer>, WriteStream<Buffer> {
-        private final ConsumerConnector consumer;
-        private final String topic;
-        private Handler<Buffer> handler;
-        private ExecutorService executor;
-        private Handler<Throwable> exceptionHandler;
+    private class KafkaLogListener extends KafkaConsumerImpl {
+        private Handler<KafkaMessageStream> delegate = null;
 
-        public KafkaConsumer() {
-            consumer = kafka.consumer.Consumer.createJavaConsumerConnector(consumerConfig);
-            topic = configObj.getString(TOPIC);
+        public KafkaLogListener(Vertx vertx, JsonObject config) {
+            super(vertx, config);
         }
 
-        public void stop() {
-            if (consumer != null) {
-                consumer.shutdown();
+        private KafkaLogListener logHandler(Handler<KafkaMessageStream> delegate) {
+            this.delegate = delegate;
+            return this;
+        }
+
+        private KafkaLogListener listen(TopicAndPartition topicAndPartition, Handler<AsyncResult<KafkaLogListener>> listenHandler) {
+            // Setup listener event loop
+            run(topicAndPartition);
+
+            boolean succeeded = true;
+            if (!succeeded) {
+                listenHandler.handle(Future.failedFuture("Unable to start Kafka log listener"));
+                return this;
             }
-            if (executor == null) {
-                return;
-            }
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(5000, TimeUnit.MILLISECONDS)) {
-                    logger.error("Timed out waiting for consumer threads to shut down, exiting uncleanly");
+            listenHandler.handle(Future.succeededFuture());
+            return this;
+        }
+
+        private void run(TopicAndPartition topicAndPartition) {
+            vertx.eventBus().consumer(CONSUMER_ADDRESS, msg -> {
+                if (!msg.body().equals(EVT_RUN)) {
+                    return;
                 }
-            } catch (InterruptedException e) {
-                logger.error("Interrupted during shutdown, exiting uncleanly");
-            }
+                poll(topicAndPartition, future -> {
+                    // Note: async result arrives only when data is available
+                    if (future.failed()) {
+                        logger.fatal("poll should wait until data is available and not return errors");
+                        vertx.eventBus().publish(CONSUMER_ADDRESS, EVT_RUN);
+                        return;
+                    }
+                    Map<String, List<MessageAndOffset>> map = future.result();
+
+                    List<MessageAndOffset> list = map.get(topicAndPartition.topic());
+
+                    for (MessageAndOffset messageAndOffset : list) {
+                        ByteBuffer payload = messageAndOffset.message().payload();
+                        byte[] bytes = new byte[payload.limit()];
+                        payload.get(bytes);
+
+                        if (delegate != null) {
+                            KafkaMessageStream messageStream = new KafkaMessageStream(Buffer.buffer(bytes));
+
+                            messageStream.responseHandler(data -> {
+                                logger.warn("responseHandler not fully implemented; only committing offset.");
+
+                                // TODO: From config [optional] response or reply topic
+
+                                // Commit offset for this topic and partition (idempotent)
+                                commit(topicAndPartition, messageAndOffset.offset());
+                            });
+                            messageStream.pause();
+                            delegate.handle(messageStream);
+                        }
+                    }
+                    // Once we handle all the data we can poll again
+                    vertx.eventBus().publish(CONSUMER_ADDRESS, EVT_RUN);
+                });
+            });
+            // Initial poll
+            vertx.eventBus().publish(CONSUMER_ADDRESS, EVT_RUN);
+        }
+    }
+
+    private class KafkaMessageStream implements ReadStream<Buffer>, WriteStream<Buffer> {
+        private final Buffer data;
+        private Handler<Buffer> handler;
+        private boolean isPaused;
+        private Handler<Buffer> delegate = null;
+        private ConcurrentLinkedQueue<Buffer> readBuffers = new ConcurrentLinkedQueue<>();
+
+        private KafkaMessageStream() {
+            this.data = null;
         }
 
-        private void run(int numberOfThreads) {
+        public KafkaMessageStream(Buffer data) {
+            this.data = data;
+            this.readBuffers.add(this.data);
+        }
 
-            Map<String, Integer> topicCountMap = new HashMap<>();
-            topicCountMap.put(topic, new Integer(numberOfThreads));
-            Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
-            List<KafkaStream<byte[], byte[]>> streams = consumerMap.get(topic);
+        public KafkaMessageStream responseHandler(Handler<Buffer> delegate) {
+            this.delegate = delegate;
+            return this;
+        }
 
-            executor = Executors.newFixedThreadPool(numberOfThreads);
+        public void close() {
+            // TODO: Is there anything else to do here?
+            logger.info("Closing KafkaMessageStream");
+        }
 
-            int threadNumber = 0;
-            for (final KafkaStream stream : streams) {
-                final int finalThreadNumber = threadNumber;
-                executor.submit(() -> {
-                    // Note: iterator blocks until messages available.
-                    ConsumerIterator<byte[], byte[]> it = stream.iterator();
-                    while (it.hasNext()) {
-                        byte[] data = it.next().message();
-                        logger.debug("Thread " + finalThreadNumber + ": " + new String(data));
-                        vertx.runOnContext(v->{
-                            try {
-                                handler.handle(Buffer.buffer(data));
-                            } catch (Throwable throwable) {
-                                if (exceptionHandler != null) exceptionHandler.handle(throwable);
-                            }
-                        });
-                    }
-                    logger.debug("Shutting down Thread: " + finalThreadNumber);
-                });
-                threadNumber++;
+        protected void purgeReadBuffers() {
+            while (!readBuffers.isEmpty() && !isPaused) {
+                final Buffer nextPack = readBuffers.poll();
+                if (nextPack != null) {
+                    if (handler != null) handler.handle(nextPack);
+                }
             }
         }
 
         @Override
-        public KafkaConsumer exceptionHandler(Handler<Throwable> handler) {
-            exceptionHandler = handler;
+        public KafkaMessageStream exceptionHandler(Handler<Throwable> handler) {
             return this;
         }
 
         @Override
         public WriteStream<Buffer> write(Buffer data) {
-            handler.handle(data);
+            if (this.delegate != null) {
+                this.delegate.handle(data);
+            }
             return this;
         }
 
@@ -211,17 +219,23 @@ public class KafkaInput implements InputPlugin {
 
         @Override
         public ReadStream<Buffer> handler(Handler<Buffer> handler) {
-            this.handler = handler;
+            if (handler != null) {
+                this.handler = handler;
+                purgeReadBuffers();
+            }
             return null;
         }
 
         @Override
         public ReadStream<Buffer> pause() {
+            isPaused = true;
             return this;
         }
 
         @Override
         public ReadStream<Buffer> resume() {
+            isPaused = false;
+            purgeReadBuffers();
             return this;
         }
 

@@ -1,6 +1,7 @@
 package io.cozmic.usher.plugins.journaling;
 
 import kafka.common.TopicAndPartition;
+import kafka.javaapi.consumer.SimpleConsumer;
 
 import java.util.Map;
 
@@ -10,6 +11,15 @@ import java.util.Map;
  * Copyright (c) 2015 All Rights Reserved
  */
 public interface ConsumerOffsetsStrategy {
+
+    static ConsumerOffsetsStrategy createKafkaOffsetsStrategy(String host, int port, String groupId) {
+        return new KafkaOffsets(host, port, groupId);
+    }
+
+    static ConsumerOffsetsStrategy createKafkaOffsetsStrategy(SimpleConsumer consumer) {
+        return new ZookeeperOffsets(consumer);
+    }
+
     /**
      * Commits the specified offsets for the specified list of topics and partitions.
      *
