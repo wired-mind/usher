@@ -182,9 +182,7 @@ public class KafkaConsumerTests {
 
         // Then
         context.assertTrue(result.succeeded() && !result.failed(), "commit should have succeeded");
-        kafkaconsumer.poll(topicAndPartition, res -> {
-            context.fail("Should not have any result here");
-        });
+        kafkaconsumer.poll(topicAndPartition, res -> context.fail("Should not have any result here"));
         // Wait and terminate manually
         vertx.setTimer(5_000, event -> async.complete());
     }

@@ -119,7 +119,7 @@ public class KafkaInputTests {
                 if (expected.equals(message)) {
                     counter.getAndIncrement();
                     // Give the plugin a couple of seconds to commit
-                    vertx.setTimer(2_000, event -> async.complete());
+                    vertx.setTimer(5_000, event -> async.complete());
                 } else {
                     System.out.println(String.format("Expected '%s' but received '%s'", expected, message));
                 }
@@ -178,7 +178,7 @@ public class KafkaInputTests {
                 if (Arrays.equals(expected, buffer.getBytes())) {
                     counter.getAndIncrement();
                     // Give the plugin a couple of seconds to commit
-                    vertx.setTimer(2_000, event -> async.complete());
+                    vertx.setTimer(5_000, event -> async.complete());
                 } else {
                     System.out.println(String.format("Expected '%s' but received '%s'", expected, message));
                 }
