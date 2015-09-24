@@ -67,9 +67,9 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     }
 
     public KafkaConsumerImpl(Vertx vertx, JsonObject config) {
-        JsonArray brokers = config.getJsonArray("seed.brokers", new JsonArray());
+        JsonArray brokers = config.getJsonArray("seed.brokers", new JsonArray().add("localhost"));
         this.seedBrokers = brokers.getList();
-        this.port = config.getInteger("port", 0);
+        this.port = config.getInteger("port", 9092);
         //this.maxDelayMillis = config.getLong("max_delay_millis", DEFAULT_MAX_DELAY_MILLIS);
         //this.maxRetries = config.getInteger("max_retries", DEFAULT_MAX_RETRIES);
         //this.retryDelayMillis = config.getLong("retry_delay_millis", DEFAULT_RETRY_DELAY_MILLIS);
