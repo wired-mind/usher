@@ -60,7 +60,12 @@ public class KafkaInput implements InputPlugin {
                 // Data should enter the pipeline here.
                 message.setLocalAddress(EmptyAddress.emptyAddress());
                 message.setRemoteAddress(EmptyAddress.emptyAddress());
-            }, v -> kafkaconsumer.stop()));
+            }, v -> {
+                final String message = "KafkaInput stopping unexpectedly. V1 expects the stream to stay open continuously.";
+                logger.error(message);
+                kafkaconsumer.stop();
+                throw new RuntimeException(message);
+            }));
             /*
              * TODO: The number of threads revolves around the number of partitions
              * in the topic and there are some very specific rules. (Read the docs)
@@ -121,6 +126,7 @@ public class KafkaInput implements InputPlugin {
         private final String topic;
         private Handler<Buffer> handler;
         private ExecutorService executor;
+        private Handler<Throwable> exceptionHandler;
 
         public KafkaConsumer() {
             consumer = kafka.consumer.Consumer.createJavaConsumerConnector(consumerConfig);
@@ -162,7 +168,13 @@ public class KafkaInput implements InputPlugin {
                     while (it.hasNext()) {
                         byte[] data = it.next().message();
                         logger.debug("Thread " + finalThreadNumber + ": " + new String(data));
-                        handler.handle(Buffer.buffer(data));
+                        vertx.runOnContext(v->{
+                            try {
+                                handler.handle(Buffer.buffer(data));
+                            } catch (Throwable throwable) {
+                                if (exceptionHandler != null) exceptionHandler.handle(throwable);
+                            }
+                        });
                     }
                     logger.debug("Shutting down Thread: " + finalThreadNumber);
                 });
@@ -172,6 +184,7 @@ public class KafkaInput implements InputPlugin {
 
         @Override
         public KafkaConsumer exceptionHandler(Handler<Throwable> handler) {
+            exceptionHandler = handler;
             return this;
         }
 
