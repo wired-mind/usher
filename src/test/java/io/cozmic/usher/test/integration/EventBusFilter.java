@@ -26,6 +26,6 @@ public class EventBusFilter extends AbstractFilter {
     public void handleRequest(PipelinePack pipelinePack, AsyncResultHandler<PipelinePack> asyncResultHandler) {
         Message message = pipelinePack.getMessage();
         this.getVertx().eventBus().send(EVENT_BUS_ADDRESS, message.getPayload().getBytes());
-        asyncResultHandler.handle(Future.succeededFuture());
+        asyncResultHandler.handle(Future.succeededFuture(pipelinePack));
     }
 }

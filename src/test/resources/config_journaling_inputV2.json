@@ -1,0 +1,12 @@
+{
+  "Router": {
+    "type": "KafkaInputV2",
+    "encoder": "PayloadEncoder"
+  },
+  "Filter": {
+    "type": "io.cozmic.usher.test.integration.EventBusFilter",
+    //"type": "io.cozmic.usher.test.ErrFilter",
+    "messageMatcher": "#{1 == 1}"
+  },
+  "PayloadEncoder": {}
+}
