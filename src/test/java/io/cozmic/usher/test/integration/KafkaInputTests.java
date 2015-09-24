@@ -7,7 +7,6 @@ import com.fasterxml.jackson.dataformat.avro.schema.AvroSchemaGenerator;
 import io.cozmic.usher.Start;
 import io.cozmic.usher.test.Pojo;
 import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
@@ -47,9 +46,22 @@ public class KafkaInputTests {
     // These tests require a local zookeepr instance running on port 2181
     // and a local Kafka instance running on port 9092.
 
+    private static final Random random = new Random();
     private String topic = "test";
     private Vertx vertx;
-    private static final Random random = new Random();
+
+    private static <T> byte[] serializedRecord(T object) {
+        byte[] serializedObject = null;
+        ObjectMapper mapper = new ObjectMapper(new AvroFactory());
+        AvroSchemaGenerator gen = new AvroSchemaGenerator();
+        try {
+            mapper.acceptJsonFormatVisitor(object.getClass(), gen);
+            serializedObject = mapper.writer(gen.getGeneratedSchema()).writeValueAsBytes(object);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return serializedObject;
+    }
 
     @Before
     public void before(TestContext context) {
@@ -185,20 +197,6 @@ public class KafkaInputTests {
             });
         }));
     }
-
-    private static <T> byte[] serializedRecord(T object) {
-        byte[] serializedObject = null;
-        ObjectMapper mapper = new ObjectMapper(new AvroFactory());
-        AvroSchemaGenerator gen = new AvroSchemaGenerator();
-        try {
-            mapper.acceptJsonFormatVisitor(object.getClass(), gen);
-            serializedObject = mapper.writer(gen.getGeneratedSchema()).writeValueAsBytes(object);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return serializedObject;
-    }
-
 
     private DeploymentOptions buildDeploymentOptions() {
         JsonObject config = null;

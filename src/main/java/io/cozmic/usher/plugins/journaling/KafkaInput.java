@@ -13,10 +13,13 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import kafka.common.TopicAndPartition;
 import kafka.message.MessageAndOffset;
+import org.apache.kafka.clients.producer.RecordMetadata;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -85,15 +88,60 @@ public class KafkaInput implements InputPlugin {
     }
 
     private class KafkaLogListener extends KafkaConsumerImpl {
+        private static final String SEED_BROKERS = "seed.brokers";
+        private static final String REPLY_TOPIC = "reply.topic";
+        private static final String KEY_SERIALIZER = "key.serializer";
+        private static final String VALUE_SERIALIZER = "value.serializer";
+        private String replyTopic = null;
         private Handler<KafkaMessageStream> delegate = null;
+        private com.cyberphysical.streamprocessing.KafkaProducer<String, byte[]> kafkaProducer;
 
         public KafkaLogListener(Vertx vertx, JsonObject config) {
             super(vertx, config);
+
+            Properties kafkaProducerProps = getKafkaProducerProperties();
+
+            if (config.containsKey(SEED_BROKERS)) {
+                int port = config.getInteger("port", 9092);
+                List<String> bootstrapServers = new ArrayList<>();
+                config.getJsonArray(SEED_BROKERS).forEach(s -> bootstrapServers.add(s + ":" + port));
+                kafkaProducerProps.put("bootstrap.servers", String.join(",", bootstrapServers));
+            }
+            if (config.containsKey(KEY_SERIALIZER)) {
+                kafkaProducerProps.put(KEY_SERIALIZER, config.getString(KEY_SERIALIZER));
+            }
+            if (config.containsKey(VALUE_SERIALIZER)) {
+                kafkaProducerProps.put(VALUE_SERIALIZER, config.getString(VALUE_SERIALIZER));
+            }
+            kafkaProducer = new com.cyberphysical.streamprocessing.KafkaProducer<>(vertx, kafkaProducerProps);
+
+            if (config.containsKey(REPLY_TOPIC)) {
+                // Optional reply topic
+                this.replyTopic = config.getString(REPLY_TOPIC);
+            }
         }
 
-        private KafkaLogListener logHandler(Handler<KafkaMessageStream> delegate) {
-            this.delegate = delegate;
-            return this;
+        private void asyncSendMessage(String topic, byte[] value) {
+            kafkaProducer.send(topic, value, event -> {
+                if (event.failed()) {
+                    logger.error("Error sending message to reply topic: ", event.cause());
+                    return;
+                }
+                RecordMetadata metadata = event.result();
+                logger.info(String.format("Sent message: offset: %d, topic: %s, partition: %d",
+                        metadata.offset(), metadata.topic(), metadata.partition()));
+            });
+        }
+
+        private Properties getKafkaProducerProperties() {
+            Properties properties = new Properties();
+
+            // Defaults
+            properties.put("bootstrap.servers", "localhost:9092");
+            properties.put(KEY_SERIALIZER, "org.apache.kafka.common.serialization.StringSerializer");
+            properties.put(VALUE_SERIALIZER, "org.apache.kafka.common.serialization.ByteArraySerializer");
+
+            return properties;
         }
 
         private KafkaLogListener listen(TopicAndPartition topicAndPartition, Handler<AsyncResult<KafkaLogListener>> listenHandler) {
@@ -106,6 +154,11 @@ public class KafkaInput implements InputPlugin {
                 return this;
             }
             listenHandler.handle(Future.succeededFuture());
+            return this;
+        }
+
+        private KafkaLogListener logHandler(Handler<KafkaMessageStream> delegate) {
+            this.delegate = delegate;
             return this;
         }
 
@@ -134,9 +187,11 @@ public class KafkaInput implements InputPlugin {
                             KafkaMessageStream messageStream = new KafkaMessageStream(Buffer.buffer(bytes));
 
                             messageStream.responseHandler(data -> {
-                                logger.warn("responseHandler not fully implemented; only committing offset.");
 
                                 // TODO: From config [optional] response or reply topic
+                                if (replyTopic != null) {
+                                    asyncSendMessage(replyTopic, data.getBytes());
+                                }
 
                                 // Commit offset for this topic and partition (idempotent)
                                 commit(topicAndPartition, messageAndOffset.offset());
