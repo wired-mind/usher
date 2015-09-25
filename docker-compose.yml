@@ -24,3 +24,22 @@ usher:
       - zookeeper
   environment:
     CUSTOM_REPO: maven:https://deployment:splitsecnd@nexus.cyberphysicalsystems.io/content/groups/public
+
+
+gradlecache:
+  image: busybox
+  volumes:
+    - /root/.gradle
+
+
+
+dev:
+  image: java:8-jdk
+  working_dir: /code
+  volumes:
+   - .:/code
+  volumes_from:
+    - gradlecache
+  links:
+   - kafka
+   - zookeeper
