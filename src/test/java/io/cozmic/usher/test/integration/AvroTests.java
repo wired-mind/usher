@@ -83,7 +83,8 @@ public class AvroTests {
                 .put("Router", buildInput())
                 .put("AvroPojoFilter", buildAvroFilter("io.cozmic.usher.test.integration.AvroPojoFilter"))
                 .put("AvroEncoder", buildAvroEncoder("AvroEncoder"))
-                .put("AvroDecoder", buildAvroDecoder("AvroDecoder"));
+                .put("AvroDecoder", buildAvroDecoder("AvroDecoder"))
+                .put("NullSplitterWithMsgBytes", buildNullSplitterWithMsgBytes());
         options.setConfig(config);
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
 
@@ -196,14 +197,18 @@ public class AvroTests {
     private JsonObject buildAvroDecoder(String type) {
         return new JsonObject().put("type", type).put("Schema",externalSchema)
         		.put("avro", new JsonObject().put("type", "io.cozmic.usher.test.Pojo")
-        						.put("schema", externalSchema));
+        						.put("schema", new JsonObject(externalSchema)));
     }
 
     private JsonObject buildAvroFilter(String type) {
         return new JsonObject().put("type", type).put("messageMatcher", "#{1==1}");
     }
+    
+    private JsonObject buildNullSplitterWithMsgBytes() {
+    	return new JsonObject().put("type", "io.cozmic.usher.plugins.core.NullSplitter").put("useMessageBytes",true);
+    }
 
     private JsonObject buildInput() {
-        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("decoder", "AvroDecoder").put("encoder", "AvroEncoder");
+        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("splitter","NullSplitterWithMsgBytes").put("decoder", "AvroDecoder").put("encoder", "AvroEncoder");
     }
 }
