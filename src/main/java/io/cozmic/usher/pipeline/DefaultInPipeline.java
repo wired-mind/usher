@@ -13,6 +13,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.ReadStream;
 
+import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -81,13 +82,17 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
                 }
 
 
-                decoderPlugin.decode(pipelinePack, pack -> {
-                    if (pack.getMessage() instanceof Message) {
-                        duplexStream.decorate(pack, deliveryHandler);
-                    } else {
-                        deliveryHandler.handle(pack);
-                    }
-                });
+                try {
+                    decoderPlugin.decode(pipelinePack, pack -> {
+                        if (pack.getMessage() instanceof Message) {
+                            duplexStream.decorate(pack, deliveryHandler);
+                        } else {
+                            deliveryHandler.handle(pack);
+                        }
+                    });
+                } catch (IOException e) {
+                    if (exceptionHandler != null) exceptionHandler.handle(e);
+                }
             });
         } catch (PacketParsingException ppe) {
             if (exceptionHandler != null) exceptionHandler.handle(ppe);

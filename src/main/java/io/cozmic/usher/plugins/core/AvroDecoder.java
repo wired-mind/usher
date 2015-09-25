@@ -1,11 +1,14 @@
 package io.cozmic.usher.plugins.core;
 
 import java.io.IOException;
+import java.net.URL;
+import java.util.Objects;
 
+import com.google.common.io.Resources;
+import io.cozmic.usher.core.AvroMapper;
 import org.apache.avro.Schema;
 
 import io.cozmic.usher.core.DecoderPlugin;
-import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -16,7 +19,6 @@ import io.vertx.core.logging.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.dataformat.avro.AvroMapper;
 import com.fasterxml.jackson.dataformat.avro.AvroSchema;
 
 /**
@@ -30,48 +32,48 @@ public class AvroDecoder<T> implements DecoderPlugin {
 
     private JsonObject configObj;
     private Vertx vertx;
-    private AvroMapper mapper = new AvroMapper();
+
+    private AvroMapper avroMapper;
+    private Class<?> clazz;
 
     @Override
-    public void decode(PipelinePack pack, Handler<PipelinePack> pipelinePackHandler) {
+    public void decode(PipelinePack pack, Handler<PipelinePack> pipelinePackHandler) throws IOException {
         final Buffer buffer = pack.getMsgBytes();
-
-        T record = null;
-		try {
-			Class<?> clazz = Class.forName(configObj.getJsonObject("avro").getString("type"));
-			record = mapper.reader(clazz).with(getSchema(clazz))
-							.readValue(buffer.getBytes());
-		} catch (JsonProcessingException e) {
-			logger.error("Error deserializing pojo", e);
-		} catch (IOException e) {
-			logger.error("Error deserializing pojo", e);
-		} catch (ClassNotFoundException e) {
-			logger.error("Cannot find class of pojo", e);
-		}
-        pack.setMessage(record);
+        pack.setMessage(avroMapper.deserialize(clazz, buffer.getBytes()));
         pipelinePackHandler.handle(pack);
     }
 
-    private AvroSchema getSchema(Class<?> clazz) throws JsonMappingException {
-    	AvroSchema schema = null;
-		if (configObj.getJsonObject("avro").containsKey("schema")) {
-			schema = new AvroSchema(new Schema.Parser().parse(configObj.getJsonObject("avro").getJsonObject("schema").encode()));
-		} else {
-			schema = mapper.schemaFor(clazz);
-		} 	
-    	return schema;
-	}
 
-	@Override
+    @Override
     public DecoderPlugin createNew() {
         final AvroDecoder<T> avroDecoder = new AvroDecoder<T>();
-        avroDecoder.init(configObj, vertx);
+        avroDecoder.init(configObj, vertx, clazz, avroMapper);
         return avroDecoder;
     }
 
-    @Override
-    public void init(JsonObject configObj, Vertx vertx) {
+    private void init(JsonObject configObj, Vertx vertx, Class<?> clazz, AvroMapper avroMapper) {
+
         this.configObj = configObj;
         this.vertx = vertx;
+        this.clazz = clazz;
+        this.avroMapper = avroMapper;
+    }
+
+    @Override
+    public void init(JsonObject configObj, Vertx vertx) throws UsherInitializationFailedException {
+        this.configObj = configObj;
+        this.vertx = vertx;
+        final String className = configObj.getString("clazz");
+        final String schema = configObj.getString("schema");
+        Objects.requireNonNull(className, "clazz is required");
+        Objects.requireNonNull(schema, "schema is required");
+        try {
+            clazz = Class.forName(className);
+            final URL resource = Resources.getResource(schema);
+            avroMapper = new AvroMapper(resource.openStream());
+        } catch (ClassNotFoundException | IOException e) {
+            throw new UsherInitializationFailedException("Error initializing avro schema", e);
+        }
+
     }
 }

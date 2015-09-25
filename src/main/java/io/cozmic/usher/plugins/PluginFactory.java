@@ -3,6 +3,7 @@ package io.cozmic.usher.plugins;
 import com.google.common.collect.Lists;
 import io.cozmic.usher.core.*;
 import io.cozmic.usher.pipeline.*;
+import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
@@ -22,7 +23,7 @@ public class PluginFactory {
     private List<OutputRunner> outputRunners = Lists.newArrayList();
     private List<FilterRunner> filterRunners = Lists.newArrayList();
 
-    public PluginFactory(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IOException {
+    public PluginFactory(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IOException, UsherInitializationFailedException {
 
         this.vertx = vertx;
         this.config = config;

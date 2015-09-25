@@ -33,20 +33,21 @@ public class OutputRunnerImpl implements OutputRunner {
 
     @Override
     public void run(AsyncResultHandler<MessageStream> messageStreamAsyncResultHandler) {
-         outputPlugin.run(duplexStreamAsyncResult -> {
-             if (duplexStreamAsyncResult.failed()) {
-                 final Throwable cause = duplexStreamAsyncResult.cause();
-                 logger.error(String.format("Unable to obtain output plugin duplex stream for %s. Cause: %s", pluginName, cause.getMessage()), cause);
-                 run(messageStreamAsyncResultHandler);
-                 return;
-             }
-             final DuplexStream<Buffer, Buffer> duplexStream = duplexStreamAsyncResult.result();
+        outputPlugin.run(duplexStreamAsyncResult -> {
+            if (duplexStreamAsyncResult.failed()) {
+                final Throwable cause = duplexStreamAsyncResult.cause();
+                logger.error(String.format("Unable to obtain output plugin duplex stream for %s. Cause: %s", pluginName, cause.getMessage()), cause);
+                run(messageStreamAsyncResultHandler);
+                return;
+            }
+            final DuplexStream<Buffer, Buffer> duplexStream = duplexStreamAsyncResult.result();
 
 
-             final OutPipeline outPipeline = outPipelineFactory.createDefaultOutPipeline(pluginName, outputObj, messageMatcher, duplexStream.getWriteStream());
-             final InPipeline inPipeline = inPipelineFactory.createDefaultInPipeline(pluginName, duplexStream);
-             messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(inPipeline, outPipeline)));
-         });
+            final OutPipeline outPipeline = outPipelineFactory.createDefaultOutPipeline(pluginName, outputObj, messageMatcher, duplexStream.getWriteStream());
+            final InPipeline inPipeline = inPipelineFactory.createDefaultInPipeline(pluginName, duplexStream);
+            messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(inPipeline, outPipeline)));
+
+        });
     }
 
     @Override

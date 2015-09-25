@@ -4,6 +4,7 @@ import io.cozmic.usher.core.ChannelFactory;
 import io.cozmic.usher.core.CountDownFutureResult;
 import io.cozmic.usher.core.InputRunner;
 import io.cozmic.usher.plugins.PluginFactory;
+import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
 import io.cozmic.usher.streams.ChannelFactoryImpl;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
@@ -37,7 +38,7 @@ import java.util.List;
 public class PipelineVerticle extends AbstractVerticle {
     Logger logger = LoggerFactory.getLogger(PipelineVerticle.class.getName());
 
-    public void start(final Future<Void> startedResult) throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
+    public void start(final Future<Void> startedResult) throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException, UsherInitializationFailedException {
 
         final JsonObject config = config();
         final JsonObject usherConfig = config.getJsonObject("usher", new JsonObject());

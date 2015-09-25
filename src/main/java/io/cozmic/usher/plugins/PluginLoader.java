@@ -46,7 +46,7 @@ public class PluginLoader {
     }
 
 
-    public PluginLoader(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException {
+    public PluginLoader(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException, UsherInitializationFailedException {
         wellKnownPackages = Maps.fromProperties(loadTypePackages());
 
         final Set<String> pluginNames = config.fieldNames();
