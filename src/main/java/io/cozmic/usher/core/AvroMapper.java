@@ -12,6 +12,7 @@ import org.apache.avro.Schema;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.Objects;
 
 public class AvroMapper extends ObjectMapper {
@@ -24,6 +25,10 @@ public class AvroMapper extends ObjectMapper {
         final Schema schema = new Schema.Parser().parse(schemaFile);
         avroSchema = new AvroSchema(schema);
 
+    }
+
+    public AvroMapper(URL url) throws IOException {
+        this(url.openStream());
     }
 
     public AvroMapper(InputStream inputStream) throws IOException {
