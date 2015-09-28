@@ -1,22 +1,14 @@
 package io.cozmic.usher.test.integration;
 
 
-import io.cozmic.usher.RawEchoChamber;
 import io.cozmic.usher.Start;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.file.AsyncFile;
-import io.vertx.core.file.FileSystem;
-import io.vertx.core.file.OpenOptions;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.LoggerFactory;
-import io.vertx.core.metrics.MetricsOptions;
 import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetSocket;
-import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -26,10 +18,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -51,7 +40,7 @@ public class LogOutputTests {
 
     @Before
     public void before(TestContext context) {
-        vertx = Vertx.vertx(new VertxOptions().setMetricsOptions(new DropwizardMetricsOptions().setEnabled(true)));
+        vertx = Vertx.vertx(new VertxOptions());
         Logger testLogger = Logger.getLogger("test_logger");
 
         fakeLogHandler = new LogHandler();

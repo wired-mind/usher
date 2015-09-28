@@ -1,18 +1,14 @@
 package io.cozmic.usher.test.integration;
 
 
-import io.cozmic.usher.RawEchoChamber;
 import io.cozmic.usher.Start;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.file.AsyncFile;
 import io.vertx.core.file.FileSystem;
-import io.vertx.core.file.OpenOptions;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.metrics.MetricsOptions;
 import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetSocket;
 import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
@@ -42,7 +38,7 @@ public class FileOutputTests {
 
     @Before
     public void before(TestContext context) {
-        vertx = Vertx.vertx(new VertxOptions().setMetricsOptions(new DropwizardMetricsOptions().setEnabled(true)));
+        vertx = Vertx.vertx(new VertxOptions());
         final FileSystem fileSystem = vertx.fileSystem();
         if (fileSystem.existsBlocking("/tmp/debug_log")) {
             fileSystem.deleteBlocking("/tmp/debug_log");

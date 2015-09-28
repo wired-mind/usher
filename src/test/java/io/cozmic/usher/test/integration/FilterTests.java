@@ -9,7 +9,6 @@ import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetSocket;
-import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -36,7 +35,7 @@ public class FilterTests {
 
     @Before
     public void before(TestContext context) {
-        vertx = Vertx.vertx(new VertxOptions().setMetricsOptions(new DropwizardMetricsOptions().setEnabled(true)));
+        vertx = Vertx.vertx(new VertxOptions());
     }
 
     @After
