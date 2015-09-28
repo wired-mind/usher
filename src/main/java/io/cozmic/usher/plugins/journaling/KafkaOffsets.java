@@ -162,15 +162,13 @@ public class KafkaOffsets implements ConsumerOffsetsStrategy {
             OffsetFetchResponse fetchResponse = OffsetFetchResponse.readFrom(channel.receive().buffer());
             OffsetMetadataAndError result = fetchResponse.offsets().get(topicAndPartition);
             short offsetFetchErrorCode = result.error();
-            if (offsetFetchErrorCode == ErrorMapping.NoError()) {
-                // Success
-                retrievedOffset = result.offset() + 1;
-            } else if (offsetFetchErrorCode == ErrorMapping.NotCoordinatorForConsumerCode()) {
+            if (offsetFetchErrorCode == ErrorMapping.NotCoordinatorForConsumerCode()) {
                 throw new ConsumerOffsetsException("Not coordinator for consumer - Retry the offset fetch", offsetFetchErrorCode);
             } else if (offsetFetchErrorCode == ErrorMapping.OffsetsLoadInProgressCode()) {
                 throw new ConsumerOffsetsException("Offset load in progress - Retry the offset fetch", offsetFetchErrorCode);
             } else {
-                throw new ConsumerOffsetsException("Error fetching offset", offsetFetchErrorCode);
+                // Success
+                retrievedOffset = result.offset() + 1;
             }
         } catch (ConsumerOffsetsException e) {
             if (e.getErrorCode() == ErrorMapping.NotCoordinatorForConsumerCode()) {
