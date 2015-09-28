@@ -24,7 +24,6 @@ import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 /**
  * KafkaConsumerTests
@@ -230,11 +229,24 @@ public class KafkaConsumerTests {
         TopicAndPartition topicAndPartition = new TopicAndPartition(topic, 0);
 
         messageToKafkaEx("message 5", context.asyncAssertSuccess(r -> {
-            AsyncResult<Map<String, List<MessageAndOffset>>> future = null;
-            try {
-                future = kafkaconsumer.poll(topicAndPartition).get();
-                Map<String, List<MessageAndOffset>> map = future.result();
 
+            final Async async = context.async();
+            vertx.executeBlocking((Future<Map<String, List<MessageAndOffset>>> f) -> {
+                try {
+                    AsyncResult<Map<String, List<MessageAndOffset>>> future = null;
+                    future = kafkaconsumer.poll(topicAndPartition).get();
+
+                    f.complete(future.result());
+                } catch (Exception e) {
+                   f.fail(e);
+                }
+
+            }, doneHandler -> {
+                if (doneHandler.failed()) {
+                    context.fail(doneHandler.cause());
+                    return;
+                }
+                Map<String, List<MessageAndOffset>> map = doneHandler.result();
                 List<MessageAndOffset> list = map.get(topicAndPartition.topic());
                 MessageAndOffset messageAndOffset = list.get(0);
 
@@ -243,10 +255,8 @@ public class KafkaConsumerTests {
                 payload.get(bytes);
 
                 context.assertNotNull(bytes, "bytes should not be null");
-
-            } catch (Exception e) {
-                context.fail("Error polling");
-            }
+                async.complete();
+            });
 
 
         }));
