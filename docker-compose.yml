@@ -1,27 +1,27 @@
 zookeeper:
   image: jplock/zookeeper:3.4.6
   name: zookeeper
-  hostname: zookeeper
+  hostname: zookeeper.dev
   ports:
     - "2181:2181"
 kafka:
   image: wurstmeister/kafka:0.8.2.1
   name: kafka
-  hostname: kafka
+  hostname: kafka.dev
   ports:
     - "9092:9092"
   links:
     - zookeeper:zk
   environment:
-    KAFKA_ADVERTISED_HOST_NAME: "kafka"
+    KAFKA_ADVERTISED_HOST_NAME: "kafka.dev"
     KAFKA_ADVERTISED_PORT: 9092
 usher:
   build: .
   ports:
     - "2500:2500"
   links:
-      - kafka
-      - zookeeper
+    - kafka:kafka.dev
+    - zookeeper:zookeeper.dev
   environment:
     CUSTOM_REPO: maven:https://deployment:splitsecnd@nexus.cyberphysicalsystems.io/content/groups/public
 
@@ -41,5 +41,5 @@ dev:
   volumes_from:
     - gradlecache
   links:
-   - kafka
-   - zookeeper
+    - kafka:kafka.dev
+    - zookeeper:zookeeper.dev

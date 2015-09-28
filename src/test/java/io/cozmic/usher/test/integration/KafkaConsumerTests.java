@@ -84,7 +84,7 @@ public class KafkaConsumerTests {
 
         vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject()
-                        .put("bootstrap.servers", "localhost:" + 9092)
+                        .put("bootstrap.servers", "kafka.dev:" + 9092)
                         .put("topic", topic)
                         .put("tcpHost", "localhost")), event -> {
 
@@ -224,6 +224,8 @@ public class KafkaConsumerTests {
         payload.get(bytes);
 
         context.assertNotNull(bytes, "bytes should not be null");
+        vertx.setTimer(5000, event -> context.fail("timed out"));
+
     }
 
 //    @Test
@@ -236,11 +238,11 @@ public class KafkaConsumerTests {
 
     private JsonObject buildKafkaConsumerConfig() {
         JsonObject config = new JsonObject();
-        config.put("zookeeper.connect", "localhost:2181")
+        config.put("zookeeper.connect", "zookeeper.dev:2181")
                 .put("topic", topic)
                 .put("group.id", "0")
                 .put("partition", 0)
-                .put("seed.brokers", new JsonArray().add("localhost"))
+                .put("seed.brokers", new JsonArray().add("kafka.dev"))
                 .put("port", 9092);
         return config;
     }

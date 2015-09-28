@@ -71,7 +71,7 @@ public class KafkaInputTests {
 
         vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
                 new DeploymentOptions().setConfig(new JsonObject()
-                        .put("bootstrap.servers", "localhost:" + 9092)
+                        .put("bootstrap.servers", "kafka.dev:" + 9092)
                         .put("topic", topic)
                         .put("tcpHost", "localhost")), event -> {
 
@@ -205,11 +205,11 @@ public class KafkaInputTests {
             final String configString = new String(Files.readAllBytes(Paths.get(uri)));
             config = new JsonObject(configString);
             config.getJsonObject("Router")
-                    .put("zookeeper.connect", "localhost:2181")
+                    .put("zookeeper.connect", "zookeeper.dev:2181")
                     .put("topic", topic)
                     .put("group.id", "0")
                     .put("partition", 0)
-                    .put("seed.brokers", new JsonArray().add("localhost"))
+                    .put("seed.brokers", new JsonArray().add("kafka.dev"))
                     .put("port", 9092);
         } catch (URISyntaxException | IOException e) {
             fail(e.getMessage());
