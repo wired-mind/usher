@@ -103,7 +103,8 @@ public class Start extends AbstractVerticle {
         //https://github.com/typesafehub/config#standard-behavior
         final Config refConfig = ConfigFactory.parseResourcesAnySyntax("reference");
         // Allow overriding of application.conf as the main usher file.
-        final String usherConfigFile = config().getString("usherConfigFile", "application");
+        final Object overrideUsherConfigFile = config().remove("usherConfigFile");
+        final String usherConfigFile = overrideUsherConfigFile != null ? (String)overrideUsherConfigFile : "application";
         final Config defaultConfig = ConfigFactory.parseResourcesAnySyntax(usherConfigFile);
 
         //load a production.conf if any
