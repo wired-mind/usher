@@ -31,6 +31,7 @@ public interface KafkaConsumer extends Closeable {
      *                that should be committed to Kafka.
      * @return A Future which may contain an error if not successful.
      */
+    @Deprecated
     java.util.concurrent.Future<AsyncResult<Void>> commit(Map<TopicAndPartition, Long> offsets);
 
     /**
@@ -43,6 +44,7 @@ public interface KafkaConsumer extends Closeable {
      *                          that should be committed to Kafka.
      * @return A Future which may contain an error if not successful.
      */
+    @Deprecated
     java.util.concurrent.Future<AsyncResult<Void>> commit(TopicAndPartition topicAndPartition, Long offset);
 
     /**
@@ -73,6 +75,7 @@ public interface KafkaConsumer extends Closeable {
      * @return A Future with a map of topic to records since
      * the last fetch for the subscribed topics and partitions.
      */
+    @Deprecated
     java.util.concurrent.Future<AsyncResult<Map<String, List<MessageAndOffset>>>> poll();
 
     /**
@@ -86,6 +89,7 @@ public interface KafkaConsumer extends Closeable {
      * key is the topic and its value is the list of records
      * since the last fetch for the given topic and partition.
      */
+    @Deprecated
     java.util.concurrent.Future<AsyncResult<Map<String, List<MessageAndOffset>>>> poll(TopicAndPartition topicAndPartition);
 
     /**

@@ -291,6 +291,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     }
 
     @Override
+    @Deprecated
     public java.util.concurrent.Future<AsyncResult<Void>> commit(Map<TopicAndPartition, Long> offsets) {
         final SettableFuture<AsyncResult<Void>> future = SettableFuture.create();
 
@@ -305,6 +306,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     }
 
     @Override
+    @Deprecated
     public java.util.concurrent.Future<AsyncResult<Void>> commit(TopicAndPartition topicAndPartition, Long offset) {
         final SettableFuture<AsyncResult<Void>> future = SettableFuture.create();
         final Map<TopicAndPartition, Long> offsets = new HashMap<>();
@@ -331,6 +333,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     }
 
     @Override
+    @Deprecated
     public java.util.concurrent.Future<AsyncResult<Map<String, List<MessageAndOffset>>>> poll() {
         final SettableFuture<AsyncResult<Map<String, List<MessageAndOffset>>>> future = SettableFuture.create();
         future.setException(new Exception("Not implemented"));
@@ -338,6 +341,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     }
 
     @Override
+    @Deprecated
     public java.util.concurrent.Future<AsyncResult<Map<String, List<MessageAndOffset>>>> poll(TopicAndPartition topicAndPartition) {
         final SettableFuture<AsyncResult<Map<String, List<MessageAndOffset>>>> future = SettableFuture.create();
         doPoll(topicAndPartition, result -> {

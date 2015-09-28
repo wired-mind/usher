@@ -232,14 +232,13 @@ public class KafkaConsumerTests {
 
             final Async async = context.async();
             vertx.executeBlocking((Future<Map<String, List<MessageAndOffset>>> f) -> {
-                try {
-                    AsyncResult<Map<String, List<MessageAndOffset>>> future = null;
-                    future = kafkaconsumer.poll(topicAndPartition).get();
-
-                    f.complete(future.result());
-                } catch (Exception e) {
-                   f.fail(e);
-                }
+                kafkaconsumer.poll(topicAndPartition, res -> {
+                    if (res.failed()) {
+                        f.fail(res.cause());
+                        return;
+                    }
+                    f.complete(res.result());
+                });
 
             }, doneHandler -> {
                 if (doneHandler.failed()) {
@@ -257,13 +256,8 @@ public class KafkaConsumerTests {
                 context.assertNotNull(bytes, "bytes should not be null");
                 async.complete();
             });
-
-
         }));
-
-
-        vertx.setTimer(10000, event -> context.fail("timed out"));
-
+        vertx.setTimer(10_000, event -> context.fail("timed out"));
     }
 
 //    @Test
