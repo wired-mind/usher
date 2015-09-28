@@ -4,9 +4,7 @@ import com.cyberphysical.streamprocessing.verticles.KafkaProducerVerticle;
 import com.google.common.util.concurrent.SettableFuture;
 import io.cozmic.usher.plugins.journaling.KafkaConsumer;
 import io.cozmic.usher.plugins.journaling.KafkaConsumerImpl;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetClient;
@@ -26,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 /**
  * KafkaConsumerTests
@@ -48,6 +47,26 @@ public class KafkaConsumerTests {
         byte[] bytes = new byte[payload.limit()];
         payload.get(bytes);
         System.out.println(String.valueOf(messageAndOffset.offset()) + ": " + new String(bytes, "UTF-8"));
+    }
+
+    private void messageToKafkaEx(String msg, Handler<AsyncResult<Void>> asyncResultHandler) {
+        NetClient client = vertx.createNetClient();
+        client.connect(1234, "localhost", res -> {
+            if (res.failed()) {
+                System.out.println("NetClient failed to connect");
+                asyncResultHandler.handle(Future.failedFuture(res.cause()));
+                return;
+            }
+            NetSocket socket = res.result();
+            socket.handler(buffer -> {
+                String response = buffer.toString("UTF-8");
+                System.out.println("NetClient handled message: " + response);
+                client.close();
+            });
+            // Send message data to KafkaProducerVerticle
+            socket.write(msg);
+            asyncResultHandler.handle(Future.succeededFuture());
+        });
     }
 
     private java.util.concurrent.Future<AsyncResult<Void>> messageToKafka(TestContext context, String msg) {
@@ -210,21 +229,30 @@ public class KafkaConsumerTests {
     public void testCanPollGivenTopic(TestContext context) throws Exception {
         TopicAndPartition topicAndPartition = new TopicAndPartition(topic, 0);
 
-        messageToKafka(context, "message 5").get();
+        messageToKafkaEx("message 5", context.asyncAssertSuccess(r -> {
+            AsyncResult<Map<String, List<MessageAndOffset>>> future = null;
+            try {
+                future = kafkaconsumer.poll(topicAndPartition).get();
+                Map<String, List<MessageAndOffset>> map = future.result();
 
-        AsyncResult<Map<String, List<MessageAndOffset>>> future = kafkaconsumer.poll(topicAndPartition).get();
+                List<MessageAndOffset> list = map.get(topicAndPartition.topic());
+                MessageAndOffset messageAndOffset = list.get(0);
 
-        Map<String, List<MessageAndOffset>> map = future.result();
+                ByteBuffer payload = messageAndOffset.message().payload();
+                byte[] bytes = new byte[payload.limit()];
+                payload.get(bytes);
 
-        List<MessageAndOffset> list = map.get(topicAndPartition.topic());
-        MessageAndOffset messageAndOffset = list.get(0);
+                context.assertNotNull(bytes, "bytes should not be null");
 
-        ByteBuffer payload = messageAndOffset.message().payload();
-        byte[] bytes = new byte[payload.limit()];
-        payload.get(bytes);
+            } catch (Exception e) {
+                context.fail("Error polling");
+            }
 
-        context.assertNotNull(bytes, "bytes should not be null");
-        vertx.setTimer(5000, event -> context.fail("timed out"));
+
+        }));
+
+
+        vertx.setTimer(10000, event -> context.fail("timed out"));
 
     }
 
