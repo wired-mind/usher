@@ -7,6 +7,8 @@ import io.cozmic.usher.plugins.v1protocol.UsherV1FrameEncoder;
 import io.cozmic.usher.plugins.v1protocol.UsherV1FramingSplitter;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -21,6 +23,8 @@ import java.util.Set;
  * Created by chuck on 7/1/15.
  */
 public class PluginLoader {
+    Logger logger = LoggerFactory.getLogger(PluginLoader.class.getName());
+
     private final PluginIndex<DecoderPlugin> decoderIndex;
     private PluginIndex<SplitterPlugin> splitterIndex;
     private PluginIndex<EncoderPlugin> encoderIndex;
@@ -46,7 +50,7 @@ public class PluginLoader {
     }
 
 
-    public PluginLoader(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException, UsherInitializationFailedException {
+    public PluginLoader(Vertx vertx, JsonObject config) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException, UsherInitializationFailedException {
         wellKnownPackages = Maps.fromProperties(loadTypePackages());
 
         final Set<String> pluginNames = config.fieldNames();
@@ -58,11 +62,18 @@ public class PluginLoader {
             if (noPackage) {
                 pluginType = enrichPluginTypeWithWellKnownPackages(pluginType);
             }
-            final Class<?> pluginClass = Class.forName(pluginType);
-            final Constructor<?> constructor = pluginClass.getConstructor();
 
 
-            final Plugin plugin = (Plugin) constructor.newInstance();
+            Plugin plugin;
+            try {
+                final Class<?> pluginClass = Class.forName(pluginType);
+                final Constructor<?>constructor = pluginClass.getConstructor();
+                plugin = (Plugin) constructor.newInstance();
+            } catch (ClassNotFoundException e) {
+                logger.warn("[Usher] - Could not load plugin " + pluginType);
+                continue;
+            }
+
             plugin.init(pluginConfig, vertx);
 
             if (pluginType.endsWith("Input")) {
