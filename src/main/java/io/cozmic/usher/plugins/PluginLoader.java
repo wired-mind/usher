@@ -2,9 +2,7 @@ package io.cozmic.usher.plugins;
 
 import com.google.common.collect.Maps;
 import io.cozmic.usher.core.*;
-import io.cozmic.usher.plugins.core.*;
-import io.cozmic.usher.plugins.v1protocol.UsherV1FrameEncoder;
-import io.cozmic.usher.plugins.v1protocol.UsherV1FramingSplitter;
+import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -56,7 +54,12 @@ public class PluginLoader {
         final Set<String> pluginNames = config.fieldNames();
         pluginNames.remove("usher");
         for (String pluginName : pluginNames) {
-            final JsonObject pluginConfig = config.getJsonObject(pluginName);
+            final Object configObj = config.getValue(pluginName);
+            if (!(configObj instanceof JsonObject)) {
+                logger.warn(String.format("[Usher] - Ignoring %s. Does not appear to be an usher plugin.", pluginName));
+                continue;
+            }
+            final JsonObject pluginConfig = (JsonObject)configObj;
             String pluginType = pluginConfig.getString("type", pluginName);
             final boolean noPackage = !pluginType.contains(".");
             if (noPackage) {
@@ -70,7 +73,7 @@ public class PluginLoader {
                 final Constructor<?>constructor = pluginClass.getConstructor();
                 plugin = (Plugin) constructor.newInstance();
             } catch (ClassNotFoundException e) {
-                logger.warn("[Usher] - Could not load plugin " + pluginType);
+                logger.warn(String.format("[Usher] - Ignoring %s. Does not appear to be an usher plugin.", pluginName));
                 continue;
             }
 
