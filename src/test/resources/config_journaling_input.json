@@ -1,12 +1,29 @@
 {
+  "usher": {
+    "pipelineInstances": 1
+  },
   "Router": {
     "type": "KafkaInput",
-    "encoder": "PayloadEncoder"
+    "splitter": "KafkaSplitter",
+    "decoder": "AvroDecoder",
+    "encoder": "AvroEncoder",
+    "messageMatcher": "#{1==1}"
   },
   "Filter": {
     "type": "io.cozmic.usher.test.integration.EventBusFilter",
     //"type": "io.cozmic.usher.test.ErrFilter",
     "messageMatcher": "#{1 == 1}"
   },
-  "PayloadEncoder": {}
+  "AvroDecoder": {
+    "schema": "avro/pojo.avsc",
+    "clazz": "io.cozmic.usher.test.Pojo"
+  },
+  "AvroEncoder": {
+    "schema": "avro/pojo.avsc",
+    "clazz": "io.cozmic.usher.test.Pojo"
+  },
+
+
+  "KafkaSplitter": { "type": "io.cozmic.usher.plugins.core.NullSplitter", "useMessageBytes": true}
+
 }

@@ -1,21 +1,22 @@
 package io.cozmic.usher.test.integration;
 
-import com.cyberphysical.streamprocessing.verticles.KafkaProducerVerticle;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.avro.AvroFactory;
-import com.fasterxml.jackson.dataformat.avro.schema.AvroSchemaGenerator;
+import com.google.common.io.Resources;
 import io.cozmic.usher.Start;
+import io.cozmic.usher.core.AvroMapper;
 import io.cozmic.usher.test.Pojo;
 import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.net.NetClient;
-import io.vertx.core.net.NetSocket;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
 import org.junit.Before;
@@ -27,7 +28,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -45,43 +46,31 @@ public class KafkaInputTests {
     // IMPORTANT!
     // These tests require a local zookeepr instance running on port 2181
     // and a local Kafka instance running on port 9092.
-
+    private static final Logger logger = LoggerFactory.getLogger(KafkaInputTests.class.getName());
     private static final Random random = new Random();
     private String topic = "test";
     private Vertx vertx;
-
-    private static <T> byte[] serializedRecord(T object) {
-        byte[] serializedObject = null;
-        ObjectMapper mapper = new ObjectMapper(new AvroFactory());
-        AvroSchemaGenerator gen = new AvroSchemaGenerator();
-        try {
-            mapper.acceptJsonFormatVisitor(object.getClass(), gen);
-            serializedObject = mapper.writer(gen.getGeneratedSchema()).writeValueAsBytes(object);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return serializedObject;
-    }
+    private KafkaProducer<String, byte[]> producer;
 
     @Before
     public void before(TestContext context) {
         vertx = Vertx.vertx();
 
-        final Async async = context.async();
+        Properties kafkaProducerProps = new Properties();
+        kafkaProducerProps.put("bootstrap.servers", "kafka.dev:9092");
+        kafkaProducerProps.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        kafkaProducerProps.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
 
-        vertx.deployVerticle(KafkaProducerVerticle.class.getName(),
-                new DeploymentOptions().setConfig(new JsonObject()
-                        .put("bootstrap.servers", "kafka.dev:" + 9092)
-                        .put("topic", topic)
-                        .put("tcpHost", "localhost")), event -> {
+        producer = new KafkaProducer<>(kafkaProducerProps);
 
-                    async.complete();
-                });
+
+
     }
 
     @After
     public void after(TestContext context) {
         final Async async = context.async();
+        producer.close();
         vertx.close(res -> {
             if (res.failed()) {
                 context.fail(res.cause());
@@ -91,59 +80,50 @@ public class KafkaInputTests {
         });
     }
 
+
+
     /**
      * Test "Hello World!" -> Kafka -> KafkaInput -> EventBusFilter
      */
     @Test
     public void testConsumeRawMessage(TestContext context) throws Exception {
+        // Given
+        final String expected = "Hello World test 0" + random.nextInt(1_000);
+        final int expectedHashCode = expected.hashCode();
+        ProducerRecord<String, byte[]> data = new ProducerRecord<>(topic, expected.getBytes());
 
-        final DeploymentOptions options = buildDeploymentOptions();
+
+        final DeploymentOptions options = buildDeploymentOptions("/config_kafka_input_string.json");
 
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
 
-            // Given
-            final String expected = "Hello World test 0" + random.nextInt(1_000);
 
-            // When
-            NetClient client = vertx.createNetClient();
-            client.connect(1234, "localhost", res -> {
-                if (res.succeeded()) {
-                    NetSocket socket = res.result();
-                    socket.handler(buffer -> {
-                        String response = buffer.toString("UTF-8");
-                        System.out.println("NetClient handled message: " + response);
-                        client.close();
+            // When - publish to kafka
+            vertx.executeBlocking(new Handler<Future<Void>>() {
+                @Override
+                public void handle(Future<Void> future) {
+                    producer.send(data, (metadata, exception) -> {
+                        future.complete();
                     });
-                    // Send message data to KafkaProducerVerticle
-                    socket.write(expected);
-                } else {
-                    System.out.println("NetClient failed to connect");
-                    client.close();
-                    context.fail(res.cause());
                 }
-            });
+            }, context.asyncAssertSuccess());
 
             // Then
-            AtomicInteger counter = new AtomicInteger(0);
-            StringDeserializer stringDeserializer = new StringDeserializer();
-            vertx.eventBus().<byte[]>consumer(EVENT_BUS_ADDRESS, msg -> {
-                String message = stringDeserializer.deserialize("", msg.body());
-                System.out.println(String.format("Received '%s'", message));
-                if (counter.get() > 0) {
-                    // Ignore subsequent messages to avoid calling
-                    // async.complete() more than once.
-                    return;
-                }
-                if (expected.equals(message)) {
-                    counter.getAndIncrement();
-                    // Give the plugin a couple of seconds to commit
-                    vertx.setTimer(5_000, event -> async.complete());
-                } else {
-                    System.out.println(String.format("Expected '%s' but received '%s'", expected, message));
-                }
+            vertx.eventBus().<Integer>consumer(EVENT_BUS_ADDRESS, msg -> {
+                final Integer actualHashCode = msg.body();
+                logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
+                context.assertEquals(expectedHashCode, actualHashCode, "hashcodes do not match");
+
+                vertx.setTimer(3000, id -> {
+                    context.fail("Intentionally failing this test for now. It works by delaying the complete to give time for offsets to commit. We " +
+                            "should remove the timer above though.");
+                    async.complete();
+                });
+
             });
         }));
+        vertx.setTimer(15_000, event -> context.fail("timed out"));
     }
 
     /**
@@ -151,64 +131,52 @@ public class KafkaInputTests {
      */
     @Test
     public void testConsumeAvroMessage(TestContext context) throws Exception {
+        final AvroMapper avroMapper = new AvroMapper(Resources.getResource("avro/pojo.avsc"));
+        Pojo user = new Pojo("Test", "#0" + random.nextInt(1_000) , 1, "red");
 
-        // TODO: This test is valid but it would be better to include the AvroDecoder as outlined above
+        // Given
+        final int expectedHashCode = user.hashCode();
+        final byte[] payload = avroMapper.serialize(user);
 
-        final DeploymentOptions options = buildDeploymentOptions();
+
+
+        ProducerRecord<String, byte[]> data = new ProducerRecord<>(topic, payload);
+
+        final DeploymentOptions options = buildDeploymentOptions("/config_journaling_input.json");
 
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
 
-            // Given
-            Pojo user = new Pojo("Test", "#0" + random.nextInt(1_000), 1, "red");
-            final byte[] expected = serializedRecord(user);
-
-            // When
-            NetClient client = vertx.createNetClient();
-            client.connect(1234, "localhost", res -> {
-                if (res.succeeded()) {
-                    NetSocket socket = res.result();
-                    socket.handler(buffer -> {
-                        String response = buffer.toString("UTF-8");
-                        System.out.println("NetClient handled message: " + response);
-                        client.close();
+            // When - publish to kafka
+            vertx.executeBlocking(new Handler<Future<Void>>() {
+                @Override
+                public void handle(Future<Void> future) {
+                    producer.send(data, (metadata, exception) -> {
+                        future.complete();
                     });
-                    // Send message data to KafkaProducerVerticle
-                    socket.write(new String(expected));
-                } else {
-                    System.out.println("NetClient failed to connect");
-                    client.close();
-                    context.fail(res.cause());
                 }
-            });
+            }, context.asyncAssertSuccess());
 
             // Then
-            AtomicInteger counter = new AtomicInteger(0);
-            StringDeserializer stringDeserializer = new StringDeserializer();
-            vertx.eventBus().<byte[]>consumer(EVENT_BUS_ADDRESS, msg -> {
-                Buffer buffer = Buffer.buffer(msg.body());
-                String message = stringDeserializer.deserialize("", msg.body());
-                System.out.println(String.format("Received '%s'", message));
-                if (counter.get() > 0) {
-                    // Ignore subsequent messages to avoid calling
-                    // async.complete() more than once.
-                    return;
-                }
-                if (Arrays.equals(expected, buffer.getBytes())) {
-                    counter.getAndIncrement();
-                    // Give the plugin a couple of seconds to commit
-                    vertx.setTimer(5_000, event -> async.complete());
-                } else {
-                    System.out.println(String.format("Expected '%s' but received '%s'", expected, message));
-                }
+            vertx.eventBus().<Integer>consumer(EVENT_BUS_ADDRESS, msg -> {
+                final Integer actualHashCode = msg.body();
+                logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
+                context.assertEquals(expectedHashCode, actualHashCode, "Pojo hashcodes do not match");
+
+                vertx.setTimer(3000, id -> {
+                    context.fail("Intentionally failing this test for now. It works by delaying the complete to give time for offsets to commit. We " +
+                            "should remove the timer above though.");
+                    async.complete();
+                });
             });
         }));
+        vertx.setTimer(15_000, event -> context.fail("timed out"));
     }
 
-    private DeploymentOptions buildDeploymentOptions() {
+    private DeploymentOptions buildDeploymentOptions(String name) {
         JsonObject config = null;
         try {
-            final URI uri = getClass().getResource("/config_journaling_input.json").toURI();
+            final URI uri = getClass().getResource(name).toURI();
             final String configString = new String(Files.readAllBytes(Paths.get(uri)));
             config = new JsonObject(configString);
             config.getJsonObject("Router")

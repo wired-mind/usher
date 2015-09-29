@@ -1,0 +1,22 @@
+{
+  "usher": {
+    "pipelineInstances": 1
+  },
+  "Router": {
+    "type": "KafkaInput",
+    "encoder": "PayloadEncoder",
+    "messageMatcher": "#{1==1}"
+  },
+  "Filter": {
+    "type": "io.cozmic.usher.test.integration.EventBusFilter",
+    //"type": "io.cozmic.usher.test.ErrFilter",
+    "messageMatcher": "#{1 == 1}"
+  },
+
+  "PayloadEncoder": {
+
+  }
+
+
+
+}

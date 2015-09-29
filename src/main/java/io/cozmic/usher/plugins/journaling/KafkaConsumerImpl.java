@@ -281,6 +281,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
                 // TODO: How to find the right leader when committing multiple topics
                 String leadBroker = findNewLeader("", entry.getKey());
                 offsetsStrategy = ConsumerOffsetsStrategy.createKafkaOffsetsStrategy(leadBroker, port, groupId);
+                logger.info("committing offsets");
                 offsetsStrategy.commitOffsets(offsets);
                 // Success
                 vertx.cancelTimer(timerId); // cancel timer

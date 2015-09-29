@@ -3,8 +3,11 @@ package io.cozmic.usher.test.integration;
 import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.plugins.core.AbstractFilter;
+import io.cozmic.usher.test.Pojo;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 
 /**
  * The EventBusFilter puts messages
@@ -14,7 +17,7 @@ import io.vertx.core.Future;
  * Copyright (c) 2015 All Rights Reserved
  */
 public class EventBusFilter extends AbstractFilter {
-
+    private static final Logger logger = LoggerFactory.getLogger(EventBusFilter.class.getName());
     public static final String EVENT_BUS_ADDRESS = EventBusFilter.class.getName();
 
     @Override
@@ -24,8 +27,17 @@ public class EventBusFilter extends AbstractFilter {
 
     @Override
     public void handleRequest(PipelinePack pipelinePack, AsyncResultHandler<PipelinePack> asyncResultHandler) {
-        Message message = pipelinePack.getMessage();
-        this.getVertx().eventBus().send(EVENT_BUS_ADDRESS, message.getPayload().getBytes());
-        asyncResultHandler.handle(Future.succeededFuture(pipelinePack));
+       try {
+           Object obj = pipelinePack.getMessage();
+           if (obj instanceof Message) {
+               obj = ((Message)obj).getPayload().toString();
+           }
+           this.getVertx().eventBus().send(EVENT_BUS_ADDRESS, obj.hashCode());
+           logger.info("hash" + obj.hashCode());
+           asyncResultHandler.handle(Future.succeededFuture(pipelinePack));
+       }  catch (Exception e) {
+           asyncResultHandler.handle(Future.failedFuture(e));
+       }
+
     }
 }
