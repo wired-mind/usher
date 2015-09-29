@@ -38,4 +38,9 @@ public class InputRunnerImpl implements InputRunner {
             messageStreamHandler.handle(new MessageStream(inPipeline, outPipeline));
         });
     }
+
+    @Override
+    public void stop(AsyncResultHandler<Void> stopHandler) {
+        inputPlugin.stop(stopHandler::handle);
+    }
 }

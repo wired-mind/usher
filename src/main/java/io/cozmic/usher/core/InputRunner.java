@@ -9,4 +9,6 @@ import io.vertx.core.Handler;
  */
 public interface InputRunner {
     public void start(AsyncResultHandler<Void> startupHandler, Handler<MessageStream> messageParsingStreamHandler);
+
+    void stop(AsyncResultHandler<Void> stopHandler);
 }

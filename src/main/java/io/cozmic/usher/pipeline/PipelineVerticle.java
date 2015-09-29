@@ -37,15 +37,17 @@ import java.util.List;
  */
 public class PipelineVerticle extends AbstractVerticle {
     Logger logger = LoggerFactory.getLogger(PipelineVerticle.class.getName());
+    private List<InputRunner> inputRunners;
+    private int inputCount;
 
     public void start(final Future<Void> startedResult) throws ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException, UsherInitializationFailedException {
 
         final JsonObject config = config();
         final JsonObject usherConfig = config.getJsonObject("usher", new JsonObject());
         PluginFactory pluginFactory = new PluginFactory(getVertx(), config);
-        List<InputRunner> inputRunners = pluginFactory.getInputRunners();
+        inputRunners = pluginFactory.getInputRunners();
 
-        final int inputCount = inputRunners.size();
+        inputCount = inputRunners.size();
 
         CountDownFutureResult<Void> dynamicStarter = CountDownFutureResult.dynamicStarter(inputCount);
 
@@ -78,5 +80,31 @@ public class PipelineVerticle extends AbstractVerticle {
         });
     }
 
+    public void stop(Future<Void> stopFuture) throws Exception {
+        CountDownFutureResult<Void> dynamicStarter = CountDownFutureResult.dynamicStarter(inputCount);
 
+        for (InputRunner inputRunner : inputRunners) {
+            inputRunner.stop(stopResult -> {
+                if (stopResult.failed()) {
+                    final Throwable cause = stopResult.cause();
+                    logger.error(cause.getMessage(), cause);
+                    dynamicStarter.fail(cause);
+                    return;
+                }
+                dynamicStarter.complete();
+            });
+        }
+
+        dynamicStarter.setHandler(asyncResult -> {
+            if (asyncResult.failed()) {
+                final Throwable cause = asyncResult.cause();
+                logger.error(cause.getMessage(), cause);
+                stopFuture.fail(cause);
+                return;
+            }
+
+            stopFuture.complete();
+        });
+
+    }
 }

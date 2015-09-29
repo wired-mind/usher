@@ -11,4 +11,6 @@ import io.vertx.core.buffer.Buffer;
  */
 public interface InputPlugin extends Plugin {
     void run(AsyncResultHandler<Void> startupHandler, Handler<DuplexStream<Buffer, Buffer>> duplexStreamHandler);
+
+    void stop(AsyncResultHandler<Void> stopHandler);
 }

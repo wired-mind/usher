@@ -65,6 +65,12 @@ public class KafkaInput implements InputPlugin {
     }
 
     @Override
+    public void stop(AsyncResultHandler<Void> stopHandler) {
+        logger.info("Stopping Kafka Input");
+        kafkaLogListener.close(stopHandler);
+    }
+
+    @Override
     public void init(JsonObject configObj, Vertx vertx) {
         this.configObj = configObj;
         this.vertx = vertx;
@@ -211,6 +217,13 @@ public class KafkaInput implements InputPlugin {
             });
             // Initial poll
             vertx.eventBus().publish(CONSUMER_ADDRESS, EVT_RUN);
+        }
+
+        public void close(AsyncResultHandler<Void> stopHandler) {
+            vertx.executeBlocking(event -> {
+                close();
+                event.complete();
+            }, stopHandler);
         }
     }
 

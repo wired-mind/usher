@@ -47,6 +47,11 @@ public class TcpInput implements InputPlugin {
         });
     }
 
+    @Override
+    public void stop(AsyncResultHandler<Void> stopHandler) {
+        netServer.close(stopHandler);
+    }
+
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
