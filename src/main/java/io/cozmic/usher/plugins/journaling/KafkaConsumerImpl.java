@@ -1,6 +1,6 @@
 package io.cozmic.usher.plugins.journaling;
 
-import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.collect.ImmutableMap;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -95,26 +95,6 @@ public class KafkaConsumerImpl implements KafkaConsumer {
             builder.append(String.valueOf(messageAndOffset.offset()) + ": " + new String(bytes, "UTF-8") + "\n");
         }
         logger.info(builder.toString());
-    }
-
-    private void doCommit(Map<TopicAndPartition, Long> offsets, Handler<AsyncResult<Void>> asyncResultHandler) {
-        // Retry commit until it succeeds
-        // TODO: Back-off strategy
-        vertx.setPeriodic(DEFAULT_RETRY_DELAY_MILLIS, timerId -> {
-            try {
-                Map.Entry<TopicAndPartition, Long> entry = offsets.entrySet().iterator().next();
-                // TODO: How to find the right leader when committing multiple topics
-                String leadBroker = findNewLeader("", entry.getKey());
-                offsetsStrategy = ConsumerOffsetsStrategy.createKafkaOffsetsStrategy(leadBroker, port, groupId);
-                offsetsStrategy.commitOffsets(offsets);
-                // Success
-                vertx.cancelTimer(timerId); // cancel timer
-                asyncResultHandler.handle(Future.succeededFuture());
-            } catch (Exception e) {
-                vertx.eventBus().publish(PUBLISHED_ERRORS_EVENTBUS_ADDRESS, e.getMessage());
-                logger.error("Unable to commit, will retry...", e);
-            }
-        });
     }
 
     private void doPoll(TopicAndPartition topicAndPartition, Handler<AsyncResult<Map<String, List<MessageAndOffset>>>> asyncResultHandler) {
@@ -222,6 +202,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
         for (String seed : seedBrokers) {
             SimpleConsumer consumer = null;
             try {
+                // TODO: keep consumer
                 consumer = new SimpleConsumer(seed, port, 100_000, 64 * 1024, "leaderLookup");
                 List<String> topics = Collections.singletonList(topic);
                 TopicMetadataRequest req = new TopicMetadataRequest(topics);
@@ -291,35 +272,29 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     }
 
     @Override
-    @Deprecated
-    public java.util.concurrent.Future<AsyncResult<Void>> commit(Map<TopicAndPartition, Long> offsets) {
-        final SettableFuture<AsyncResult<Void>> future = SettableFuture.create();
-
-        doCommit(offsets, result -> {
-            if (result.failed()) {
-                future.setException(result.cause());
-                return;
+    public void commit(Map<TopicAndPartition, Long> offsets, Handler<AsyncResult<Void>> asyncResultHandler) {
+        // Retry commit until it succeeds
+        // TODO: Back-off strategy
+        vertx.setPeriodic(DEFAULT_RETRY_DELAY_MILLIS, timerId -> {
+            try {
+                Map.Entry<TopicAndPartition, Long> entry = offsets.entrySet().iterator().next();
+                // TODO: How to find the right leader when committing multiple topics
+                String leadBroker = findNewLeader("", entry.getKey());
+                offsetsStrategy = ConsumerOffsetsStrategy.createKafkaOffsetsStrategy(leadBroker, port, groupId);
+                offsetsStrategy.commitOffsets(offsets);
+                // Success
+                vertx.cancelTimer(timerId); // cancel timer
+                asyncResultHandler.handle(Future.succeededFuture());
+            } catch (Exception e) {
+                vertx.eventBus().publish(PUBLISHED_ERRORS_EVENTBUS_ADDRESS, e.getMessage());
+                logger.error("Unable to commit, will retry...", e);
             }
-            future.set(result);
         });
-        return future;
     }
 
     @Override
-    @Deprecated
-    public java.util.concurrent.Future<AsyncResult<Void>> commit(TopicAndPartition topicAndPartition, Long offset) {
-        final SettableFuture<AsyncResult<Void>> future = SettableFuture.create();
-        final Map<TopicAndPartition, Long> offsets = new HashMap<>();
-        offsets.put(topicAndPartition, offset);
-
-        doCommit(offsets, result -> {
-            if (result.failed()) {
-                future.setException(result.cause());
-                return;
-            }
-            future.set(result);
-        });
-        return future;
+    public void commit(TopicAndPartition topicAndPartition, Long offset, Handler<AsyncResult<Void>> asyncResultHandler) {
+        commit(ImmutableMap.of(topicAndPartition, offset), asyncResultHandler);
     }
 
     @Override
@@ -330,28 +305,6 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     @Override
     public void poll(TopicAndPartition topicAndPartition, Handler<AsyncResult<Map<String, List<MessageAndOffset>>>> asyncResultHandler) {
         doPoll(topicAndPartition, asyncResultHandler);
-    }
-
-    @Override
-    @Deprecated
-    public java.util.concurrent.Future<AsyncResult<Map<String, List<MessageAndOffset>>>> poll() {
-        final SettableFuture<AsyncResult<Map<String, List<MessageAndOffset>>>> future = SettableFuture.create();
-        future.setException(new Exception("Not implemented"));
-        return future;
-    }
-
-    @Override
-    @Deprecated
-    public java.util.concurrent.Future<AsyncResult<Map<String, List<MessageAndOffset>>>> poll(TopicAndPartition topicAndPartition) {
-        final SettableFuture<AsyncResult<Map<String, List<MessageAndOffset>>>> future = SettableFuture.create();
-        doPoll(topicAndPartition, result -> {
-            if (result.failed()) {
-                future.setException(result.cause());
-                return;
-            }
-            future.set(result);
-        });
-        return future;
     }
 
     @Override

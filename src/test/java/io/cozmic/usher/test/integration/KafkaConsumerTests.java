@@ -1,7 +1,6 @@
 package io.cozmic.usher.test.integration;
 
 import com.cyberphysical.streamprocessing.verticles.KafkaProducerVerticle;
-import com.google.common.util.concurrent.SettableFuture;
 import io.cozmic.usher.plugins.journaling.KafkaConsumer;
 import io.cozmic.usher.plugins.journaling.KafkaConsumerImpl;
 import io.vertx.core.*;
@@ -41,11 +40,15 @@ public class KafkaConsumerTests {
     private Vertx vertx;
     private KafkaConsumer kafkaconsumer;
 
-    private void printMessageAndOffset(MessageAndOffset messageAndOffset) throws UnsupportedEncodingException {
-        ByteBuffer payload = messageAndOffset.message().payload();
-        byte[] bytes = new byte[payload.limit()];
-        payload.get(bytes);
-        System.out.println(String.valueOf(messageAndOffset.offset()) + ": " + new String(bytes, "UTF-8"));
+    private void printMessageAndOffset(MessageAndOffset messageAndOffset) {
+        try {
+            ByteBuffer payload = messageAndOffset.message().payload();
+            byte[] bytes = new byte[payload.limit()];
+            payload.get(bytes);
+            System.out.println(String.valueOf(messageAndOffset.offset()) + ": " + new String(bytes, "UTF-8"));
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
     }
 
     private void messageToKafkaEx(String msg, Handler<AsyncResult<Void>> asyncResultHandler) {
@@ -68,30 +71,6 @@ public class KafkaConsumerTests {
         });
     }
 
-    private java.util.concurrent.Future<AsyncResult<Void>> messageToKafka(TestContext context, String msg) {
-        final SettableFuture<AsyncResult<Void>> future = SettableFuture.create();
-        NetClient client = vertx.createNetClient();
-        client.connect(1234, "localhost", res -> {
-            if (res.failed()) {
-                System.out.println("NetClient failed to connect");
-                client.close();
-                context.fail(res.cause());
-                future.setException(res.cause());
-                return;
-            }
-            NetSocket socket = res.result();
-            socket.handler(buffer -> {
-                String response = buffer.toString("UTF-8");
-                System.out.println("NetClient handled message: " + response);
-                client.close();
-            });
-            // Send message data to KafkaProducerVerticle
-            socket.write(msg);
-            future.set(null);
-        });
-        return future;
-    }
-
     @Before
     public void before(TestContext context) throws Exception {
         vertx = Vertx.vertx();
@@ -112,10 +91,17 @@ public class KafkaConsumerTests {
 
     @After
     public void after(TestContext context) throws Exception {
+        final Async async = context.async();
         if (kafkaconsumer != null) {
             kafkaconsumer.close();
         }
-        vertx.close(context.asyncAssertSuccess());
+        vertx.close(res -> {
+            if (res.failed()) {
+                context.fail(res.cause());
+                return;
+            }
+            async.complete();
+        });
     }
 
     @Test
@@ -127,102 +113,110 @@ public class KafkaConsumerTests {
     public void testCanCommitSingleOffset(TestContext context) throws Exception {
         final Async async = context.async();
 
-        messageToKafka(context, "message 1").get();
-        messageToKafka(context, "message 2").get();
-
-        // Given
-        final TopicAndPartition topicAndPartition = new TopicAndPartition(topic, 0);
-
-        AsyncResult<Map<String, List<MessageAndOffset>>> future = kafkaconsumer.poll(topicAndPartition).get();
-
-        Map<String, List<MessageAndOffset>> map = future.result();
-        context.assertTrue(map.size() == 1, "map should have one entry");
-
-        Map.Entry<String, List<MessageAndOffset>> entry = map.entrySet().iterator().next();
-        context.assertTrue(topic.equals(entry.getKey()), "map entry key should match topic");
-
-        List<MessageAndOffset> list = map.get(topicAndPartition.topic());
-        context.assertTrue(list.size() > 0, "list of messages should not be empty");
-
-        MessageAndOffset firstMessageAndOffset = list.get(0);
-        printMessageAndOffset(firstMessageAndOffset);
-
-        final long nextOffset = firstMessageAndOffset.offset() + 1;
-
-        // When
-        AsyncResult<Void> result = kafkaconsumer.commit(topicAndPartition, firstMessageAndOffset.offset()).get();
-
-        // Then
-        context.assertTrue(result.succeeded() && !result.failed(), "commit should have succeeded");
-
-        kafkaconsumer.poll(topicAndPartition, res -> {
-            if (res.failed()) {
-                context.fail(res.cause());
+        messageToKafkaEx("message 1", message1 -> {
+            if (message1.failed()) {
+                System.out.println("Failed to send test message to Kafka");
+                context.fail(message1.cause());
+                return;
             }
-            List<MessageAndOffset> l = res.result().get(topicAndPartition.topic());
-            context.assertEquals(nextOffset, l.get(0).offset(), "should be at the next offset");
-            async.complete();
+
+            messageToKafkaEx("message 2", message2 -> {
+                if (message2.failed()) {
+                    System.out.println("Failed to send test message to Kafka");
+                    context.fail(message2.cause());
+                    return;
+                }
+
+                // Given
+                final TopicAndPartition topicAndPartition = new TopicAndPartition(topic, 0);
+
+                kafkaconsumer.poll(topicAndPartition, future -> {
+                    Map<String, List<MessageAndOffset>> map = future.result();
+                    context.assertTrue(map.size() == 1, "map should have one entry");
+
+                    Map.Entry<String, List<MessageAndOffset>> entry = map.entrySet().iterator().next();
+                    context.assertTrue(topic.equals(entry.getKey()), "map entry key should match topic");
+
+                    List<MessageAndOffset> list = map.get(topicAndPartition.topic());
+                    context.assertTrue(list.size() > 0, "list of messages should not be empty");
+
+                    MessageAndOffset firstMessageAndOffset = list.get(0);
+                    printMessageAndOffset(firstMessageAndOffset);
+
+                    final long nextOffset = firstMessageAndOffset.offset() + 1;
+
+                    // When
+                    kafkaconsumer.commit(topicAndPartition, firstMessageAndOffset.offset(), result -> {
+                        // Then
+                        context.assertTrue(result.succeeded() && !result.failed(), "commit should have succeeded");
+
+                        kafkaconsumer.poll(topicAndPartition, res -> {
+                            if (res.failed()) {
+                                context.fail(res.cause());
+                            }
+                            List<MessageAndOffset> l = res.result().get(topicAndPartition.topic());
+                            context.assertEquals(nextOffset, l.get(0).offset(), "should be at the next offset");
+                            async.complete();
+                        });
+                    });
+                });
+            });
         });
+        vertx.setTimer(10_000, event -> context.fail("timed out"));
     }
 
     @Test
     public void testCanCommitMultipleOffsets(TestContext context) throws Exception {
         final Async async = context.async();
 
-        messageToKafka(context, "message 3").get();
-        messageToKafka(context, "message 4").get();
+        messageToKafkaEx("message 3", message3 -> {
+            if (message3.failed()) {
+                System.out.println("Failed to send test message to Kafka");
+                context.fail(message3.cause());
+                return;
+            }
 
-        final int numberOfTopics = 1;
+            messageToKafkaEx("message 4", message4 -> {
+                if (message4.failed()) {
+                    System.out.println("Failed to send test message to Kafka");
+                    context.fail(message4.cause());
+                    return;
+                }
 
-        // Given
-        final TopicAndPartition topicAndPartition = new TopicAndPartition(topic, 0);
-        // TODO: Another topic and partition, subscribe to both
+                final int numberOfTopics = 1;
 
-        AsyncResult<Map<String, List<MessageAndOffset>>> future = kafkaconsumer.poll(topicAndPartition).get();
+                // Given
+                final TopicAndPartition topicAndPartition = new TopicAndPartition(topic, 0);
+                // TODO: Another topic and partition, subscribe to both
 
-        Map<String, List<MessageAndOffset>> map = future.result();
-        context.assertTrue(map.size() == numberOfTopics, "map should have entry for each topic");
+                kafkaconsumer.poll(topicAndPartition, future -> {
+                    Map<String, List<MessageAndOffset>> map = future.result();
+                    context.assertTrue(map.size() == numberOfTopics, "map should have entry for each topic");
 
-        Map.Entry<String, List<MessageAndOffset>> entry = map.entrySet().iterator().next();
-        context.assertTrue(topic.equals(entry.getKey()), "map entry key should match topic");
+                    Map.Entry<String, List<MessageAndOffset>> entry = map.entrySet().iterator().next();
+                    context.assertTrue(topic.equals(entry.getKey()), "map entry key should match topic");
 
-        List<MessageAndOffset> list = map.get(topicAndPartition.topic());
-        context.assertTrue(list.size() > 0, "list of messages should not be empty");
+                    List<MessageAndOffset> list = map.get(topicAndPartition.topic());
+                    context.assertTrue(list.size() > 0, "list of messages should not be empty");
 
-        MessageAndOffset firstMessageAndOffset = list.get(0);
-        printMessageAndOffset(firstMessageAndOffset);
+                    MessageAndOffset firstMessageAndOffset = list.get(0);
+                    printMessageAndOffset(firstMessageAndOffset);
 
-        // When
-        Map<TopicAndPartition, Long> offsets = new LinkedHashMap();
-        list.forEach(item -> offsets.put(topicAndPartition, item.offset()));
+                    // When
+                    Map<TopicAndPartition, Long> offsets = new LinkedHashMap();
+                    list.forEach(item -> offsets.put(topicAndPartition, item.offset()));
 
-        AsyncResult<Void> result = kafkaconsumer.commit(offsets).get();
-
-        // Then
-        context.assertTrue(result.succeeded() && !result.failed(), "commit should have succeeded");
-        kafkaconsumer.poll(topicAndPartition, res -> context.fail("Should not have any result here"));
+                    kafkaconsumer.commit(offsets, result -> {
+                        // Then
+                        context.assertTrue(result.succeeded() && !result.failed(), "commit should have succeeded");
+                        kafkaconsumer.poll(topicAndPartition, res -> context.fail("Should not have any result here"));
+                    });
+                });
+            });
+        });
         // Wait and terminate manually
         vertx.setTimer(5_000, event -> async.complete());
     }
-
-//    @Test
-//    public void testCanPollSubscribedTopics(TestContext context) throws Exception {
-//        TopicAndPartition topicAndPartition = new TopicAndPartition(topic, 0);
-//
-//        kafkaconsumer.subscribe(topicAndPartition);
-//        AsyncResult<Map<String, List<MessageAndOffset>>> future = kafkaconsumer.poll().get();
-//
-//        Map<String, List<MessageAndOffset>> map = future.result();
-//
-//        List<MessageAndOffset> list = map.get(topicAndPartition.topic());
-//        MessageAndOffset messageAndOffset = list.get(0);
-//
-//        ByteBuffer payload = messageAndOffset.message().payload();
-//        byte[] bytes = new byte[payload.limit()];
-//        payload.get(bytes);
-//
-//        context.assertNotNull(bytes, "bytes should not be null");
-//    }
 
     @Test
     public void testCanPollGivenTopic(TestContext context) throws Exception {
@@ -231,21 +225,12 @@ public class KafkaConsumerTests {
         messageToKafkaEx("message 5", context.asyncAssertSuccess(r -> {
 
             final Async async = context.async();
-            vertx.executeBlocking((Future<Map<String, List<MessageAndOffset>>> f) -> {
-                kafkaconsumer.poll(topicAndPartition, res -> {
-                    if (res.failed()) {
-                        f.fail(res.cause());
-                        return;
-                    }
-                    f.complete(res.result());
-                });
-
-            }, doneHandler -> {
-                if (doneHandler.failed()) {
-                    context.fail(doneHandler.cause());
+            kafkaconsumer.poll(topicAndPartition, res -> {
+                if (res.failed()) {
+                    context.fail(res.cause());
                     return;
                 }
-                Map<String, List<MessageAndOffset>> map = doneHandler.result();
+                Map<String, List<MessageAndOffset>> map = res.result();
                 List<MessageAndOffset> list = map.get(topicAndPartition.topic());
                 MessageAndOffset messageAndOffset = list.get(0);
 
@@ -259,14 +244,6 @@ public class KafkaConsumerTests {
         }));
         vertx.setTimer(10_000, event -> context.fail("timed out"));
     }
-
-//    @Test
-//    public void testSubscribe() throws Exception {
-//    }
-//
-//    @Test
-//    public void testUnsubscribe() throws Exception {
-//    }
 
     private JsonObject buildKafkaConsumerConfig() {
         JsonObject config = new JsonObject();

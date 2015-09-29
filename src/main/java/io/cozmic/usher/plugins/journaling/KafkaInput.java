@@ -188,13 +188,18 @@ public class KafkaInput implements InputPlugin {
 
                             messageStream.responseHandler(data -> {
 
-                                // TODO: From config [optional] response or reply topic
+                                // Send message to optional [from config] reply topic
                                 if (replyTopic != null) {
                                     asyncSendMessage(replyTopic, data.getBytes());
                                 }
 
                                 // Commit offset for this topic and partition (idempotent)
-                                commit(topicAndPartition, messageAndOffset.offset());
+                                commit(topicAndPartition, messageAndOffset.offset(), res -> {
+                                    // TODO: What should happen if the data was consumed but the commit failed?
+                                    if (res.failed()) {
+                                        logger.fatal("Could not commit offset", res.cause());
+                                    }
+                                });
                             });
                             messageStream.pause();
                             delegate.handle(messageStream);

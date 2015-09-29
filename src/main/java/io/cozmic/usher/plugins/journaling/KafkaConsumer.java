@@ -25,27 +25,25 @@ public interface KafkaConsumer extends Closeable {
     /**
      * Asynchronously commits the specified offsets for
      * the specified list of topics and partitions to Kafka.
-     * Can be made to wait (block) with commit(offsets).get().
      *
-     * @param offsets The list of offsets per partition
-     *                that should be committed to Kafka.
-     * @return A Future which may contain an error if not successful.
+     * @param offsets            The list of offsets per partition
+     *                           that should be committed to Kafka.
+     * @param asyncResultHandler A Handler that indicates success or
+     *                           contains and error on failure.
      */
-    @Deprecated
-    java.util.concurrent.Future<AsyncResult<Void>> commit(Map<TopicAndPartition, Long> offsets);
+    void commit(Map<TopicAndPartition, Long> offsets, Handler<AsyncResult<Void>> asyncResultHandler);
 
     /**
      * Asynchronously commits the specified offsets for
-     * the specified topic and partition to Kafka. Can
-     * be made to wait (block) with commit(offset).get().
+     * the specified topic and partition to Kafka.
      *
-     * @param topicAndPartition The topic and partition.
-     * @param offset            The offset for the given topic and partition
-     *                          that should be committed to Kafka.
-     * @return A Future which may contain an error if not successful.
+     * @param topicAndPartition  The topic and partition.
+     * @param offset             The offset for the given topic and partition
+     *                           that should be committed to Kafka.
+     * @param asyncResultHandler A Handler that indicates success or
+     *                           contains and error on failure.
      */
-    @Deprecated
-    java.util.concurrent.Future<AsyncResult<Void>> commit(TopicAndPartition topicAndPartition, Long offset);
+    void commit(TopicAndPartition topicAndPartition, Long offset, Handler<AsyncResult<Void>> asyncResultHandler);
 
     /**
      * Asynchronously fetches data for the topics and partitions
@@ -65,32 +63,6 @@ public interface KafkaConsumer extends Closeable {
      *                           since the last fetch for the given topic and partition.
      */
     void poll(TopicAndPartition topicAndPartition, Handler<AsyncResult<Map<String, List<MessageAndOffset>>>> asyncResultHandler);
-
-    /**
-     * Asynchronously fetches data for the topics and partitions
-     * specified using the subscribe API. This method can be made
-     * to wait (block) with poll().get(). (Note that poll().get()
-     * will wait indefinitely if data is not available.)
-     *
-     * @return A Future with a map of topic to records since
-     * the last fetch for the subscribed topics and partitions.
-     */
-    @Deprecated
-    java.util.concurrent.Future<AsyncResult<Map<String, List<MessageAndOffset>>>> poll();
-
-    /**
-     * Asynchronously fetches data for a topic and partition.
-     * This method can be made to wait (block) with
-     * poll(topicAndPartition).get(). (Note that get()
-     * will wait indefinitely if data is not available.)
-     *
-     * @param topicAndPartition Topic and partition.
-     * @return A Future with a single entry map where its
-     * key is the topic and its value is the list of records
-     * since the last fetch for the given topic and partition.
-     */
-    @Deprecated
-    java.util.concurrent.Future<AsyncResult<Map<String, List<MessageAndOffset>>>> poll(TopicAndPartition topicAndPartition);
 
     /**
      * Subscribes to a specific topic and partition.

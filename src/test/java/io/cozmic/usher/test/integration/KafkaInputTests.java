@@ -81,7 +81,14 @@ public class KafkaInputTests {
 
     @After
     public void after(TestContext context) {
-        vertx.close(context.asyncAssertSuccess());
+        final Async async = context.async();
+        vertx.close(res -> {
+            if (res.failed()) {
+                context.fail(res.cause());
+                return;
+            }
+            async.complete();
+        });
     }
 
     /**
