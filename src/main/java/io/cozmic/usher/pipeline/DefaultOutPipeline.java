@@ -7,6 +7,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.WriteStream;
 
+import java.io.IOException;
+
 /**
  * Default out pipeline filters using messageMatcher and then encodes the message to a buffer
  */
@@ -16,6 +18,7 @@ public class DefaultOutPipeline implements OutPipeline {
     private final EncoderPlugin encoderPlugin;
     private final FrameEncoderPlugin frameEncoderPlugin;
     private final MessageMatcher messageMatcher;
+    private Handler<Throwable> exceptionHandler;
 
     public DefaultOutPipeline(WriteStream<Buffer> writeStream, JsonObject config, EncoderPlugin encoderPlugin, FrameEncoderPlugin frameEncoderPlugin, MessageMatcher messageMatcher) {
         this.innerWriteStream = writeStream;
@@ -29,6 +32,7 @@ public class DefaultOutPipeline implements OutPipeline {
 
     @Override
     public WriteStream<PipelinePack> exceptionHandler(Handler<Throwable> handler) {
+        exceptionHandler = handler;
         innerWriteStream.exceptionHandler(handler);
         return this;
     }
@@ -36,7 +40,11 @@ public class DefaultOutPipeline implements OutPipeline {
     @Override
     public WriteStream<PipelinePack> write(PipelinePack pack) {
         if (messageMatcher.matches(pack)) {
-            encoderPlugin.encode(pack, frameEncoderPlugin::encodeAndWrite);
+            try {
+                encoderPlugin.encode(pack, frameEncoderPlugin::encodeAndWrite);
+            } catch (IOException e) {
+                if (exceptionHandler != null) exceptionHandler.handle(e);
+            }
         }
         return this;
     }
