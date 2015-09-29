@@ -37,10 +37,7 @@ public class RoutingTests {
         vertx = Vertx.vertx();
         fooService = new FakeService(Buffer.buffer("foo"), 9192);
         barService = new FakeService(Buffer.buffer("bar"), 9193);
-        final Async async = context.async();
-        vertx.deployVerticle(fooService, asyncResult -> {
-            vertx.deployVerticle(barService, a-> async.complete());
-        });
+        vertx.deployVerticle(fooService, context.asyncAssertSuccess(r -> vertx.deployVerticle(barService, context.asyncAssertSuccess())));
     }
 
     @After
@@ -70,23 +67,22 @@ public class RoutingTests {
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
             final NetClient netClient = vertx.createNetClient();
-            netClient.connect(2500, "localhost", fooAsyncResult -> {
-                final NetSocket fooSocket = fooAsyncResult.result();
-                fooSocket.write("Hello Foo");
+            netClient.connect(2500, "localhost", context.asyncAssertSuccess(fooSocket -> {
                 fooSocket.handler(fooBuffer -> {
                     context.assertEquals("foo", fooBuffer.toString());
-                    netClient.connect(2501, "localhost", barAsyncResult -> {
-                        final NetSocket barSocket = barAsyncResult.result();
-                        barSocket.write("Hello Bar");
+                    netClient.connect(2501, "localhost", context.asyncAssertSuccess(barSocket -> {
                         barSocket.handler(barBuffer -> {
                             context.assertEquals("bar", barBuffer.toString());
                             async.complete();
                         });
-                    });
+                        barSocket.write("Hello Bar");
+                    }));
 
 
                 });
-            });
+
+                fooSocket.write("Hello Foo");
+            }));
             vertx.setTimer(5000, new Handler<Long>() {
                 @Override
                 public void handle(Long event) {
@@ -116,8 +112,7 @@ public class RoutingTests {
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
             final NetClient netClient = vertx.createNetClient();
-            netClient.connect(2500, "localhost", fooBarAsyncResult -> {
-                final NetSocket fooBarSocket = fooBarAsyncResult.result();
+            netClient.connect(2500, "localhost", context.asyncAssertSuccess(fooBarSocket -> {
                 final String payload = "Hello Foo and Bar";
                 AtomicInteger responseCount = new AtomicInteger();
                 fooBarSocket.handler(fooBuffer -> {
@@ -138,13 +133,8 @@ public class RoutingTests {
                 });
 
                 fooBarSocket.write(payload);
-            });
-            vertx.setTimer(5000, new Handler<Long>() {
-                @Override
-                public void handle(Long event) {
-                    context.fail("timed out");
-                }
-            });
+            }));
+            vertx.setTimer(5000, event -> context.fail("timed out"));
         }));
     }
 
