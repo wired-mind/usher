@@ -1,5 +1,7 @@
 package io.cozmic.usher.plugins.core;
 
+import com.google.common.io.Resources;
+import io.cozmic.usher.core.AvroMapper;
 import io.cozmic.usher.core.EncoderPlugin;
 import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.Handler;
@@ -9,46 +11,62 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
-import com.fasterxml.jackson.dataformat.avro.AvroMapper;
+
 
 import java.io.IOException;
+import java.net.URL;
+import java.util.Objects;
 
 /**
  * Encode GenericRecord to serialized data
  * <p>
  * Created by chuck on 7/10/15.
  */
-public class AvroEncoder<T> implements EncoderPlugin {
+public class AvroEncoder implements EncoderPlugin {
     Logger logger = LoggerFactory.getLogger(AvroEncoder.class.getName());
 
     private JsonObject configObj;
     private Vertx vertx;
-    private AvroMapper mapper = new AvroMapper();
-    
-    @Override
-    public void encode(PipelinePack pipelinePack, Handler<Buffer> bufferHandler) {
-        final T record = pipelinePack.getMessage();
-        Buffer buffer = null;
-        try {
-        	buffer = Buffer.buffer(
-        			mapper.writer(mapper.schemaFor(record.getClass())).writeValueAsBytes(record));
-        } catch (IOException e) {
-            logger.error("Cannot encode data", e);
-        }
+    private Class<?> clazz;
+    private AvroMapper avroMapper;
 
-        bufferHandler.handle(buffer);
+
+    @Override
+    public void encode(PipelinePack pipelinePack, Handler<Buffer> bufferHandler) throws IOException {
+        final Object record = pipelinePack.getMessage();
+        final byte[] bytes = avroMapper.serialize(record);
+        bufferHandler.handle(Buffer.buffer(bytes));
     }
 
     @Override
     public EncoderPlugin createNew() {
-        final AvroEncoder<T> avroEncoder = new AvroEncoder<T>();
-        avroEncoder.init(configObj, vertx);
+        final AvroEncoder avroEncoder = new AvroEncoder();
+        avroEncoder.init(configObj, vertx, clazz, avroMapper);
         return avroEncoder;
     }
 
-    @Override
-    public void init(JsonObject configObj, Vertx vertx) {
+    private void init(JsonObject configObj, Vertx vertx, Class<?> clazz, AvroMapper avroMapper) {
+
         this.configObj = configObj;
         this.vertx = vertx;
+        this.clazz = clazz;
+        this.avroMapper = avroMapper;
+    }
+
+    @Override
+    public void init(JsonObject configObj, Vertx vertx) throws UsherInitializationFailedException {
+        this.configObj = configObj;
+        this.vertx = vertx;
+        final String className = configObj.getString("clazz");
+        final String schema = configObj.getString("schema");
+        Objects.requireNonNull(className, "clazz is required");
+        Objects.requireNonNull(schema, "schema is required");
+        try {
+            clazz = Class.forName(className);
+            final URL resource = Resources.getResource(schema);
+            avroMapper = new AvroMapper(resource.openStream());
+        } catch (ClassNotFoundException | IOException e) {
+            throw new UsherInitializationFailedException("Error initializing avro schema", e);
+        }
     }
 }

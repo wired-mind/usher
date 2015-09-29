@@ -27,7 +27,7 @@ import com.fasterxml.jackson.dataformat.avro.AvroSchema;
  * Created by Craig Earley on 8/19/15.
  * Copyright (c) 2015 All Rights Reserved
  */
-public class AvroDecoder<T> implements DecoderPlugin {
+public class AvroDecoder implements DecoderPlugin {
     Logger logger = LoggerFactory.getLogger(AvroDecoder.class.getName());
 
     private JsonObject configObj;
@@ -46,7 +46,7 @@ public class AvroDecoder<T> implements DecoderPlugin {
 
     @Override
     public DecoderPlugin createNew() {
-        final AvroDecoder<T> avroDecoder = new AvroDecoder<T>();
+        final AvroDecoder avroDecoder = new AvroDecoder();
         avroDecoder.init(configObj, vertx, clazz, avroMapper);
         return avroDecoder;
     }

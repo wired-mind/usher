@@ -1,7 +1,6 @@
 package io.cozmic.usher.test.integration;
 
-import com.fasterxml.jackson.dataformat.avro.AvroMapper;
-import com.fasterxml.jackson.dataformat.avro.AvroSchema;
+import com.google.common.io.Resources;
 import io.cozmic.usher.RawEchoChamber;
 import io.cozmic.usher.Start;
 import io.cozmic.usher.test.Pojo;
@@ -29,14 +28,12 @@ import java.io.IOException;
 public class AvroTests {
 
     Vertx vertx;
-    AvroSchema jacksonSchema;
-    AvroMapper mapper = new AvroMapper();
+
 
     @Before
     public void before(TestContext context) throws IOException {
         vertx = Vertx.vertx();
 
-        jacksonSchema = mapper.schemaFor(Pojo.class);
 
 
 
@@ -57,8 +54,8 @@ public class AvroTests {
         config
                 .put("Router", buildInput())
                 .put("AvroPojoFilter", buildAvroFilter("io.cozmic.usher.test.integration.AvroPojoFilter"))
-                .put("AvroEncoder", buildAvroEncoder("AvroEncoder", "bogus"))
-                .put("AvroDecoder", buildAvroDecoder("AvroDecoder", "bogus"));
+                .put("AvroEncoder", buildAvroEncoder("bogus", "io.cozmic.usher.test.Pojo"))
+                .put("AvroDecoder", buildAvroDecoder("bogus", "io.cozmic.usher.test.Pojo"));
         options.setConfig(config);
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertFailure());
 
@@ -73,6 +70,11 @@ public class AvroTests {
         String color = "red";
         String expectedColor = "green";
 
+        // Create serialized User object
+        final io.cozmic.usher.core.AvroMapper avroMapper = new io.cozmic.usher.core.AvroMapper(Resources.getResource("avro/pojo.avsc"));
+        final Pojo pojo = new Pojo("Test", "#000-0000", 1, color);
+        final byte[] serializedObject = avroMapper.serialize(pojo);
+
         final DeploymentOptions options = new DeploymentOptions();
 
         final JsonObject config = new JsonObject();
@@ -80,44 +82,41 @@ public class AvroTests {
         config
                 .put("Router", buildInput())
                 .put("AvroPojoFilter", buildAvroFilter("io.cozmic.usher.test.integration.AvroPojoFilter"))
-                .put("AvroEncoder", buildAvroEncoder("AvroEncoder", "avro/pojo.avsc"))
-                .put("AvroDecoder", buildAvroDecoder("AvroDecoder", "avro/pojo.avsc"))
+                .put("AvroEncoder", buildAvroEncoder("avro/pojo.avsc", "io.cozmic.usher.test.Pojo"))
+                .put("AvroDecoder", buildAvroDecoder("avro/pojo.avsc", "io.cozmic.usher.test.Pojo"))
                 .put("NullSplitterWithMsgBytes", buildNullSplitterWithMsgBytes());
         options.setConfig(config);
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
 
             vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
-                // Create serialized User object
-                byte[] serializedObject = null;
-                try {
-                    serializedObject = mapper.writer(jacksonSchema).writeValueAsBytes(new Pojo("Test", "#000-0000", 1, color));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    context.fail("failed to encode User object");
-                }
+
+
 
                 final NetSocket socket = asyncResult.result();
 
-                // Write serialized data to socket
-                socket.write(Buffer.buffer(serializedObject));
+
                 socket.handler(buffer -> {
                     /*
                      * By default, first 4 bytes is message length
                      * See {@link io.cozmic.usher.pipeline.OutPipelineFactoryImpl}
                      */
-                    String buf = buffer.getBuffer(4, buffer.length()).toString();
+                    final Buffer frame = buffer.getBuffer(4, buffer.length());
 
-                    Pojo user = new Pojo();
+
                     try {
-                        user = mapper.reader(Pojo.class).with(jacksonSchema).readValue(buf.getBytes());
+                        final Pojo user = avroMapper.deserialize(Pojo.class, frame.getBytes());
+                        context.assertEquals(user.getFavoriteColor(), expectedColor);
+                        context.assertEquals(user.getName(), "changed");
+                        async.complete();
                     } catch (IOException e) {
-                        e.printStackTrace();
                         context.fail("failed to decode data");
                     }
-                    context.assertEquals(user.getFavoriteColor(), expectedColor);
-                    context.assertEquals(user.getName(), "changed");
-                    async.complete();
+
+
                 });
+
+                // Write serialized data to socket
+                socket.write(Buffer.buffer(serializedObject));
             });
         }));
         vertx.setTimer(5000, event -> context.fail("timed out"));
@@ -188,13 +187,13 @@ public class AvroTests {
 //        }));
 //    }
 
-    private JsonObject buildAvroEncoder(String type, String schema) {
-        return new JsonObject().put("type", type).put("schema", schema);
+    private JsonObject buildAvroEncoder(String schema, String clazz) {
+        return new JsonObject().put("schema", schema).put("clazz", clazz);
     }
 
-    private JsonObject buildAvroDecoder(String type, String schema) {
-        return new JsonObject().put("type", type).put("schema", schema)
-                .put("clazz", "io.cozmic.usher.test.Pojo");
+    private JsonObject buildAvroDecoder(String schema, String clazz) {
+        return new JsonObject().put("schema", schema)
+                .put("clazz", clazz);
     }
 
     private JsonObject buildAvroFilter(String type) {
@@ -207,6 +206,6 @@ public class AvroTests {
     }
 
     private JsonObject buildInput() {
-        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("splitter","NullSplitterWithMsgBytes").put("decoder", "AvroDecoder").put("encoder", "AvroEncoder");
+        return new JsonObject().put("type", "TcpInput").put("host", "localhost").put("port", 2500).put("splitter","NullSplitterWithMsgBytes").put("decoder", "AvroDecoder").put("encoder", "AvroEncoder").put("messageMatcher", "#{1==1}");
     }
 }

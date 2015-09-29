@@ -21,12 +21,18 @@
       {  
          "name":"name",
          "type":
-            "string"
+            [
+                        "null",
+                        "string"
+                     ]
       },
       {  
          "name":"phone",
          "type":
-            "string"
+            [
+                        "null",
+                        "string"
+                     ]
        }
    ]
 }

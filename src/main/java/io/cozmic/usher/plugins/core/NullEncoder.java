@@ -1,7 +1,6 @@
 package io.cozmic.usher.plugins.core;
 
 import io.cozmic.usher.core.EncoderPlugin;
-import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
