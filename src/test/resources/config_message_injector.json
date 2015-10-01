@@ -1,0 +1,21 @@
+{
+  "usher": {
+    "minIdle": 0,
+    "pipelineInstances": 1
+  },
+  "Router": {
+    "type": "TcpInput",
+    "host": "0.0.0.0",
+    "port": 2500,
+    "encoder": "PayloadEncoder"
+  },
+  "InjectingBackend": {
+    "type": "io.cozmic.usher.test.localintegration.InjectionFilter",
+    "messageMatcher": "#{(msgClassSimpleName == 'Message' && msg.localPort == 2500) || (msgClassSimpleName == 'String' && msg == 'MatchBoth')}"
+  },
+  "Filter": {
+    "type": "io.cozmic.usher.test.integration.EventBusFilter",
+    "messageMatcher": "#{msgClassSimpleName == 'String'}"
+  },
+  "PayloadEncoder": {}
+}

@@ -1,6 +1,9 @@
 package io.cozmic.usher.plugins.tcp;
 
+import io.cozmic.usher.core.ObjectPool;
 import io.cozmic.usher.core.WriteStreamPool;
+import io.cozmic.usher.streams.ClosableWriteStream;
+import io.cozmic.usher.streams.SocketWriteStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -10,8 +13,6 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetClientOptions;
-import io.vertx.core.net.NetSocket;
-import io.vertx.core.streams.WriteStream;
 
 /**
  * Created by chuck on 6/30/15.
@@ -40,13 +41,12 @@ public class SocketPool extends WriteStreamPool {
     }
 
     @Override
-    protected void destroyObject(WriteStream<Buffer> obj) {
-        final NetSocket socket = (NetSocket) obj;
-        socket.close();
+    protected void destroyObject(ClosableWriteStream<Buffer> obj) {
+        obj.close();
     }
 
     @Override
-    protected void createObject(AsyncResultHandler<WriteStream<Buffer>> readyHandler) {
+    protected void createObject(AsyncResultHandler<ClosableWriteStream<Buffer>> readyHandler) {
         netClient.connect(port, host, connectHandler -> {
             if (connectHandler.failed()) {
                 final Throwable cause = connectHandler.cause();
@@ -54,7 +54,7 @@ public class SocketPool extends WriteStreamPool {
                 readyHandler.handle(Future.failedFuture(cause));
                 return;
             }
-            readyHandler.handle(Future.succeededFuture(connectHandler.result()));
+            readyHandler.handle(Future.succeededFuture(new SocketWriteStream(connectHandler.result())));
         });
     }
 

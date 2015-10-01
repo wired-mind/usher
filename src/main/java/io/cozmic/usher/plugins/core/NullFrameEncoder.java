@@ -10,19 +10,14 @@ import io.vertx.core.json.JsonObject;
  * Created by chuck on 7/10/15.
  */
 public class NullFrameEncoder implements FrameEncoderPlugin{
-    private Handler<Buffer> writeHandler;
+
     private JsonObject configObj;
     private Vertx vertx;
 
-    @Override
-    public void encodeAndWrite(Buffer buffer) {
-        writeHandler.handle(buffer);
-    }
 
     @Override
-    public void setWriteHandler(Handler<Buffer> writeHandler) {
-
-        this.writeHandler = writeHandler;
+    public void encode(Buffer buffer, Handler<Buffer> doneHandler) {
+        doneHandler.handle(buffer);
     }
 
     @Override

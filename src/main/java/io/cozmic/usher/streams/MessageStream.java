@@ -20,6 +20,7 @@ public class MessageStream extends DuplexStream<PipelinePack, PipelinePack> {
         super(inPipeline, outPipeline);
         this.inPipeline = inPipeline;
         this.outPipeline = outPipeline;
+
     }
 
     public InPipeline getInPipeline() {

@@ -3,6 +3,7 @@ package io.cozmic.usher.streams;
 import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 
@@ -11,27 +12,27 @@ import io.vertx.core.streams.WriteStream;
  */
 public class DuplexStream<R, W> {
     private final ReadStream<R> readStream;
-    private final WriteStream<W> writeStream;
+    private final ClosableWriteStream<W> writeStream;
     private Handler<PipelinePack> packDecorator;
     private Handler<Void> closeHandler;
     private Handler<PipelinePack> writeCompleteHandler;
 
-    public DuplexStream(ReadStream<R> readStream, WriteStream<W> writeStream) {
+    public DuplexStream(ReadStream<R> readStream, ClosableWriteStream<W> writeStream) {
         this.readStream = readStream;
         this.writeStream = writeStream;
     }
 
-    public DuplexStream(ReadStream<R> readStream, WriteStream<W> writeStream, Handler<PipelinePack> packDecorator) {
+    public DuplexStream(ReadStream<R> readStream, ClosableWriteStream<W> writeStream, Handler<PipelinePack> packDecorator) {
         this(readStream, writeStream, packDecorator, null);
     }
 
-    public DuplexStream(ReadStream<R> readStream, WriteStream<W> writeStream, Handler<PipelinePack> packDecorator, Handler<Void> closeHandler) {
+    public DuplexStream(ReadStream<R> readStream, ClosableWriteStream<W> writeStream, Handler<PipelinePack> packDecorator, Handler<Void> closeHandler) {
         this(readStream, writeStream);
         this.packDecorator = packDecorator;
         this.closeHandler = closeHandler;
     }
 
-    public WriteStream<W> getWriteStream() {
+    public ClosableWriteStream<W> getWriteStream() {
         return writeStream;
     }
 
@@ -80,4 +81,6 @@ public class DuplexStream<R, W> {
         this.packDecorator = decorator;
         return this;
     }
+
+
 }

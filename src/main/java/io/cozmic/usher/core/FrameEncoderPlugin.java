@@ -7,9 +7,7 @@ import io.vertx.core.buffer.Buffer;
  * Created by chuck on 7/10/15.
  */
 public interface FrameEncoderPlugin extends Plugin {
-    void encodeAndWrite(Buffer buffer);
-
-    void setWriteHandler(Handler<Buffer> writeHandler);
+    void encode(Buffer buffer, Handler<Buffer> doneHandler);
 
     FrameEncoderPlugin createNew();
 }

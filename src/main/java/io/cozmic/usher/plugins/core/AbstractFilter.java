@@ -2,6 +2,7 @@ package io.cozmic.usher.plugins.core;
 
 import io.cozmic.usher.core.*;
 import io.cozmic.usher.message.PipelinePack;
+import io.cozmic.usher.streams.AsyncWriteStream;
 import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
@@ -87,21 +88,27 @@ public abstract class AbstractFilter implements FilterPlugin {
         }
 
         @Override
-        public WriteStream<PipelinePack> write(PipelinePack pipelinePack) {
-            Objects.requireNonNull(writeCompleteHandler, "writeCompleteHandler required. This should be set automatically by the MuxRegistration.");
-            Objects.requireNonNull(dataHandler, "dataHandler required. This should be set automatically by the MuxRegistration.");
+        public AsyncWriteStream<PipelinePack> write(PipelinePack data, Handler<AsyncResult<Void>> writeCompleteHandler) {
 
             try {
-                handleRequest(pipelinePack, writeDoneFuture(), dataHandler, messageInjector);
+                final Future<Void> future = createFuture(writeCompleteHandler);
+                handleRequest(data, future, dataHandler, messageInjector);
             } catch (Throwable throwable) {
                 if (exceptionHandler != null) exceptionHandler.handle(throwable);
             }
             return this;
         }
 
-        private Future<Void> writeDoneFuture() {
+        @Override
+        public WriteStream<PipelinePack> write(PipelinePack pipelinePack) {
+            Objects.requireNonNull(writeCompleteHandler, "writeCompleteHandler required. This should be set automatically by the MuxRegistration.");
+            Objects.requireNonNull(dataHandler, "dataHandler required. This should be set automatically by the MuxRegistration.");
+            return write(pipelinePack, writeCompleteHandler);
+        }
+
+        private Future<Void> createFuture(Handler<AsyncResult<Void>> handler) {
             final Future<Void> doneFuture = Future.future();
-            doneFuture.setHandler(writeCompleteHandler);
+            doneFuture.setHandler(handler);
             return doneFuture;
         }
 

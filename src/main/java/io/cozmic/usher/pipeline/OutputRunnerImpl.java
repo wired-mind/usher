@@ -3,8 +3,10 @@ package io.cozmic.usher.pipeline;
 import io.cozmic.usher.core.*;
 import io.cozmic.usher.streams.DuplexStream;
 import io.cozmic.usher.streams.MessageStream;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -32,7 +34,7 @@ public class OutputRunnerImpl implements OutputRunner {
     }
 
     @Override
-    public void run(AsyncResultHandler<MessageStream> messageStreamAsyncResultHandler) {
+    public void run(Handler<AsyncResult<MessageStream>> messageStreamAsyncResultHandler) {
         outputPlugin.run(duplexStreamAsyncResult -> {
             if (duplexStreamAsyncResult.failed()) {
                 final Throwable cause = duplexStreamAsyncResult.cause();

@@ -35,7 +35,9 @@ public class InputRunnerImpl implements InputRunner {
         inputPlugin.run(startupHandler::handle, duplexStream -> {
             InPipeline inPipeline = inOutParserFactory.createDefaultInPipeline(pluginName, duplexStream);
             final OutPipeline outPipeline = outInFilterFactory.createDefaultOutPipeline(pluginName, inputObj, duplexStream.getWriteStream());
-            messageStreamHandler.handle(new MessageStream(inPipeline, outPipeline));
+            final MessageStream messageStream = new MessageStream(inPipeline, outPipeline);
+            messageStream.writeCompleteHandler(duplexStream.getWriteCompleteHandler());
+            messageStreamHandler.handle(messageStream);
         });
     }
 

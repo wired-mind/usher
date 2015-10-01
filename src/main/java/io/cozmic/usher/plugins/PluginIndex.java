@@ -4,6 +4,7 @@ import com.google.common.collect.Maps;
 import io.vertx.core.json.JsonObject;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -43,7 +44,9 @@ public class PluginIndex<T> {
 
 
     public T get(String pluginName) {
-        return componentMappings.get(pluginName).getKey();
+        final Map.Entry<T, JsonObject> mappings = componentMappings.get(pluginName);
+        Objects.requireNonNull(mappings, String.format("No mappings for %s", pluginName));
+        return mappings.getKey();
     }
 
 

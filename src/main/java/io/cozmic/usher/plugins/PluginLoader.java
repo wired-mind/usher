@@ -48,8 +48,12 @@ public class PluginLoader {
     }
 
 
-    public PluginLoader(Vertx vertx, JsonObject config) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, IOException, UsherInitializationFailedException {
-        wellKnownPackages = Maps.fromProperties(loadTypePackages());
+    public PluginLoader(Vertx vertx, JsonObject config) throws UsherInitializationFailedException {
+        try {
+            wellKnownPackages = Maps.fromProperties(loadTypePackages());
+        } catch (IOException e) {
+            throw new UsherInitializationFailedException(e);
+        }
 
         final Set<String> pluginNames = config.fieldNames();
         pluginNames.remove("usher");
@@ -75,6 +79,8 @@ public class PluginLoader {
             } catch (ClassNotFoundException e) {
                 logger.warn(String.format("[Usher] - Ignoring %s. Does not appear to be an usher plugin.", pluginName));
                 continue;
+            } catch (InvocationTargetException | NoSuchMethodException | InstantiationException | IllegalAccessException e) {
+                throw new UsherInitializationFailedException(e);
             }
 
             plugin.init(pluginConfig, vertx);

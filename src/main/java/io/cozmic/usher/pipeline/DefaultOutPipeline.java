@@ -1,12 +1,9 @@
 package io.cozmic.usher.pipeline;
 
-import io.cozmic.usher.core.EncoderPlugin;
-import io.cozmic.usher.core.FrameEncoderPlugin;
-import io.cozmic.usher.core.OutPipeline;
-import io.cozmic.usher.core.WriteStreamPool;
+import io.cozmic.usher.core.*;
 import io.cozmic.usher.message.PipelinePack;
+import io.cozmic.usher.streams.ClosableWriteStream;
 import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -18,20 +15,20 @@ import java.io.IOException;
  * Default out pipeline filters using messageMatcher and then encodes the message to a buffer
  */
 public class DefaultOutPipeline implements OutPipeline {
-    private final WriteStream<Buffer> innerWriteStream;
+    private final ClosableWriteStream<Buffer> innerWriteStream;
     private final JsonObject config;
     private final EncoderPlugin encoderPlugin;
     private final FrameEncoderPlugin frameEncoderPlugin;
     private Handler<Throwable> exceptionHandler;
     private Handler<AsyncResult<Void>> writeCompleteHandler;
 
-    public DefaultOutPipeline(WriteStream<Buffer> writeStream, JsonObject config, EncoderPlugin encoderPlugin, FrameEncoderPlugin frameEncoderPlugin) {
+    public DefaultOutPipeline(ClosableWriteStream<Buffer> writeStream, JsonObject config, EncoderPlugin encoderPlugin, FrameEncoderPlugin frameEncoderPlugin) {
         this.innerWriteStream = writeStream;
         this.config = config;
         this.encoderPlugin = encoderPlugin;
         this.frameEncoderPlugin = frameEncoderPlugin;
 
-        frameEncoderPlugin.setWriteHandler(innerWriteStream::write);
+
     }
 
     @Override
@@ -43,11 +40,12 @@ public class DefaultOutPipeline implements OutPipeline {
 
     @Override
     public WriteStream<PipelinePack> write(PipelinePack pack) {
-
         try {
-            encoderPlugin.encode(pack, frameEncoderPlugin::encodeAndWrite);
-            if (writeCompleteHandler != null)
-                writeCompleteHandler.handle(Future.succeededFuture());
+            encoderPlugin.encode(pack, encoded -> {
+                frameEncoderPlugin.encode(encoded, framed -> {
+                    innerWriteStream.write(framed, writeCompleteHandler);
+                });
+            });
         } catch (IOException e) {
             if (exceptionHandler != null) exceptionHandler.handle(e);
         }
@@ -83,5 +81,15 @@ public class DefaultOutPipeline implements OutPipeline {
     public OutPipeline writeCompleteHandler(Handler<AsyncResult<Void>> handler) {
         writeCompleteHandler = handler;
         return this;
+    }
+
+    @Override
+    public OutPipeline write(PipelinePack data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void close() {
+        throw new UnsupportedOperationException();
     }
 }

@@ -13,20 +13,10 @@ import java.util.Objects;
  * We can create slightly more sophisticated frames when needed (https://hekad.readthedocs.org/en/v0.9.2/message/index.html)
  */
 public class UsherV1FrameEncoder implements FrameEncoderPlugin {
-    private Handler<Buffer> writeHandler;
+
     private JsonObject configObj;
     private Vertx vertx;
 
-
-    @Override
-    public void encodeAndWrite(Buffer buffer) {
-        Objects.requireNonNull(writeHandler, "Write handler not set.");
-        int messageLength = 4 + buffer.length();
-        final Buffer frame = Buffer.buffer(messageLength);
-        frame.appendInt(messageLength);
-        frame.appendBuffer(buffer);
-        writeHandler.handle(frame);
-    }
 
 
     @Override
@@ -37,8 +27,12 @@ public class UsherV1FrameEncoder implements FrameEncoderPlugin {
     }
 
     @Override
-    public void setWriteHandler(Handler<Buffer> writeHandler) {
-        this.writeHandler = writeHandler;
+    public void encode(Buffer buffer, Handler<Buffer> doneHandler) {
+        int messageLength = 4 + buffer.length();
+        final Buffer frame = Buffer.buffer(messageLength);
+        frame.appendInt(messageLength);
+        frame.appendBuffer(buffer);
+        doneHandler.handle(frame);
     }
 
     @Override

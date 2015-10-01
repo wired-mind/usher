@@ -23,7 +23,7 @@ public class PluginFactory {
     private List<OutputRunner> outputRunners = Lists.newArrayList();
     private List<FilterRunner> filterRunners = Lists.newArrayList();
 
-    public PluginFactory(Vertx vertx, JsonObject config) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException, IOException, UsherInitializationFailedException {
+    public PluginFactory(Vertx vertx, JsonObject config) throws UsherInitializationFailedException {
 
         this.vertx = vertx;
         this.config = config;

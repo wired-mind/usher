@@ -3,6 +3,8 @@ package io.cozmic.usher.plugins.tcp;
 import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.OutputPlugin;
 import io.cozmic.usher.message.Message;
+import io.cozmic.usher.streams.ClosableWriteStream;
+import io.cozmic.usher.streams.SocketWriteStream;
 import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
@@ -40,13 +42,21 @@ public class TcpOutput implements OutputPlugin {
                 return;
             }
 
-            final WriteStream<Buffer> writeStream = asyncResult.result();
-            NetSocket socket = (NetSocket)writeStream;
-            duplexStreamAsyncResultHandler.handle(Future.succeededFuture(new DuplexStream<>(socket, socket, pack -> {
-                final Message message = pack.getMessage();
-                message.setRemoteAddress(socket.remoteAddress());
-                message.setLocalAddress(socket.localAddress());
-            }, v->{socket.close();})));
+            final ClosableWriteStream<Buffer> writeStream = asyncResult.result();
+            SocketWriteStream socketWriteStream = (SocketWriteStream) writeStream;
+            NetSocket socket = socketWriteStream.getSocket();
+            final DuplexStream<Buffer, Buffer> duplexStream =
+                    new DuplexStream<>(socket, writeStream)
+                            .closeHandler(v -> {
+                                socket.close();
+                            })
+                            .packDecorator(pack -> {
+                                final Message message = pack.getMessage();
+                                message.setRemoteAddress(socket.remoteAddress());
+                                message.setLocalAddress(socket.localAddress());
+                            });
+
+            duplexStreamAsyncResultHandler.handle(Future.succeededFuture(duplexStream));
         });
 
     }
@@ -55,7 +65,6 @@ public class TcpOutput implements OutputPlugin {
     public void stop(OutPipeline outPipeline) {
         outPipeline.stop(socketPool);
     }
-
 
 
 }

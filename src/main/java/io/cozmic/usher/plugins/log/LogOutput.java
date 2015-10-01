@@ -2,12 +2,10 @@ package io.cozmic.usher.plugins.log;
 
 import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.OutputPlugin;
-import io.cozmic.usher.message.Message;
+import io.cozmic.usher.streams.AsyncWriteStream;
+import io.cozmic.usher.streams.ClosableWriteStream;
 import io.cozmic.usher.streams.DuplexStream;
-import io.vertx.core.AsyncResultHandler;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -25,10 +23,8 @@ public class LogOutput implements OutputPlugin {
     @Override
     public void run(AsyncResultHandler<DuplexStream<Buffer, Buffer>> duplexStreamAsyncResultHandler) {
         LogSinkStream logStream = new LogSinkStream();
-        duplexStreamAsyncResultHandler.handle(Future.succeededFuture(new DuplexStream<>(logStream, logStream, pack -> {
-            final Message message = pack.getMessage();
-
-        })));
+        final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(logStream, logStream);
+        duplexStreamAsyncResultHandler.handle(Future.succeededFuture(duplexStream));
     }
 
     @Override
@@ -43,7 +39,7 @@ public class LogOutput implements OutputPlugin {
         this.vertx = vertx;
     }
 
-    private class LogSinkStream implements ReadStream<Buffer>, WriteStream<Buffer> {
+    private class LogSinkStream implements ReadStream<Buffer>, ClosableWriteStream<Buffer> {
 
         private Logger logger;
         private Handler<Buffer> dataHandler;
@@ -54,6 +50,13 @@ public class LogOutput implements OutputPlugin {
 
         @Override
         public LogSinkStream exceptionHandler(Handler<Throwable> handler) {
+            return this;
+        }
+
+        @Override
+        public AsyncWriteStream<Buffer> write(Buffer data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+            write(data);
+            if (writeCompleteHandler != null) writeCompleteHandler.handle(Future.succeededFuture());
             return this;
         }
 
@@ -101,6 +104,11 @@ public class LogOutput implements OutputPlugin {
         @Override
         public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
             return this;
+        }
+
+        @Override
+        public void close() {
+            //no op
         }
     }
 }

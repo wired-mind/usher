@@ -2,6 +2,7 @@ package io.cozmic.usher.plugins.tcp;
 
 import io.cozmic.usher.core.InputPlugin;
 import io.cozmic.usher.message.Message;
+import io.cozmic.usher.streams.SocketWriteStream;
 import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
@@ -30,7 +31,7 @@ public class TcpInput implements InputPlugin {
 
         netServer.connectHandler(socket -> {
 
-            final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(socket, socket);
+            final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(socket, new SocketWriteStream(socket));
 
             duplexStream
                     .closeHandler(v -> {
