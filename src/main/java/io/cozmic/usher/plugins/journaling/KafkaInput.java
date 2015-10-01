@@ -3,6 +3,7 @@ package io.cozmic.usher.plugins.journaling;
 import io.cozmic.usher.core.InputPlugin;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.DuplexStream;
+import io.cozmic.usher.streams.NullClosableWriteStream;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -10,7 +11,6 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.streams.ReadStream;
-import io.vertx.core.streams.WriteStream;
 import kafka.common.TopicAndPartition;
 import kafka.message.MessageAndOffset;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -43,7 +43,7 @@ public class KafkaInput implements InputPlugin {
     public void run(AsyncResultHandler<Void> startupHandler, Handler<DuplexStream<Buffer, Buffer>> duplexStreamHandler) {
 
         kafkaLogListener.logHandler(stream -> {
-            final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(stream, stream);
+            final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(stream, NullClosableWriteStream.getInstance());
 
             duplexStream
                     .closeHandler(v -> stream.close())
@@ -196,7 +196,7 @@ public class KafkaInput implements InputPlugin {
                         payload.get(bytes);
 
                         if (delegate != null) {
-                            KafkaMessageStream messageStream = new KafkaMessageStream(Buffer.buffer(bytes));
+                            KafkaMessageStream messageStream = new KafkaMessageStream(Buffer.buffer(bytes), this, topicAndPartition, messageAndOffset);
 
                             messageStream.responseHandler(data -> {
 
@@ -233,21 +233,24 @@ public class KafkaInput implements InputPlugin {
         }
     }
 
-    private class KafkaMessageStream implements ReadStream<Buffer>, WriteStream<Buffer> {
+    private class KafkaMessageStream implements ReadStream<Buffer> {
         private final Buffer data;
+        private final KafkaLogListener kafkaLogListener;
+        private final TopicAndPartition topicAndPartition;
+        private final MessageAndOffset messageAndOffset;
         private Handler<Buffer> handler;
         private boolean isPaused;
         private Handler<Buffer> delegate = null;
         private ConcurrentLinkedQueue<Buffer> readBuffers = new ConcurrentLinkedQueue<>();
 
-        private KafkaMessageStream() {
-            this.data = null;
+        private KafkaMessageStream(Buffer buffer, KafkaLogListener kafkaLogListener, TopicAndPartition topicAndPartition, MessageAndOffset messageAndOffset) {
+            this.data = buffer;
+            this.readBuffers.add(data);
+            this.kafkaLogListener = kafkaLogListener;
+            this.topicAndPartition = topicAndPartition;
+            this.messageAndOffset = messageAndOffset;
         }
 
-        public KafkaMessageStream(Buffer data) {
-            this.data = data;
-            this.readBuffers.add(this.data);
-        }
 
         public KafkaMessageStream responseHandler(Handler<Buffer> delegate) {
             this.delegate = delegate;
@@ -273,28 +276,6 @@ public class KafkaInput implements InputPlugin {
             return this;
         }
 
-        @Override
-        public WriteStream<Buffer> write(Buffer data) {
-            if (this.delegate != null) {
-                this.delegate.handle(data);
-            }
-            return this;
-        }
-
-        @Override
-        public WriteStream<Buffer> setWriteQueueMaxSize(int maxSize) {
-            return this;
-        }
-
-        @Override
-        public boolean writeQueueFull() {
-            return false;
-        }
-
-        @Override
-        public WriteStream<Buffer> drainHandler(Handler<Void> handler) {
-            return this;
-        }
 
         @Override
         public ReadStream<Buffer> handler(Handler<Buffer> handler) {
@@ -325,7 +306,10 @@ public class KafkaInput implements InputPlugin {
 
         public void commit(PipelinePack pack) {
             logger.info("writeComplete. Time to commit.");
-            //TODO: commit here
+            kafkaLogListener.commit(topicAndPartition, messageAndOffset.offset(), asyncResult -> {
+
+            });
+
         }
     }
 }

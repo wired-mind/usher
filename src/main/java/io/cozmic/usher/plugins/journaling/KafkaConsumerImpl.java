@@ -94,7 +94,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
             payload.get(bytes);
             builder.append(String.valueOf(messageAndOffset.offset()) + ": " + new String(bytes, "UTF-8") + "\n");
         }
-        logger.info(builder.toString());
+        logger.debug(builder.toString());
     }
 
     private void doPoll(TopicAndPartition topicAndPartition, Handler<AsyncResult<Map<String, List<MessageAndOffset>>>> asyncResultHandler) {
@@ -244,7 +244,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
                 //
                 goToSleep = true;
             } else {
-                logger.info("Found metadata for Topic and Partition.");
+                logger.debug("Found metadata for Topic and Partition.");
                 return metadata.leader().host();
             }
             if (goToSleep) {
@@ -273,24 +273,27 @@ public class KafkaConsumerImpl implements KafkaConsumer {
 
     @Override
     public void commit(Map<TopicAndPartition, Long> offsets, Handler<AsyncResult<Void>> asyncResultHandler) {
-        // Retry commit until it succeeds
-        // TODO: Back-off strategy
-        vertx.setPeriodic(DEFAULT_RETRY_DELAY_MILLIS, timerId -> {
-            try {
-                Map.Entry<TopicAndPartition, Long> entry = offsets.entrySet().iterator().next();
+
+        vertx.executeBlocking((Handler<Future<Void>>) f -> {
+            for (Map.Entry<TopicAndPartition, Long> entry : offsets.entrySet()) {
                 // TODO: How to find the right leader when committing multiple topics
-                String leadBroker = findNewLeader("", entry.getKey());
-                offsetsStrategy = ConsumerOffsetsStrategy.createKafkaOffsetsStrategy(leadBroker, port, groupId);
-                logger.info("committing offsets");
-                offsetsStrategy.commitOffsets(offsets);
-                // Success
-                vertx.cancelTimer(timerId); // cancel timer
-                asyncResultHandler.handle(Future.succeededFuture());
-            } catch (Exception e) {
-                vertx.eventBus().publish(PUBLISHED_ERRORS_EVENTBUS_ADDRESS, e.getMessage());
-                logger.error("Unable to commit, will retry...", e);
+                String leadBroker = null;
+                try {
+                    leadBroker = findNewLeader("", entry.getKey());
+                    offsetsStrategy = ConsumerOffsetsStrategy.createKafkaOffsetsStrategy(leadBroker, port, groupId);
+                    logger.info("committing offsets");
+                    offsetsStrategy.commitOffsets(offsets);
+                } catch (Exception e) {
+                    f.fail(e);
+                }
+
             }
-        });
+            // Success
+            f.complete();
+        }, asyncResultHandler);
+
+
+
     }
 
     @Override

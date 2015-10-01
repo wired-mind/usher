@@ -115,12 +115,7 @@ public class KafkaInputTests {
                 logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
                 context.assertEquals(expectedHashCode, actualHashCode, "hashcodes do not match");
 
-                vertx.setTimer(3000, id -> {
-                    context.fail("Intentionally failing this test for now. It works by delaying the complete to give time for offsets to commit. We " +
-                            "should remove the timer above though.");
-                    async.complete();
-                });
-
+                async.complete();
             });
         }));
         vertx.setTimer(15_000, event -> context.fail("timed out"));
@@ -163,11 +158,8 @@ public class KafkaInputTests {
                 logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
                 context.assertEquals(expectedHashCode, actualHashCode, "Pojo hashcodes do not match");
 
-                vertx.setTimer(3000, id -> {
-                    context.fail("Intentionally failing this test for now. It works by delaying the complete to give time for offsets to commit. We " +
-                            "should remove the timer above though.");
-                    async.complete();
-                });
+                async.complete();
+
             });
         }));
         vertx.setTimer(15_000, event -> context.fail("timed out"));
