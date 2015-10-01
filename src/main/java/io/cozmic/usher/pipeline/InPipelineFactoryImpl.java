@@ -45,7 +45,7 @@ public class InPipelineFactoryImpl implements InPipelineFactory {
         DecoderPlugin decoderPlugin = createDecoder(pluginName);
         JsonObject splitterConfig = splitterIndex.getConfig(pluginName);
         JsonObject decoderConfig = decoderIndex.getConfig(pluginName);
-        return new DefaultInPipeline(duplexStream, splitterConfig, splitterPlugin, decoderConfig, decoderPlugin);
+        return new DefaultInPipeline(pluginName, duplexStream, splitterConfig, splitterPlugin, decoderConfig, decoderPlugin);
     }
 
 

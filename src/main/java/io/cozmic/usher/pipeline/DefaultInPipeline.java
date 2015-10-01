@@ -25,6 +25,7 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
     private final DecoderPlugin decoderPlugin;
 
     private final ReadStream<Buffer> innerReadStream;
+    private final String pluginName;
     private final DuplexStream<Buffer, Buffer> duplexStream;
     private final JsonObject splitterConfig;
     private final JsonObject decoderConfig;
@@ -35,7 +36,8 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
     private Handler<PipelinePack> deliveryHandler;
     private Handler<Throwable> exceptionHandler;
 
-    public DefaultInPipeline(DuplexStream<Buffer, Buffer> duplexStream, JsonObject splitterConfig, SplitterPlugin splitterPlugin, JsonObject decoderConfig, DecoderPlugin decoderPlugin) {
+    public DefaultInPipeline(String pluginName, DuplexStream<Buffer, Buffer> duplexStream, JsonObject splitterConfig, SplitterPlugin splitterPlugin, JsonObject decoderConfig, DecoderPlugin decoderPlugin) {
+        this.pluginName = pluginName;
         this.duplexStream = duplexStream;
         this.splitterConfig = splitterConfig;
         this.decoderConfig = decoderConfig;
@@ -77,7 +79,9 @@ public class DefaultInPipeline implements InPipeline, Handler<Buffer> {
                     final Message message = new Message();
                     message.setPayload(record);
                     message.setMessageId(UUID.randomUUID());
+                    message.setPluginName(pluginName);
                     message.setTimestamp(System.currentTimeMillis());
+
                     pipelinePack = new PipelinePack(message);
                 }
 

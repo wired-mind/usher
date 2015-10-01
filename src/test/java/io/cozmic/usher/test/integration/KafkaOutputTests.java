@@ -3,6 +3,7 @@ package io.cozmic.usher.test.integration;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
+import io.cozmic.usher.Start;
 import io.cozmic.usher.core.MessageMatcher;
 import io.cozmic.usher.core.OutputPlugin;
 import io.cozmic.usher.core.OutputRunner;
@@ -12,9 +13,11 @@ import io.cozmic.usher.pipeline.*;
 import io.cozmic.usher.plugins.PluginLoader;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
 import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.NetSocket;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -88,7 +91,33 @@ public class KafkaOutputTests {
     }
 
 
+    @Test
+    public void testCanTraverseKakfa(TestContext context) {
+        final String expectedMessage = "Hello";
+        final DeploymentOptions options = buildDeploymentOptions("/config_kafka_output.json");
+        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+            final Async async = context.async();
+            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+                final NetSocket socket = asyncResult.result();
 
+                vertx.eventBus().<Integer>consumer(EventBusFilter.EVENT_BUS_ADDRESS, msg -> {
+                    final Integer hashCode = msg.body();
+                    context.assertEquals(expectedMessage.hashCode(), hashCode);
+                    async.complete();
+                });
+
+                socket.write(expectedMessage);
+            });
+
+            vertx.setTimer(15000, new Handler<Long>() {
+                @Override
+                public void handle(Long event) {
+                    context.fail("timed out");
+                }
+            });
+
+        }));
+    }
 
 
 

@@ -19,6 +19,7 @@ public class Message implements Shareable {
     private int localPort;
 
     private long timestamp;
+    private String pluginName;
 
 
     public Buffer getPayload() {
@@ -86,5 +87,13 @@ public class Message implements Shareable {
     public void setLocalAddress(SocketAddress socketAddress) {
         localHost = socketAddress.host();
         localPort = socketAddress.port();
+    }
+
+    public void setPluginName(String pluginName) {
+        this.pluginName = pluginName;
+    }
+
+    public String getPluginName() {
+        return pluginName;
     }
 }

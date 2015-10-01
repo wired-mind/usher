@@ -4,8 +4,7 @@
   },
   "Router": {
     "type": "KafkaInput",
-    "encoder": "PayloadEncoder",
-    "messageMatcher": "#{1==1}"
+    "encoder": "PayloadEncoder"
   },
   "Filter": {
     "type": "io.cozmic.usher.test.integration.EventBusFilter",

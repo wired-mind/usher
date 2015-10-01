@@ -24,10 +24,11 @@ public class KafkaOutput implements OutputPlugin {
     private JsonObject configObj;
     private Vertx vertx;
     private KafkaProducer<byte[], byte[]> producer;
+    private String topic;
 
     @Override
     public void run(AsyncResultHandler<DuplexStream<Buffer, Buffer>> duplexStreamAsyncResultHandler) {
-        final KafkaProducerStream kafkaProducerStream = new KafkaProducerStream(vertx);
+        final KafkaProducerStream kafkaProducerStream = new KafkaProducerStream(vertx, topic);
         final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(NullReadStream.getInstance(), kafkaProducerStream);
         duplexStreamAsyncResultHandler.handle(Future.succeededFuture(duplexStream));
     }
@@ -43,7 +44,8 @@ public class KafkaOutput implements OutputPlugin {
         this.configObj = configObj;
         this.vertx = vertx;
         Properties kafkaProducerProps = new Properties();
-        kafkaProducerProps.put("bootstrap.servers", "kafka.dev:9092");
+        topic = configObj.getString("topic", "default");
+        kafkaProducerProps.put("bootstrap.servers", configObj.getString("bootstrap.servers", "kafka.dev:9092"));
         kafkaProducerProps.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
         kafkaProducerProps.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
 
@@ -54,10 +56,12 @@ public class KafkaOutput implements OutputPlugin {
 
     private class KafkaProducerStream implements ClosableWriteStream<Buffer> {
         private final Vertx vertx;
+        private String topic;
 
-        public KafkaProducerStream(Vertx vertx) {
+        public KafkaProducerStream(Vertx vertx, String topic) {
 
             this.vertx = vertx;
+            this.topic = topic;
         }
 
         @Override
@@ -96,7 +100,7 @@ public class KafkaOutput implements OutputPlugin {
         @Override
         public AsyncWriteStream<Buffer> write(Buffer data, Handler<AsyncResult<Void>> writeCompleteHandler) {
             Objects.requireNonNull(data, "Must provide data to write to Kafka");
-            ProducerRecord<byte[], byte[]> record = new ProducerRecord<>("topic", data.getBytes());
+            ProducerRecord<byte[], byte[]> record = new ProducerRecord<>(topic, data.getBytes());
             try {
                 producer.send(record, (metadata, exception) -> vertx.runOnContext(v -> {
                     if (exception != null) {
