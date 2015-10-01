@@ -1,11 +1,16 @@
 package io.cozmic.usher.pipeline;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.cozmic.usher.core.CountDownFutureResult;
 import io.cozmic.usher.core.MuxRegistration;
+import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.StreamMux;
-import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.streams.Pump;
@@ -27,6 +32,7 @@ public class StreamMuxImpl implements StreamMux {
     private boolean muxPaused;
     private Handler<Void> endHandler;
     private Handler<Throwable> exceptionHandler;
+    private Handler<PipelinePack> writeCompleteHandler;
 
     public StreamMuxImpl(Vertx vertx) {
         this.vertx = vertx;
@@ -92,14 +98,45 @@ public class StreamMuxImpl implements StreamMux {
         if (endHandler != null) endHandler.handle(null);
     }
 
-
     @Override
     public WriteStream<PipelinePack> write(PipelinePack data) {
-        for (MuxRegistrationImpl demux : demuxes) {
-            demux.handle(data);        //TODO: probably want to clone data. not doing it just yet. we'll see
+        return write(data, asyncResult -> {
+            if (asyncResult.failed()) {
+                if (exceptionHandler != null) exceptionHandler.handle(asyncResult.cause());
+                return;
+            }
+            if (writeCompleteHandler != null) writeCompleteHandler.handle(asyncResult.result());
+        });
+    }
+
+    /**
+     * Special version of write that asynchronously signals when the underlying writes are complete.
+     * @param data
+     * @param doneHandler
+     * @return
+     */
+    @Override
+    public StreamMux write(PipelinePack data, Handler<AsyncResult<PipelinePack>> doneHandler) {
+        final Iterable<MuxRegistrationImpl> matchingStreams = findMatchingStreams(data);
+        final int countOfMatchingStreams = Iterables.size(matchingStreams);
+        final CountDownFutureResult<PipelinePack> doneFuture = new CountDownFutureResult<>(countOfMatchingStreams);
+        doneFuture.setHandler(doneHandler);
+        for (MuxRegistrationImpl demux : matchingStreams) {
+            demux.handle(data, doneFuture);        //TODO: probably want to clone data. not doing it just yet. we'll see
         }
 
         return this;
+    }
+
+    @Override
+    public StreamMux writeCompleteHandler(Handler<PipelinePack> writeCompleteHandler) {
+        this.writeCompleteHandler = writeCompleteHandler;
+        return this;
+    }
+
+
+    private Iterable<MuxRegistrationImpl> findMatchingStreams(PipelinePack data) {
+        return Iterables.filter(demuxes, new RoutingPredicate(data));
     }
 
     @Override
@@ -130,6 +167,21 @@ public class StreamMuxImpl implements StreamMux {
         }
     }
 
+    private static class RoutingPredicate implements Predicate<MuxRegistration> {
+        private final PipelinePack data;
+
+        public RoutingPredicate(PipelinePack data) {
+            this.data = data;
+        }
+
+        @Override
+        public boolean apply(MuxRegistration input) {
+            return input.matches(data);
+
+
+        }
+    }
+
     /**
      * Created by chuck on 7/6/15.
      */
@@ -142,11 +194,14 @@ public class StreamMuxImpl implements StreamMux {
         private boolean paused;
         private Handler<Throwable> exceptionHandler;
         private Handler<Void> drainHandler;
+        private OutPipeline outPipeline;
 
         public MuxRegistrationImpl(MessageStream messageStream, boolean bidirectional) {
             this.messageStream = messageStream;
 
-            demuxPump = Pump.pump(this, messageStream.getOutPipeline()).start();
+            outPipeline = messageStream.getOutPipeline();
+            demuxPump = Pump.pump(this, outPipeline).start();
+
             if (bidirectional) {
                 muxPump = Pump.pump(messageStream.getInPipeline(), this).start();
             }
@@ -167,6 +222,11 @@ public class StreamMuxImpl implements StreamMux {
             messageStream.getOutPipeline().exceptionHandler(exceptionHandler);
             messageStream.getInPipeline().exceptionHandler(exceptionHandler);
             return this;
+        }
+
+        @Override
+        public boolean matches(PipelinePack pack) {
+            return messageStream.matches(pack);
         }
 
         @Override
@@ -230,5 +290,15 @@ public class StreamMuxImpl implements StreamMux {
             if (handler != null) handler.handle(data);
         }
 
+        public void handle(PipelinePack data, Future<PipelinePack> doneFuture) {
+            outPipeline.writeCompleteHandler(asyncResult -> {
+                if (asyncResult.failed()) {
+                    doneFuture.fail(asyncResult.cause());
+                    return;
+                }
+                doneFuture.complete(data);
+            });
+            handle(data);
+        }
     }
 }

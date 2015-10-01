@@ -58,6 +58,8 @@ public class ChannelFactoryImpl implements ChannelFactory {
             this.messageStream = messageStream;
             this.outStreamMux = outStreamMux;
 
+            outStreamMux.writeCompleteHandler(messageStream.getWriteCompleteHandler());
+
             final InPipeline inPipeline = messageStream.getInPipeline();
             final OutPipeline outPipeline = messageStream.getOutPipeline();
             inToOutPump = Pump.pump(inPipeline, outStreamMux);

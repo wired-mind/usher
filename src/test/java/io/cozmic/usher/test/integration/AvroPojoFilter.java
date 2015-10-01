@@ -1,10 +1,12 @@
 package io.cozmic.usher.test.integration;
 
+import io.cozmic.usher.core.MessageInjector;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.plugins.core.AbstractFilter;
 import io.cozmic.usher.test.Pojo;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 
 /**
  * Filter 'User' GenericRecord.
@@ -14,13 +16,9 @@ import io.vertx.core.Future;
  */
 public class AvroPojoFilter extends AbstractFilter {
 
-    @Override
-    protected void start(AsyncResultHandler<Void> resultHandler) {
-        resultHandler.handle(Future.succeededFuture());
-    }
 
     @Override
-    public void handleRequest(PipelinePack pipelinePack, AsyncResultHandler<PipelinePack> asyncResultHandler) {
+    public void handleRequest(PipelinePack pipelinePack, Future<Void> writeCompleteFuture, Handler<PipelinePack> dataHandler, MessageInjector messageInjector) {
         final Pojo pojo = pipelinePack.getMessage();
 
         // Set favorite color to green
@@ -28,6 +26,7 @@ public class AvroPojoFilter extends AbstractFilter {
         pojo.setName("changed");
 
         pipelinePack.setMessage(pojo);
-        asyncResultHandler.handle(Future.succeededFuture(pipelinePack));
+        dataHandler.handle(pipelinePack);
+        writeCompleteFuture.complete();
     }
 }

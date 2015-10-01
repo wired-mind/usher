@@ -1,9 +1,10 @@
 package io.cozmic.usher.test;
 
+import io.cozmic.usher.core.MessageInjector;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.plugins.core.AbstractFilter;
-import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 
 /**
  * Created by chuck on 8/19/15.
@@ -11,19 +12,14 @@ import io.vertx.core.Future;
 public class FakeFilter extends AbstractFilter {
     private PipelinePack lastPipelinePack;
 
-
     @Override
-    protected void start(AsyncResultHandler<Void> resultHandler) {
-        resultHandler.handle(Future.succeededFuture());
-    }
-
-    @Override
-    public void handleRequest(PipelinePack pipelinePack, AsyncResultHandler<PipelinePack> asyncResultHandler) {
+    public void handleRequest(PipelinePack pipelinePack, Future<Void> writeCompleteFuture, Handler<PipelinePack> dataHandler, MessageInjector messageInjector) {
 
         this.lastPipelinePack = pipelinePack;
-        asyncResultHandler.handle(Future.succeededFuture(pipelinePack));
-
+        dataHandler.handle(pipelinePack);
+        writeCompleteFuture.complete();
     }
+
 
     public PipelinePack getLastPipelinePack() {
         return lastPipelinePack;

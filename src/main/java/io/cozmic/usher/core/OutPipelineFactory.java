@@ -8,5 +8,5 @@ import io.vertx.core.streams.WriteStream;
  * Created by chuck on 6/30/15.
  */
 public interface OutPipelineFactory {
-    OutPipeline createDefaultOutPipeline(String pluginName, JsonObject config, MessageMatcher messageMatcher, WriteStream<Buffer> writeStream);
+    OutPipeline createDefaultOutPipeline(String pluginName, JsonObject config, WriteStream<Buffer> writeStream);
 }

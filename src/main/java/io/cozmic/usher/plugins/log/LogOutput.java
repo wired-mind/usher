@@ -60,6 +60,7 @@ public class LogOutput implements OutputPlugin {
         @Override
         public WriteStream<Buffer> write(Buffer data) {
             logger.info(data.toString());
+
             if (configObj.getBoolean("successResponse", false)) {
                 dataHandler.handle(Buffer.buffer(new byte[] {0x1}));
             }

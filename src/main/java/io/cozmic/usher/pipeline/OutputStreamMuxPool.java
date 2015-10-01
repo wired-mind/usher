@@ -65,7 +65,7 @@ public class OutputStreamMuxPool extends ObjectPool<StreamMux> {
         }
 
         for (FilterRunner filterRunner : filterRunners) {
-            filterRunner.run(asyncResult -> {
+            filterRunner.run(streamMux, asyncResult -> {
                 if (asyncResult.failed()) {
                     final Throwable cause = asyncResult.cause();
                     logger.error(cause.getMessage(), cause);
@@ -75,6 +75,7 @@ public class OutputStreamMuxPool extends ObjectPool<StreamMux> {
                 final MessageStream filterMessageStream = asyncResult.result();
 
                 final MuxRegistration muxRegistration = streamMux.addStream(filterMessageStream, true);
+
 //                muxRegistration.endHandler(v -> filterRunner.stop(filterMessageStream));
                 dynamicStarter.complete();
             });

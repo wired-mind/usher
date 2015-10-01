@@ -71,7 +71,7 @@ public class PluginFactory {
     private FilterRunner createFilterRunner(String pluginName, JsonObject filterObj, FilterPlugin filterPlugin) {
         final String expressionVal = filterObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.never() : new JuelMatcher(expressionVal);
-        return new FilterRunnerImpl(pluginName, filterPlugin, messageMatcher);
+        return new FilterRunnerImpl(pluginName, filterObj, filterPlugin, messageMatcher);
     }
 
     public List<InputRunner> getInputRunners() {

@@ -43,9 +43,11 @@ public class OutputRunnerImpl implements OutputRunner {
             final DuplexStream<Buffer, Buffer> duplexStream = duplexStreamAsyncResult.result();
 
 
-            final OutPipeline outPipeline = outPipelineFactory.createDefaultOutPipeline(pluginName, outputObj, messageMatcher, duplexStream.getWriteStream());
+            final OutPipeline outPipeline = outPipelineFactory.createDefaultOutPipeline(pluginName, outputObj, duplexStream.getWriteStream());
             final InPipeline inPipeline = inPipelineFactory.createDefaultInPipeline(pluginName, duplexStream);
-            messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(inPipeline, outPipeline)));
+            final MessageStream result = new MessageStream(inPipeline, outPipeline);
+            result.setMessageMatcher(messageMatcher);
+            messageStreamAsyncResultHandler.handle(Future.succeededFuture(result));
 
         });
     }

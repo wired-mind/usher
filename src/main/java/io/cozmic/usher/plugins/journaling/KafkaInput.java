@@ -1,7 +1,7 @@
 package io.cozmic.usher.plugins.journaling;
 
 import io.cozmic.usher.core.InputPlugin;
-import io.cozmic.usher.message.Message;
+import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.DuplexStream;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
@@ -42,12 +42,18 @@ public class KafkaInput implements InputPlugin {
     @Override
     public void run(AsyncResultHandler<Void> startupHandler, Handler<DuplexStream<Buffer, Buffer>> duplexStreamHandler) {
 
-        kafkaLogListener.logHandler(stream -> duplexStreamHandler.handle(new DuplexStream<>(stream, stream, pack -> {
-            final Message message = pack.getMessage();
-            // Data should enter the pipeline here.
-            message.setLocalAddress(EmptyAddress.emptyAddress());
-            message.setRemoteAddress(EmptyAddress.emptyAddress());
-        }, v -> stream.close())));
+        kafkaLogListener.logHandler(stream -> {
+            final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(stream, stream);
+
+            duplexStream
+                    .closeHandler(v -> stream.close())
+                    .writeCompleteHandler(pack -> {
+                        stream.commit(pack);
+                    });
+
+            duplexStreamHandler.handle(duplexStream);
+        });
+
 
         String topic = configObj.getString(TOPIC);
         Integer partition = configObj.getInteger(PARTITION, 0);
@@ -315,6 +321,11 @@ public class KafkaInput implements InputPlugin {
         @Override
         public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
             return this;
+        }
+
+        public void commit(PipelinePack pack) {
+            logger.info("writeComplete. Time to commit.");
+            //TODO: commit here
         }
     }
 }

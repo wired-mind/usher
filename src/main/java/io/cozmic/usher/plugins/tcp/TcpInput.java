@@ -30,11 +30,18 @@ public class TcpInput implements InputPlugin {
 
         netServer.connectHandler(socket -> {
 
-            duplexStreamHandler.handle(new DuplexStream<>(socket, socket, pack -> {
-                final Message message = pack.getMessage();
-                message.setRemoteAddress(socket.remoteAddress());
-                message.setLocalAddress(socket.localAddress());
-            }, v->{socket.close();}));
+            final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(socket, socket);
+
+            duplexStream
+                    .closeHandler(v -> {
+                        socket.close();
+                    })
+                    .packDecorator(pack -> {
+                        final Message message = pack.getMessage();
+                        message.setRemoteAddress(socket.remoteAddress());
+                        message.setLocalAddress(socket.localAddress());
+                    });
+            duplexStreamHandler.handle(duplexStream);
         });
 
         netServer.listen(netServerAsyncResult -> {

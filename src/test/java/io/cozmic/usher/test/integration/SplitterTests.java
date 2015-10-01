@@ -53,6 +53,7 @@ public class SplitterTests {
         inputConfig.put("splitter", "NewLineSplitter");
         final JsonObject config = new JsonObject();
         config
+                .put("usher", new JsonObject().put("pipelineInstances", 1))
                 .put("PayloadEncoder", new JsonObject())
                 .put("Router", inputConfig)
                 .put("EchoBackend", buildOutput())
@@ -85,6 +86,7 @@ public class SplitterTests {
         inputConfig.put("splitter", "PacketSplitter");
         final JsonObject config = new JsonObject();
         config
+                .put("usher", new JsonObject().put("pipelineInstances", 1))
                 .put("PayloadEncoder", new JsonObject())
                 .put("Router", inputConfig)
                 .put("EchoBackend", buildOutput())
@@ -119,6 +121,7 @@ public class SplitterTests {
         inputConfig.put("splitter", "PacketSplitter");
         final JsonObject config = new JsonObject();
         config
+                .put("usher", new JsonObject().put("pipelineInstances", 1))
                 .put("PayloadEncoder", new JsonObject())
                 .put("Router", inputConfig)
                 .put("EchoBackend", buildOutput())

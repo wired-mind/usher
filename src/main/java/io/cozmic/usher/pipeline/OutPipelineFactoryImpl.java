@@ -4,7 +4,6 @@ import io.cozmic.usher.core.*;
 import io.cozmic.usher.plugins.PluginIndex;
 import io.cozmic.usher.plugins.PluginLoader;
 import io.cozmic.usher.plugins.core.AvroEncoder;
-import io.cozmic.usher.plugins.core.GenericAvroEncoder;
 import io.cozmic.usher.plugins.core.NullFrameEncoder;
 import io.cozmic.usher.plugins.v1protocol.UsherV1FrameEncoder;
 import io.vertx.core.buffer.Buffer;
@@ -28,7 +27,7 @@ public class OutPipelineFactoryImpl implements OutPipelineFactory {
 
 
     @Override
-    public OutPipeline createDefaultOutPipeline(String pluginName, JsonObject config, MessageMatcher messageMatcher, WriteStream<Buffer> writeStream){
+    public OutPipeline createDefaultOutPipeline(String pluginName, JsonObject config, WriteStream<Buffer> writeStream){
         EncoderPlugin encoderPlugin = createEncoder(pluginName);
         FrameEncoderPlugin frameEncoderPlugin = createFrameEncoder(pluginName);
 
@@ -44,7 +43,7 @@ public class OutPipelineFactoryImpl implements OutPipelineFactory {
 
         frameEncoderPlugin = useFraming ? frameEncoderPlugin : new NullFrameEncoder();
 
-        return new DefaultOutPipeline(writeStream, config, encoderPlugin, frameEncoderPlugin, messageMatcher);
+        return new DefaultOutPipeline(writeStream, config, encoderPlugin, frameEncoderPlugin);
     }
 
     private FrameEncoderPlugin createFrameEncoder(String pluginName) {

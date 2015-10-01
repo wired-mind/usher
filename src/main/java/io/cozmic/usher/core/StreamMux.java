@@ -3,6 +3,7 @@ package io.cozmic.usher.core;
 import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
@@ -28,4 +29,12 @@ public interface StreamMux extends WriteStream<PipelinePack>, ReadStream<Pipelin
     void unregisterAllConsumers();
 
 
+    /**
+     * A special write method that will acknowledge when the underlying write is complete.
+     * @param pack
+     * @param doneHandler
+     */
+    StreamMux write(PipelinePack pack, Handler<AsyncResult<PipelinePack>> doneHandler);
+
+    StreamMux writeCompleteHandler(Handler<PipelinePack> writeCompleteHandler);
 }

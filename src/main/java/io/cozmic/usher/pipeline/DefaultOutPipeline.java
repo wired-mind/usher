@@ -1,7 +1,12 @@
 package io.cozmic.usher.pipeline;
 
-import io.cozmic.usher.core.*;
+import io.cozmic.usher.core.EncoderPlugin;
+import io.cozmic.usher.core.FrameEncoderPlugin;
+import io.cozmic.usher.core.OutPipeline;
+import io.cozmic.usher.core.WriteStreamPool;
 import io.cozmic.usher.message.PipelinePack;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -17,15 +22,14 @@ public class DefaultOutPipeline implements OutPipeline {
     private final JsonObject config;
     private final EncoderPlugin encoderPlugin;
     private final FrameEncoderPlugin frameEncoderPlugin;
-    private final MessageMatcher messageMatcher;
     private Handler<Throwable> exceptionHandler;
+    private Handler<AsyncResult<Void>> writeCompleteHandler;
 
-    public DefaultOutPipeline(WriteStream<Buffer> writeStream, JsonObject config, EncoderPlugin encoderPlugin, FrameEncoderPlugin frameEncoderPlugin, MessageMatcher messageMatcher) {
+    public DefaultOutPipeline(WriteStream<Buffer> writeStream, JsonObject config, EncoderPlugin encoderPlugin, FrameEncoderPlugin frameEncoderPlugin) {
         this.innerWriteStream = writeStream;
         this.config = config;
         this.encoderPlugin = encoderPlugin;
         this.frameEncoderPlugin = frameEncoderPlugin;
-        this.messageMatcher = messageMatcher;
 
         frameEncoderPlugin.setWriteHandler(innerWriteStream::write);
     }
@@ -39,13 +43,15 @@ public class DefaultOutPipeline implements OutPipeline {
 
     @Override
     public WriteStream<PipelinePack> write(PipelinePack pack) {
-        if (messageMatcher.matches(pack)) {
-            try {
-                encoderPlugin.encode(pack, frameEncoderPlugin::encodeAndWrite);
-            } catch (IOException e) {
-                if (exceptionHandler != null) exceptionHandler.handle(e);
-            }
+
+        try {
+            encoderPlugin.encode(pack, frameEncoderPlugin::encodeAndWrite);
+            if (writeCompleteHandler != null)
+                writeCompleteHandler.handle(Future.succeededFuture());
+        } catch (IOException e) {
+            if (exceptionHandler != null) exceptionHandler.handle(e);
         }
+
         return this;
     }
 
@@ -71,5 +77,11 @@ public class DefaultOutPipeline implements OutPipeline {
     @Override
     public void stop(WriteStreamPool pool) {
         pool.returnObject(innerWriteStream);
+    }
+
+    @Override
+    public OutPipeline writeCompleteHandler(Handler<AsyncResult<Void>> handler) {
+        writeCompleteHandler = handler;
+        return this;
     }
 }
