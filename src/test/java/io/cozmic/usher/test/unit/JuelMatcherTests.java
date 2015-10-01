@@ -33,7 +33,7 @@ public class JuelMatcherTests {
         final Message message = new Message();
         message.setLocalPort(123);
 
-        factory.createValueExpression(runtimeContext, "${msg}", Object.class).setValue(runtimeContext, message);
+        factory.createValueExpression(runtimeContext, "${msg}", message.getClass()).setValue(runtimeContext, message);
 
 
         assertTrue((boolean) expression.getValue(runtimeContext));
