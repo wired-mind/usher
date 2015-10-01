@@ -305,8 +305,8 @@ public class KafkaInput implements InputPlugin {
         }
 
         public void commit(PipelinePack pack) {
-            logger.info("writeComplete. Time to commit.");
             kafkaLogListener.commit(topicAndPartition, messageAndOffset.offset(), asyncResult -> {
+                logger.info("Kafka offset committed.");
 
             });
 
