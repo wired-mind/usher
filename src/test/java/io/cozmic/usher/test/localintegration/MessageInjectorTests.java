@@ -1,8 +1,8 @@
-package io.cozmic.usher.test.integration;
-
+package io.cozmic.usher.test.localintegration;
 
 import io.cozmic.usher.RawEchoChamber;
 import io.cozmic.usher.Start;
+import io.cozmic.usher.test.integration.EventBusFilter;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -25,18 +25,16 @@ import java.nio.file.Paths;
 import static org.junit.Assert.fail;
 
 /**
- * Created by chuck on 6/29/15.
+ * Created by chuck on 9/30/15.
  */
 @RunWith(VertxUnitRunner.class)
-public class ConnectionTimingTests {
+public class MessageInjectorTests {
 
-    Vertx vertx;
-    private RawEchoChamber rawEchoChamber;
+    private Vertx vertx;
 
     @Before
     public void before(TestContext context) {
         vertx = Vertx.vertx();
-
     }
 
     @After
@@ -44,41 +42,44 @@ public class ConnectionTimingTests {
         vertx.close(context.asyncAssertSuccess());
     }
 
-
-
-    /**
-     * The purpose of this test is isolate a intermittent failure. When pooling is off
-     * sometimes the socket reads data before the Channel is fully setup. When the bug is fixed,
-     * this should never fail. We can reproduce the conditions by simulating a slow start of the backend
-     * echo chamber. Basically while the mux waits for the connection to establish, the client has already
-     * sent data. We need to make sure this data doesn't get lost.
-     * @param context
-     */
     @Test
-    public void testCanEchoWithSlowBackendAndNoPooling(TestContext context) {
-        vertx.setTimer(1000, timerId -> {
-            rawEchoChamber = new RawEchoChamber();
-            vertx.deployVerticle(rawEchoChamber, context.asyncAssertSuccess());
-        });
-
-        final DeploymentOptions options = buildDeploymentOptions("/config_simple_echo_no_pooling.json");
+    public void testCanInjectToEventBusFilter(TestContext context) {
+        final String expectedMessage = "Hello";
+        final DeploymentOptions options = buildDeploymentOptions("/config_message_injector.json");
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
             vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
                 final NetSocket socket = asyncResult.result();
-                socket.write("Hello");
-                socket.handler(buffer -> {
-                    context.assertEquals("Hello", buffer.toString());
+                vertx.eventBus().<Integer>consumer(EventBusFilter.EVENT_BUS_ADDRESS, msg -> {
+                    final Integer hashCode = msg.body();
+                    context.assertEquals(expectedMessage.hashCode(), hashCode);
                     async.complete();
                 });
+
+                socket.write(expectedMessage);
             });
 
-            vertx.setTimer(5000, new Handler<Long>() {
-                @Override
-                public void handle(Long event) {
-                    context.fail("timed out");
-                }
+            vertx.setTimer(5000, event -> context.fail("timed out"));
+
+        }));
+    }
+
+    @Test
+    public void testCannotInjectToEventBusFilterIfMessageMatcherMatchesOnInjector(TestContext context) {
+        final String expectedMessage = "MatchBoth";
+        final DeploymentOptions options = buildDeploymentOptions("/config_message_injector.json");
+        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+            final Async async = context.async();
+            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+                final NetSocket socket = asyncResult.result();
+
+                socket.closeHandler(v->{
+                    async.complete();
+                });
+                socket.write(expectedMessage);
             });
+
+            vertx.setTimer(5000, event -> context.fail("timed out"));
 
         }));
     }
@@ -96,6 +97,5 @@ public class ConnectionTimingTests {
         options.setConfig(config);
         return options;
     }
-
 
 }

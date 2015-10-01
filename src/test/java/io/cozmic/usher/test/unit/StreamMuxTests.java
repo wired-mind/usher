@@ -6,8 +6,6 @@ import io.cozmic.usher.pipeline.MessageInjectorImpl;
 import io.cozmic.usher.pipeline.StreamMuxImpl;
 import io.cozmic.usher.streams.MessageStream;
 import io.cozmic.usher.test.FakeFilter;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -43,10 +41,11 @@ public class StreamMuxTests {
         final StreamMuxImpl streamMux = new StreamMuxImpl(vertx);
         final FakeFilter fakeFilter = new FakeFilter();
         final Async async = context.async();
-        final MessageInjectorImpl messageInjector = new MessageInjectorImpl(streamMux);
+        final MessageMatcher messageMatcher = MessageMatcher.always();
+        final MessageInjectorImpl messageInjector = new MessageInjectorImpl(streamMux, messageMatcher);
         fakeFilter.run(messageInjector, asyncResult -> {
             final MessageStream messageStream = asyncResult.result();
-            messageStream.setMessageMatcher(MessageMatcher.always());
+            messageStream.setMessageMatcher(messageMatcher);
             streamMux.addStream(messageStream, true);
             final PipelinePack pack = new PipelinePack("hi");
             streamMux.write(pack);
@@ -63,10 +62,11 @@ public class StreamMuxTests {
         final StreamMuxImpl streamMux = new StreamMuxImpl(vertx);
         final FakeFilter fakeFilter = new FakeFilter();
         final Async async = context.async();
-        final MessageInjectorImpl messageInjector = new MessageInjectorImpl(streamMux);
+        final MessageMatcher messageMatcher = MessageMatcher.always();
+        final MessageInjectorImpl messageInjector = new MessageInjectorImpl(streamMux, messageMatcher);
         fakeFilter.run(messageInjector, asyncResult -> {
             final MessageStream messageStream = asyncResult.result();
-            messageStream.setMessageMatcher(MessageMatcher.always());
+            messageStream.setMessageMatcher(messageMatcher);
             streamMux.addStream(messageStream, true);
             final PipelinePack pack = new PipelinePack("hi");
             streamMux.write(pack);
@@ -84,10 +84,11 @@ public class StreamMuxTests {
         final StreamMuxImpl streamMux = new StreamMuxImpl(vertx);
         final FakeFilter fakeFilter = new FakeFilter();
         final Async async = context.async();
-        final MessageInjectorImpl messageInjector = new MessageInjectorImpl(streamMux);
+        final MessageMatcher messageMatcher = MessageMatcher.always();
+        final MessageInjectorImpl messageInjector = new MessageInjectorImpl(streamMux, messageMatcher);
         fakeFilter.run(messageInjector, asyncResult -> {
             final MessageStream messageStream = asyncResult.result();
-            messageStream.setMessageMatcher(MessageMatcher.always());
+            messageStream.setMessageMatcher(messageMatcher);
             streamMux.addStream(messageStream, true);
             final PipelinePack pack = new PipelinePack("hi");
             streamMux.write(pack, context.asyncAssertSuccess(v -> {

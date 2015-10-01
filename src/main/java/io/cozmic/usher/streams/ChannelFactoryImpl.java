@@ -82,6 +82,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
             });
 
             outStreamMux.exceptionHandler(t -> {
+                logger.error("Error in mux", t);
                 doStop();
                 inPipeline.close();
             });

@@ -1,4 +1,4 @@
-package io.cozmic.usher.test.integration;
+package io.cozmic.usher.test.localintegration;
 
 
 import io.cozmic.usher.Start;
@@ -8,7 +8,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetClient;
-import io.vertx.core.net.NetSocket;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;

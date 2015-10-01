@@ -30,7 +30,7 @@ public class FilterRunnerImpl implements FilterRunner {
 
     @Override
     public void run(StreamMux mux, AsyncResultHandler<MessageStream> messageStreamAsyncResultHandler) {
-        final MessageInjectorImpl messageInjector = new MessageInjectorImpl(mux);
+        final MessageInjectorImpl messageInjector = new MessageInjectorImpl(mux, messageMatcher);
         filterPlugin.run(messageInjector, asyncResult -> {
             if (asyncResult.failed()) {
                 final Throwable cause = asyncResult.cause();

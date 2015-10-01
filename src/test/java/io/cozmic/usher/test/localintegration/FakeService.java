@@ -1,4 +1,4 @@
-package io.cozmic.usher.test.integration;
+package io.cozmic.usher.test.localintegration;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;

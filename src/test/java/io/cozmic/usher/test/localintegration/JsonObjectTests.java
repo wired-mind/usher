@@ -1,4 +1,4 @@
-package io.cozmic.usher.test.integration;
+package io.cozmic.usher.test.localintegration;
 
 
 import io.cozmic.usher.RawEchoChamber;
@@ -83,7 +83,7 @@ public class JsonObjectTests {
     }
 
     private JsonObject buildJsonFilter() {
-        return new JsonObject().put("type", "io.cozmic.usher.test.integration.HelloWorldJsonFilter").put("messageMatcher", "#{1==1}");
+        return new JsonObject().put("type", "io.cozmic.usher.test.localintegration.HelloWorldJsonFilter").put("messageMatcher", "#{1==1}");
     }
 
     private JsonObject buildInput() {

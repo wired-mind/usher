@@ -1,4 +1,4 @@
-package io.cozmic.usher.test.integration;
+package io.cozmic.usher.test.localintegration;
 
 
 import io.cozmic.usher.Start;
@@ -6,13 +6,12 @@ import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.net.NetClient;
 import io.vertx.core.net.NetSocket;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import org.apache.commons.codec.binary.Hex;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,28 +22,20 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 
 import static org.junit.Assert.fail;
 
 /**
- * File plugin is a work in progress. Putting in just enough now to write debug logs
+ * Created by chuck on 6/29/15.
  */
 @RunWith(VertxUnitRunner.class)
-public class LogOutputTests {
+public class FilterTests {
 
     Vertx vertx;
-    private LogHandler fakeLogHandler;
 
     @Before
     public void before(TestContext context) {
         vertx = Vertx.vertx(new VertxOptions());
-        Logger testLogger = Logger.getLogger("test_logger");
-
-        fakeLogHandler = new LogHandler();
-        testLogger.addHandler(fakeLogHandler);
     }
 
     @After
@@ -53,25 +44,19 @@ public class LogOutputTests {
     }
 
 
-    /**
-     * Log plugin is rudimentary for now. It will return a single byte to indicate the Write is done
-     * @param context
-     */
+
     @Test
-    public void testCanWriteToLog(TestContext context) {
-        final DeploymentOptions options = buildDeploymentOptions();
+    public void testFilterCanEcho(TestContext context) {
+        final DeploymentOptions options = buildDeploymentOptions("/config_filter_echo.json");
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
             final Async async = context.async();
-            final NetClient netClient = vertx.createNetClient();
-            netClient.connect(2500, "localhost", asyncResult -> {
+            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
                 final NetSocket socket = asyncResult.result();
+                socket.write("Hello Filter");
                 socket.handler(buffer -> {
-                    context.assertEquals((byte) 0x1, buffer.getByte(0));
-                    context.assertEquals(Hex.encodeHexString("Hello Log".getBytes()), fakeLogHandler.lastRecord.getMessage());
+                    context.assertEquals("Hello Filter", buffer.toString());
                     async.complete();
                 });
-
-                socket.write("Hello Log");
             });
 
             vertx.setTimer(5000, new Handler<Long>() {
@@ -84,10 +69,32 @@ public class LogOutputTests {
         }));
     }
 
-    public DeploymentOptions buildDeploymentOptions() {
+    @Test
+    public void testFilterWithExceptionShouldCloseSocket(TestContext context) {
+        final DeploymentOptions options = buildDeploymentOptions("/config_filter_w_err.json");
+        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
+            final Async async = context.async();
+            vertx.createNetClient().connect(2500, "localhost", asyncResult -> {
+                final NetSocket socket = asyncResult.result();
+                final Buffer bogusPacket = Buffer.buffer("bogus");
+                socket.write(bogusPacket);
+                // Expect the server to close the socket on us
+                socket.closeHandler(v -> {
+                    async.complete();
+                });
+            });
+
+            vertx.setTimer(5000, event -> {
+                context.fail("timed out");
+            });
+
+        }));
+    }
+
+    public DeploymentOptions buildDeploymentOptions(String configFIle) {
         JsonObject config = null;
         try {
-            final URI uri = getClass().getResource("/config_log_output.json").toURI();
+            final URI uri = getClass().getResource(configFIle).toURI();
             final String configString = new String(Files.readAllBytes(Paths.get(uri)));
             config = new JsonObject(configString);
         } catch (URISyntaxException | IOException e) {
@@ -98,28 +105,5 @@ public class LogOutputTests {
         return options;
     }
 
-
-    class LogHandler extends java.util.logging.Handler  {
-        Level lastLevel = Level.FINEST;
-        private LogRecord lastRecord;
-
-        public Level  checkLevel() {
-            return lastLevel;
-        }
-
-
-
-        public void close(){}
-
-        @Override
-        public void publish(LogRecord record) {
-
-            lastRecord = record;
-        }
-
-        public void flush(){}
-
-
-    }
 
 }
