@@ -83,6 +83,7 @@ public class PluginLoader {
                 throw new UsherInitializationFailedException(e);
             }
 
+            logger.info(String.format("Initializing %s with config: %s", pluginName, pluginConfig));
             plugin.init(pluginConfig, vertx);
 
             if (pluginType.endsWith("Input")) {
