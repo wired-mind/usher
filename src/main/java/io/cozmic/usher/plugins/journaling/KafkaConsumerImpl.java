@@ -108,7 +108,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
             }
             Map<String, List<MessageAndOffset>> map = res.result();
             if (map == null || map.isEmpty()) {
-                logger.info("No data found, will retry...", res.cause());
+                logger.debug("No data found, will retry...", res.cause());
                 return;
             }
             // Success
