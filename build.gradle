@@ -94,6 +94,9 @@ sourceSets {
 test {
     exclude 'io.cozmic.usher.test.integration/KafkaInputTests'
     exclude 'io.cozmic.usher.test.integration/KafkaConsumerTests'
+
+    exclude 'io.cozmic.usher.test.integration.plugins.kafka/KafkaInputTests'
+    exclude 'io.cozmic.usher.test.integration.plugins.kafka/KafkaConsumerTests'
 }
 
 task wrapper(type: Wrapper) {

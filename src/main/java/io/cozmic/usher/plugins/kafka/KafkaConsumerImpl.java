@@ -94,7 +94,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
             long readOffset = offsetsStrategy.getOffset(topicAndPartition);
 
             int numErrors = 0;
-            int maxReads = 100; // TODO: change this
+            int maxReads = 1; // TODO: change this
             while (maxReads > 0) {
                 if (consumer == null) {
                     consumer = new SimpleConsumer(leadBroker, port, 100_000, 64 * 1024, clientName);
