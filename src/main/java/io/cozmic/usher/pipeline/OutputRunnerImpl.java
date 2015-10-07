@@ -1,10 +1,10 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.*;
+import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
 import io.cozmic.usher.streams.DuplexStream;
 import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.AsyncResult;
-import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
@@ -16,6 +16,7 @@ import io.vertx.core.logging.LoggerFactory;
  * Created by chuck on 6/30/15.
  */
 public class OutputRunnerImpl implements OutputRunner {
+    private final ErrorStrategy errorStrategy;
     Logger logger = LoggerFactory.getLogger(OutputRunnerImpl.class.getName());
     private final String pluginName;
     private final JsonObject outputObj;
@@ -24,13 +25,14 @@ public class OutputRunnerImpl implements OutputRunner {
     private final InPipelineFactory inPipelineFactory;
     private final OutPipelineFactory outPipelineFactory;
 
-    public OutputRunnerImpl(String pluginName, JsonObject outputObj, OutputPlugin outputPlugin, MessageMatcher messageMatcher, InPipelineFactory inPipelineFactory, OutPipelineFactory outPipelineFactory) {
+    public OutputRunnerImpl(String pluginName, JsonObject outputObj, OutputPlugin outputPlugin, MessageMatcher messageMatcher, InPipelineFactory inPipelineFactory, OutPipelineFactory outPipelineFactory, ErrorStrategy errorStrategy) throws UsherInitializationFailedException {
         this.pluginName = pluginName;
         this.outputObj = outputObj;
         this.outputPlugin = outputPlugin;
         this.messageMatcher = messageMatcher;
         this.inPipelineFactory = inPipelineFactory;
         this.outPipelineFactory = outPipelineFactory;
+        this.errorStrategy = errorStrategy;
     }
 
     @Override
@@ -49,6 +51,7 @@ public class OutputRunnerImpl implements OutputRunner {
             final InPipeline inPipeline = inPipelineFactory.createDefaultInPipeline(pluginName, duplexStream);
             final MessageStream result = new MessageStream(inPipeline, outPipeline);
             result.setMessageMatcher(messageMatcher);
+            result.setErrorStrategy(errorStrategy);
             messageStreamAsyncResultHandler.handle(Future.succeededFuture(result));
 
         });

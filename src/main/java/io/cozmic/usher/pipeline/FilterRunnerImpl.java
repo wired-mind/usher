@@ -1,6 +1,7 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.*;
+import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
 import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
@@ -19,13 +20,14 @@ public class FilterRunnerImpl implements FilterRunner {
     private final JsonObject filterObj;
     private final FilterPlugin filterPlugin;
     private final MessageMatcher messageMatcher;
+    private ErrorStrategy errorStrategy;
 
-    public FilterRunnerImpl(String pluginName, JsonObject filterObj, FilterPlugin filterPlugin, MessageMatcher messageMatcher) {
+    public FilterRunnerImpl(String pluginName, JsonObject filterObj, FilterPlugin filterPlugin, MessageMatcher messageMatcher, ErrorStrategy errorStrategy) throws UsherInitializationFailedException {
         this.pluginName = pluginName;
         this.filterObj = filterObj;
         this.filterPlugin = filterPlugin;
         this.messageMatcher = messageMatcher;
-
+        this.errorStrategy = errorStrategy;
     }
 
     @Override
@@ -40,6 +42,7 @@ public class FilterRunnerImpl implements FilterRunner {
             }
             final MessageStream messageStream = asyncResult.result();
             messageStream.setMessageMatcher(messageMatcher);
+            messageStream.setErrorStrategy(errorStrategy);
             messageStreamAsyncResultHandler.handle(Future.succeededFuture(messageStream));
         });
     }

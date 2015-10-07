@@ -7,6 +7,7 @@ import io.cozmic.usher.pipeline.StreamMuxImpl;
 import io.cozmic.usher.streams.MessageStream;
 import io.cozmic.usher.test.FakeFilter;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -40,6 +41,7 @@ public class StreamMuxTests {
 
         final StreamMuxImpl streamMux = new StreamMuxImpl(vertx);
         final FakeFilter fakeFilter = new FakeFilter();
+        fakeFilter.init(new JsonObject(), vertx);
         final Async async = context.async();
         final MessageMatcher messageMatcher = MessageMatcher.always();
         final MessageInjectorImpl messageInjector = new MessageInjectorImpl(streamMux, messageMatcher);
@@ -61,6 +63,7 @@ public class StreamMuxTests {
 
         final StreamMuxImpl streamMux = new StreamMuxImpl(vertx);
         final FakeFilter fakeFilter = new FakeFilter();
+        fakeFilter.init(new JsonObject(), vertx);
         final Async async = context.async();
         final MessageMatcher messageMatcher = MessageMatcher.always();
         final MessageInjectorImpl messageInjector = new MessageInjectorImpl(streamMux, messageMatcher);
@@ -83,6 +86,7 @@ public class StreamMuxTests {
     public void canAcknowledgeWrites(TestContext context) {
         final StreamMuxImpl streamMux = new StreamMuxImpl(vertx);
         final FakeFilter fakeFilter = new FakeFilter();
+        fakeFilter.init(new JsonObject(), vertx);
         final Async async = context.async();
         final MessageMatcher messageMatcher = MessageMatcher.always();
         final MessageInjectorImpl messageInjector = new MessageInjectorImpl(streamMux, messageMatcher);

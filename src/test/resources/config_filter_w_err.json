@@ -8,9 +8,17 @@
     "encoder": "PayloadEncoder",
     "port": 2500
   },
-  "EchoBackend": {
+  "FakeInput": {
+    "type": "io.cozmic.usher.test.FakeInput",
+    "encoder": "PayloadEncoder",
+    "input.address": "fake.input",
+    "output.address": "fake.output",
+    "complete.address": "fake.complete",
+    "close.address": "fake.close"
+  },
+  "ErrorBackend": {
     "type": "io.cozmic.usher.test.ErrFilter",
-    "messageMatcher": "#{msg.localPort == 2500}"
+    "messageMatcher": "#{1==1}"
   },
   "PayloadEncoder": {}
 }

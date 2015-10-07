@@ -12,6 +12,7 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 
 import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Created by chuck on 7/9/15.
@@ -19,8 +20,10 @@ import java.util.Objects;
 public abstract class AbstractFilter implements FilterPlugin {
 
 
+    public static final int DEFAULT_TIMEOUT = -1;   //defaults to -1 which means no timeout
     private JsonObject configObj;
     private Vertx vertx;
+    private Integer timeout = DEFAULT_TIMEOUT;
 
     @Override
     public void run(MessageInjector messageInjector, AsyncResultHandler<MessageStream> messageStreamAsyncResultHandler) {
@@ -50,6 +53,7 @@ public abstract class AbstractFilter implements FilterPlugin {
 
         this.configObj = configObj;
         this.vertx = vertx;
+        timeout = configObj.getInteger("timeout", DEFAULT_TIMEOUT);
     }
 
     public JsonObject getConfigObj() {
@@ -65,11 +69,14 @@ public abstract class AbstractFilter implements FilterPlugin {
     private class FilterStream implements InPipeline, OutPipeline {
         private final MessageInjector messageInjector;
         Logger logger = LoggerFactory.getLogger(FilterStream.class.getName());
+        private ConcurrentLinkedQueue<PipelinePack> readBuffers = new ConcurrentLinkedQueue<>();
+
         private Handler<PipelinePack> dataHandler;
         private boolean paused;
         private Handler<Void> drainHandler;
         private Handler<Throwable> exceptionHandler;
         private Handler<AsyncResult<Void>> writeCompleteHandler;
+        private Handler<Void> endHandler;
 
         public FilterStream(MessageInjector messageInjector) {
             Objects.requireNonNull(messageInjector, "MessageInjector is required");
@@ -92,11 +99,35 @@ public abstract class AbstractFilter implements FilterPlugin {
 
             try {
                 final Future<Void> future = createFuture(writeCompleteHandler);
-                handleRequest(data, future, dataHandler, messageInjector);
+                if (timeout > 0) {
+                    vertx.setTimer(timeout, id -> {
+                        if (future.isComplete()) return;
+
+                        future.fail("Filter runtime exceeded timeout.");
+                    });
+                }
+                handleRequest(data, future, pack -> {
+                    readBuffers.add(pack);
+
+                    if (paused) {
+                        return;
+                    }
+
+                    purgeReadBuffers();
+                }, messageInjector);
             } catch (Throwable throwable) {
-                if (exceptionHandler != null) exceptionHandler.handle(throwable);
+                writeCompleteHandler.handle(Future.failedFuture(throwable));
             }
             return this;
+        }
+
+        protected void purgeReadBuffers() {
+            while (!readBuffers.isEmpty() && !paused) {
+                final PipelinePack nextPack = readBuffers.poll();
+                if (nextPack != null) {
+                    if (dataHandler != null) dataHandler.handle(nextPack);
+                }
+            }
         }
 
         @Override
@@ -126,12 +157,14 @@ public abstract class AbstractFilter implements FilterPlugin {
         @Override
         public WriteStream<PipelinePack> drainHandler(Handler<Void> drainHandler) {
             this.drainHandler = drainHandler;
+            vertx.runOnContext(v -> callDrainHandler());
             return this;
         }
 
         @Override
         public ReadStream<PipelinePack> handler(Handler<PipelinePack> dataHandler) {
             this.dataHandler = dataHandler;
+            if (dataHandler != null) purgeReadBuffers();
             return this;
         }
 
@@ -144,7 +177,7 @@ public abstract class AbstractFilter implements FilterPlugin {
         @Override
         public ReadStream<PipelinePack> resume() {
             paused = false;
-            vertx.runOnContext(v -> callDrainHandler());
+            purgeReadBuffers();
             return this;
         }
 
@@ -158,6 +191,7 @@ public abstract class AbstractFilter implements FilterPlugin {
 
         @Override
         public ReadStream<PipelinePack> endHandler(Handler<Void> endHandler) {
+            this.endHandler = endHandler;
             return this;
         }
 
@@ -173,5 +207,14 @@ public abstract class AbstractFilter implements FilterPlugin {
         }
     }
 
+    /**
+     * Concrete instances implement this method which provides asynchronous request/reply semantics as well as a
+     * messageInjector which can be used to send new messages to the mux.
+     * @param pipelinePack Incoming pipeline pack.
+     * @param writeCompleteFuture Future to indicate that the filter is completely done. Can be called asynchronously.
+     * @param dataHandler Handler to return data bidirectionally through the Mux to the Input.
+     * @param messageInjector A proxy for sending new messages into the Mux. Messages must not match the current filters
+     *                        messageMatcher. An error is thrown if this happens to prevent infinite loops.
+     */
     public abstract void handleRequest(PipelinePack pipelinePack, Future<Void> writeCompleteFuture, Handler<PipelinePack> dataHandler, MessageInjector messageInjector);
 }

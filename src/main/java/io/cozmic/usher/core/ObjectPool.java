@@ -74,6 +74,7 @@ public abstract class ObjectPool<T> {
             int size = pool.size();
             int sizeToBeRemoved = size;
 
+            logger.debug(String.format("Recycling objects in %s pool. Removing: %d MinIdle: %d", className(), sizeToBeRemoved, minIdle));
             // First, let's remove all the objects from the pool (reset to zero)
             for (int i = 0; i < sizeToBeRemoved; i++) {
                 final T obj = doRemoveFromPool();

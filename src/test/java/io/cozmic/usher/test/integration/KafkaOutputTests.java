@@ -4,10 +4,10 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 import io.cozmic.usher.Start;
+import io.cozmic.usher.core.ErrorStrategy;
 import io.cozmic.usher.core.MessageMatcher;
 import io.cozmic.usher.core.OutputPlugin;
 import io.cozmic.usher.core.OutputRunner;
-import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.pipeline.*;
 import io.cozmic.usher.plugins.PluginLoader;
@@ -140,7 +140,9 @@ public class KafkaOutputTests {
             final InPipelineFactoryImpl inPipelineFactory = new InPipelineFactoryImpl(pluginLoader);
             final OutPipelineFactoryImpl outPipelineFactory = new OutPipelineFactoryImpl(pluginLoader);
             final Map.Entry<OutputPlugin, JsonObject> pluginEntry = pluginLoader.getOutputs().get(pluginName);
-            final OutputRunnerImpl outputRunner = new OutputRunnerImpl(pluginName, pluginEntry.getValue(), pluginEntry.getKey(), messageMatcher, inPipelineFactory, outPipelineFactory);
+            final JsonObject pluginConfig = pluginEntry.getValue();
+            ErrorStrategy errorStrategy = ErrorStrategy.build(vertx, pluginConfig.getJsonObject("errorStrategy", ErrorStrategy.DEFAULT_ERROR_STRATEGY));
+            final OutputRunnerImpl outputRunner = new OutputRunnerImpl(pluginName, pluginConfig, pluginEntry.getKey(), messageMatcher, inPipelineFactory, outPipelineFactory, errorStrategy);
             return outputRunner;
         }
 

@@ -177,8 +177,6 @@ public class StreamMuxImpl implements StreamMux {
         @Override
         public boolean apply(MuxRegistration input) {
             return input.matches(data);
-
-
         }
     }
 
@@ -199,7 +197,7 @@ public class StreamMuxImpl implements StreamMux {
         public MuxRegistrationImpl(MessageStream messageStream, boolean bidirectional) {
             this.messageStream = messageStream;
 
-            outPipeline = messageStream.getOutPipeline();
+            outPipeline = messageStream.createOutPipelineWrappedWithErrorStrategy();
             demuxPump = Pump.pump(this, outPipeline).start();
 
             if (bidirectional) {
@@ -219,8 +217,7 @@ public class StreamMuxImpl implements StreamMux {
         @Override
         public MuxRegistration exceptionHandler(Handler<Throwable> exceptionHandler) {
             this.exceptionHandler = exceptionHandler;
-            messageStream.getOutPipeline().exceptionHandler(exceptionHandler);
-            messageStream.getInPipeline().exceptionHandler(exceptionHandler);
+            messageStream.setExceptionHandler(exceptionHandler);
             return this;
         }
 

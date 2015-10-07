@@ -1,5 +1,6 @@
 package io.cozmic.usher.streams;
 
+import io.cozmic.usher.core.ErrorStrategy;
 import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -13,9 +14,11 @@ import io.vertx.core.streams.WriteStream;
 public class DuplexStream<R, W> {
     private final ReadStream<R> readStream;
     private final ClosableWriteStream<W> writeStream;
+
     private Handler<PipelinePack> packDecorator;
     private Handler<Void> closeHandler;
     private Handler<PipelinePack> writeCompleteHandler;
+
 
     public DuplexStream(ReadStream<R> readStream, ClosableWriteStream<W> writeStream) {
         this.readStream = readStream;
@@ -81,6 +84,7 @@ public class DuplexStream<R, W> {
         this.packDecorator = decorator;
         return this;
     }
+
 
 
 }

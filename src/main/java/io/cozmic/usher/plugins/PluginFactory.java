@@ -61,17 +61,19 @@ public class PluginFactory {
 
 
 
-    public OutputRunner createOutputRunner(String pluginName, JsonObject outputObj, OutputPlugin outputPlugin, InPipelineFactoryImpl outInParserFactory, OutPipelineFactoryImpl inOutFilterFactory) {
+    public OutputRunner createOutputRunner(String pluginName, JsonObject outputObj, OutputPlugin outputPlugin, InPipelineFactoryImpl outInParserFactory, OutPipelineFactoryImpl inOutFilterFactory) throws UsherInitializationFailedException {
         final String expressionVal = outputObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.never() : new JuelMatcher(expressionVal);
-        return new OutputRunnerImpl(pluginName, outputObj, outputPlugin, messageMatcher, outInParserFactory, inOutFilterFactory);
+        ErrorStrategy errorStrategy = ErrorStrategy.build(vertx, outputObj.getJsonObject("errorStrategy", ErrorStrategy.DEFAULT_ERROR_STRATEGY));
+        return new OutputRunnerImpl(pluginName, outputObj, outputPlugin, messageMatcher, outInParserFactory, inOutFilterFactory, errorStrategy);
     }
 
 
-    private FilterRunner createFilterRunner(String pluginName, JsonObject filterObj, FilterPlugin filterPlugin) {
+    private FilterRunner createFilterRunner(String pluginName, JsonObject filterObj, FilterPlugin filterPlugin) throws UsherInitializationFailedException {
         final String expressionVal = filterObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.never() : new JuelMatcher(expressionVal);
-        return new FilterRunnerImpl(pluginName, filterObj, filterPlugin, messageMatcher);
+        ErrorStrategy errorStrategy = ErrorStrategy.build(vertx, filterObj.getJsonObject("errorStrategy", ErrorStrategy.DEFAULT_ERROR_STRATEGY));
+        return new FilterRunnerImpl(pluginName, filterObj, filterPlugin, messageMatcher, errorStrategy);
     }
 
     public List<InputRunner> getInputRunners() {

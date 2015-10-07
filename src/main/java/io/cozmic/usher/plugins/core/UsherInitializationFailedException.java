@@ -11,4 +11,8 @@ public class UsherInitializationFailedException extends Exception {
     public UsherInitializationFailedException(String message, Throwable throwable) {
         super(message, throwable);
     }
+
+    public UsherInitializationFailedException(String message) {
+        super(message);
+    }
 }
