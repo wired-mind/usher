@@ -3,7 +3,6 @@ package io.cozmic.usher.core;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.AsyncWriteStream;
 import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
@@ -91,6 +90,9 @@ public class RetryErrorStrategy implements ErrorStrategy {
                 retryHandler.runWithRetry(context -> {
                     final Throwable lastThrowable = context.getLastThrowable();
                     logger.warn("Retry attempt: " + context.getRetryCount(), lastThrowable);
+
+
+                    data.setRetryContext(context);
                     outPipeline.write(data, context);
                 }, writeCompleteHandler::handle);
 

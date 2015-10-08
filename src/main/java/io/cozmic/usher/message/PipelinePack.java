@@ -1,5 +1,7 @@
 package io.cozmic.usher.message;
 
+import io.cozmic.usher.core.retry.AsyncRetryContext;
+import io.cozmic.usher.core.retry.RetryContext;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 
@@ -9,6 +11,7 @@ import io.vertx.core.json.JsonObject;
 public class PipelinePack {
     private Object message;
     private Buffer msgBytes;
+    private RetryContext retryContext;
 
     public PipelinePack(Buffer msgBytes) {
 
@@ -34,5 +37,13 @@ public class PipelinePack {
 
     public void setMessage(Object message) {
         this.message = message;
+    }
+
+    public void setRetryContext(RetryContext retryContext) {
+        this.retryContext = retryContext;
+    }
+
+    public RetryContext getRetryContext() {
+        return retryContext;
     }
 }

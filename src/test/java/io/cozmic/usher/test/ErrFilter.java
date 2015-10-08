@@ -1,6 +1,7 @@
 package io.cozmic.usher.test;
 
 import io.cozmic.usher.core.MessageInjector;
+import io.cozmic.usher.core.retry.RetryContext;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.plugins.core.AbstractFilter;
 import io.vertx.core.Future;
@@ -13,7 +14,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class ErrFilter extends AbstractFilter {
 
-    private AtomicInteger errorCounter = new AtomicInteger();
     private Integer repeatErrorCount;
     private Integer delay;
 
@@ -24,8 +24,10 @@ public class ErrFilter extends AbstractFilter {
 
     @Override
     public void handleRequest(PipelinePack pipelinePack, Future<Void> writeCompleteFuture, Handler<PipelinePack> dataHandler, MessageInjector messageInjector) {
-        final int errorCount = errorCounter.incrementAndGet();
-        final boolean isErrorMode = errorCount <= repeatErrorCount;
+        final RetryContext retryContext = pipelinePack.getRetryContext();
+        final int retryCount = retryContext.getRetryCount();
+
+        final boolean isErrorMode = retryCount <= repeatErrorCount;
         if (isErrorMode) {
             getVertx().setTimer(delay, timerId -> writeCompleteFuture.fail(new RuntimeException("Oops, I failed.")));
             return;
