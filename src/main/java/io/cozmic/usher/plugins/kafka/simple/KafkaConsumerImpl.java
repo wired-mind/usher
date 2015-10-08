@@ -1,5 +1,7 @@
-package io.cozmic.usher.plugins.kafka;
+package io.cozmic.usher.plugins.kafka.simple;
 
+import io.cozmic.usher.plugins.kafka.offsets.ConsumerOffsetsException;
+import io.cozmic.usher.plugins.kafka.offsets.ConsumerOffsetsStrategy;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;

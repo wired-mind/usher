@@ -1,8 +1,8 @@
-package io.cozmic.usher.test.integration.plugins.kafka;
+package io.cozmic.usher.test.integration.plugins.kafka.simple;
 
 import com.cyberphysical.streamprocessing.verticles.KafkaProducerVerticle;
-import io.cozmic.usher.plugins.kafka.KafkaConsumer;
-import io.cozmic.usher.plugins.kafka.KafkaConsumerImpl;
+import io.cozmic.usher.plugins.kafka.simple.KafkaConsumer;
+import io.cozmic.usher.plugins.kafka.simple.KafkaConsumerImpl;
 import io.vertx.core.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;

@@ -4,10 +4,7 @@ import com.google.common.io.Resources;
 import io.cozmic.usher.Start;
 import io.cozmic.usher.core.AvroMapper;
 import io.cozmic.usher.test.Pojo;
-import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -53,6 +50,10 @@ public class KafkaInputTests {
     @Before
     public void before(TestContext context) {
         vertx = Vertx.vertx();
+
+        vertx.deployVerticle("", new DeploymentOptions().setWorker(true).setInstances(5), asyncResult -> {
+            //
+        });
 
         Properties kafkaProducerProps = new Properties();
         kafkaProducerProps.put("bootstrap.servers", "kafka.dev:9092");
@@ -168,6 +169,7 @@ public class KafkaInputTests {
             config.getJsonObject("Router")
                     .put("zookeeper.connect", "zookeeper.dev:2181")
                     .put("topic", topic)
+                    .put("reply.topic", "replyTopic")
                     .put("group.id", "0")
                     .put("partitions", 1)
                     .put("seed.brokers", new JsonArray().add("kafka.dev"))

@@ -1,4 +1,4 @@
-package io.cozmic.usher.plugins.kafka;
+package io.cozmic.usher.plugins.kafka.simple;
 
 import io.netty.util.CharsetUtil;
 import io.vertx.core.buffer.Buffer;

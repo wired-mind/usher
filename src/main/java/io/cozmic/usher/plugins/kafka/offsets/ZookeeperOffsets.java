@@ -1,6 +1,7 @@
-package io.cozmic.usher.plugins.kafka;
+package io.cozmic.usher.plugins.kafka.offsets;
 
 import com.google.common.collect.ImmutableMap;
+import io.cozmic.usher.plugins.kafka.simple.KafkaConsumerImpl;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import kafka.api.PartitionOffsetRequestInfo;
@@ -16,6 +17,7 @@ import java.util.Map;
  * Created by Craig Earley on 9/19/15.
  * Copyright (c) 2015 All Rights Reserved
  */
+@Deprecated
 public class ZookeeperOffsets implements ConsumerOffsetsStrategy {
     private static final Logger logger = LoggerFactory.getLogger(KafkaConsumerImpl.class.getName());
     private static final String CLIENT = KafkaConsumerImpl.class.getSimpleName();

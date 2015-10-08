@@ -1,7 +1,7 @@
-package io.cozmic.usher.plugins.kafka;
+package io.cozmic.usher.plugins.kafka.simple;
 
 import io.cozmic.usher.core.InputPlugin;
-import io.cozmic.usher.message.PipelinePack;
+import io.cozmic.usher.plugins.kafka.KafkaMessageStream;
 import io.cozmic.usher.streams.DuplexStream;
 import io.cozmic.usher.streams.NullClosableWriteStream;
 import io.vertx.core.*;
@@ -10,7 +10,6 @@ import io.vertx.core.eventbus.MessageCodec;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.core.streams.ReadStream;
 import kafka.common.TopicAndPartition;
 import kafka.message.MessageAndOffset;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -20,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -125,17 +123,19 @@ public class KafkaInput implements InputPlugin {
             });
         }
 
-        public void asyncSendToReplyTopic(byte[] value) {
+        public void asyncSendToReplyTopic(byte[] value, Handler<AsyncResult<Void>> asyncResultHandler) {
             if (replyTopic != null) {
                 // Send message to optional reply topic.
                 kafkaProducer.send(replyTopic, value, event -> {
                     if (event.failed()) {
                         logger.error("Error sending message to reply topic: ", event.cause());
+                        asyncResultHandler.handle(Future.failedFuture(event.cause()));
                         return;
                     }
                     RecordMetadata metadata = event.result();
                     logger.info(String.format("Sent message: offset: %d, topic: %s, partition: %d",
                             metadata.offset(), metadata.topic(), metadata.partition()));
+                    asyncResultHandler.handle(Future.succeededFuture());
                 });
             }
         }
@@ -229,7 +229,12 @@ public class KafkaInput implements InputPlugin {
                     byte[] bytes = new byte[payload.limit()];
                     payload.get(bytes);
 
-                    KafkaMessageStream messageStream = new KafkaMessageStream(Buffer.buffer(bytes), this, topicAndPartition, messageAndOffset);
+                    KafkaMessageStream messageStream = new KafkaMessageStream(
+                            Buffer.buffer(bytes),
+                            topicAndPartition,
+                            messageAndOffset,
+                            this::asyncCommit,
+                            this::asyncSendToReplyTopic);
 
                     if (responseHandlerShouldCommit) {
                         // Setup pipeline stream handler to handle commit internally
@@ -245,7 +250,9 @@ public class KafkaInput implements InputPlugin {
                                 // Send data to optional reply topic. Note that
                                 // the reply topic is written to if and only if
                                 // the response is handled and the commit succeeded.
-                                asyncSendToReplyTopic(data.getBytes());
+                                asyncSendToReplyTopic(data.getBytes(), event -> {
+                                    // TODO: When event.failed()?
+                                });
 
                                 future.complete(true); // success (responseHandlerDidCommit = true)
                             } catch (Exception e) {
@@ -281,89 +288,6 @@ public class KafkaInput implements InputPlugin {
         public void stop(AsyncResultHandler<Void> stopHandler) {
             isStopped.set(true);
             stopHandler.handle(Future.succeededFuture());
-        }
-    }
-
-    private class KafkaMessageStream implements ReadStream<Buffer> {
-        private final Buffer data;
-        private final KafkaLogListener kafkaLogListener;
-        private final TopicAndPartition topicAndPartition;
-        private final MessageAndOffset messageAndOffset;
-        private Handler<Buffer> handler;
-        private boolean isPaused;
-        private Handler<Buffer> delegate = null;
-        private ConcurrentLinkedQueue<Buffer> readBuffers = new ConcurrentLinkedQueue<>();
-
-        private KafkaMessageStream(Buffer buffer, KafkaLogListener kafkaLogListener, TopicAndPartition topicAndPartition, MessageAndOffset messageAndOffset) {
-            this.data = buffer;
-            this.readBuffers.add(data);
-            this.kafkaLogListener = kafkaLogListener;
-            this.topicAndPartition = topicAndPartition;
-            this.messageAndOffset = messageAndOffset;
-        }
-
-        public KafkaMessageStream responseHandler(Handler<Buffer> delegate) {
-            this.delegate = delegate;
-            return this;
-        }
-
-        public void close() {
-            logger.info("Closing KafkaMessageStream");
-        }
-
-        public void commit(PipelinePack pack) {
-            kafkaLogListener.asyncCommit(topicAndPartition, messageAndOffset.offset(), asyncResult -> {
-                if (asyncResult.failed()) {
-                    logger.error("Commit failed", asyncResult.cause());
-                    return;
-                }
-                // Send data to optional reply topic. Note that
-                // the reply topic is written to if and only if
-                // the commit succeeded.
-                kafkaLogListener.asyncSendToReplyTopic(data.getBytes());
-                logger.info("Kafka offset committed.");
-            });
-        }
-
-        protected void purgeReadBuffers() {
-            while (!readBuffers.isEmpty() && !isPaused) {
-                final Buffer nextPack = readBuffers.poll();
-                if (nextPack != null) {
-                    if (handler != null) handler.handle(nextPack);
-                }
-            }
-        }
-
-        @Override
-        public KafkaMessageStream exceptionHandler(Handler<Throwable> handler) {
-            return this;
-        }
-
-        @Override
-        public ReadStream<Buffer> handler(Handler<Buffer> handler) {
-            if (handler != null) {
-                this.handler = handler;
-                purgeReadBuffers();
-            }
-            return null;
-        }
-
-        @Override
-        public ReadStream<Buffer> pause() {
-            isPaused = true;
-            return this;
-        }
-
-        @Override
-        public ReadStream<Buffer> resume() {
-            isPaused = false;
-            purgeReadBuffers();
-            return this;
-        }
-
-        @Override
-        public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
-            return this;
         }
     }
 }

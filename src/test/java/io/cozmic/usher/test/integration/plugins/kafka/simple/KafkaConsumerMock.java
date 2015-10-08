@@ -1,5 +1,6 @@
-package io.cozmic.usher.plugins.kafka;
+package io.cozmic.usher.test.integration.plugins.kafka.simple;
 
+import io.cozmic.usher.plugins.kafka.simple.KafkaConsumer;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;

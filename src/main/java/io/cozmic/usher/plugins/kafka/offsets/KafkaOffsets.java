@@ -1,4 +1,4 @@
-package io.cozmic.usher.plugins.kafka;
+package io.cozmic.usher.plugins.kafka.offsets;
 
 import com.google.common.collect.ImmutableMap;
 import kafka.api.ConsumerMetadataRequest;

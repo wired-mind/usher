@@ -1,4 +1,4 @@
-package io.cozmic.usher.plugins.kafka;
+package io.cozmic.usher.plugins.kafka.offsets;
 
 import kafka.common.TopicAndPartition;
 import kafka.javaapi.consumer.SimpleConsumer;
@@ -25,7 +25,7 @@ public interface ConsumerOffsetsStrategy {
      *
      * @param offsets The list of offsets per partition that should be committed.
      *                Throws an Exception if not successful.
-     * @throws io.cozmic.usher.plugins.kafka.ConsumerOffsetsException
+     * @throws ConsumerOffsetsException
      */
     void commitOffsets(Map<TopicAndPartition, Long> offsets) throws ConsumerOffsetsException;
 
@@ -35,7 +35,7 @@ public interface ConsumerOffsetsStrategy {
      * @param topicAndPartition The topic and partition.
      * @param offset            The offset for the given partition that should be committed.
      *                          Throws an Exception if not successful.
-     * @throws io.cozmic.usher.plugins.kafka.ConsumerOffsetsException
+     * @throws ConsumerOffsetsException
      */
     void commitOffset(TopicAndPartition topicAndPartition, Long offset) throws ConsumerOffsetsException;
 
@@ -44,7 +44,7 @@ public interface ConsumerOffsetsStrategy {
      *
      * @param topicAndPartition The partition for which the offset is returned.
      * @return The offset for the topic and partition.
-     * @throws io.cozmic.usher.plugins.kafka.ConsumerOffsetsException
+     * @throws ConsumerOffsetsException
      */
     long getOffset(TopicAndPartition topicAndPartition) throws ConsumerOffsetsException;
 }

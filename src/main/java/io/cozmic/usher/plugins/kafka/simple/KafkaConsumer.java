@@ -1,4 +1,4 @@
-package io.cozmic.usher.plugins.kafka;
+package io.cozmic.usher.plugins.kafka.simple;
 
 import kafka.common.TopicAndPartition;
 import kafka.message.MessageAndOffset;
