@@ -61,7 +61,7 @@ public class KafkaOffsets {
             if (channel != null && channel.isConnected()) {
                 return;
             }
-            for (String broker : brokers) {
+            for (final String broker : brokers) {
                 final String[] parts = broker.split(":");
                 final String host = parts[0];
                 final int port = Integer.valueOf(parts[1]);
@@ -89,17 +89,21 @@ public class KafkaOffsets {
                             channel.connect();
                         }
                         return;
-                    } else if (metadataResponse.errorCode() == ErrorMapping.BrokerNotAvailableCode()) {
-                        continue;
                     } else {
                         throw new ConsumerOffsetsException("Error in ConsumerMetadataResponse", metadataResponse.errorCode());
                     }
                 } catch (ConsumerOffsetsException e) {
                     channel.disconnect();
+                    if (brokers.indexOf(broker) < brokers.size() - 1) {
+                        continue;
+                    }
                     throw e;
                     // TODO: Client should retry (after backoff)
                 } catch (Exception e) {
                     channel.disconnect();
+                    if (brokers.indexOf(broker) < brokers.size() - 1) {
+                        continue;
+                    }
                     throw new ConsumerOffsetsException(e);
                     // TODO: Client should retry query (after backoff)
                 }
