@@ -92,11 +92,8 @@ sourceSets {
 // End gradle avro plugin
 
 test {
-    exclude 'io.cozmic.usher.test.integration/KafkaInputTests'
-    exclude 'io.cozmic.usher.test.integration/KafkaConsumerTests'
-
     exclude 'io.cozmic.usher.test.integration.plugins.kafka/KafkaInputTests'
-    exclude 'io.cozmic.usher.test.integration.plugins.kafka/KafkaConsumerTests'
+    exclude 'io.cozmic.usher.test.integration.plugins.kafka.simple/KafkaConsumerTests'
 }
 
 task wrapper(type: Wrapper) {

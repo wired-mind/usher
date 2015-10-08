@@ -4,11 +4,7 @@ import com.google.common.io.Resources;
 import io.cozmic.usher.Start;
 import io.cozmic.usher.core.AvroMapper;
 import io.cozmic.usher.test.Pojo;
-import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonArray;
+import io.vertx.core.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -17,7 +13,6 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,14 +25,13 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.cozmic.usher.test.integration.EventBusFilter.EVENT_BUS_ADDRESS;
 import static org.junit.Assert.fail;
 
 /**
  * KafkaInputTests
- * Created by Craig Earley on 8/26/15.
+ * Created by Craig Earley on 10/2/15.
  * Copyright (c) 2015 All Rights Reserved
  */
 @RunWith(VertxUnitRunner.class)
@@ -56,15 +50,16 @@ public class KafkaInputTests {
     public void before(TestContext context) {
         vertx = Vertx.vertx();
 
+        vertx.deployVerticle("", new DeploymentOptions().setWorker(true).setInstances(5), asyncResult -> {
+            //
+        });
+
         Properties kafkaProducerProps = new Properties();
         kafkaProducerProps.put("bootstrap.servers", "kafka.dev:9092");
         kafkaProducerProps.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         kafkaProducerProps.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
 
         producer = new KafkaProducer<>(kafkaProducerProps);
-
-
-
     }
 
     @After
@@ -79,8 +74,6 @@ public class KafkaInputTests {
             async.complete();
         });
     }
-
-
 
     /**
      * Test "Hello World!" -> Kafka -> KafkaInput -> EventBusFilter
@@ -112,10 +105,11 @@ public class KafkaInputTests {
             // Then
             vertx.eventBus().<Integer>consumer(EVENT_BUS_ADDRESS, msg -> {
                 final Integer actualHashCode = msg.body();
-                logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
-                context.assertEquals(expectedHashCode, actualHashCode, "hashcodes do not match");
-
-                async.complete();
+                if (actualHashCode.equals(expectedHashCode)) {
+                    async.complete();
+                } else {
+                    logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
+                }
             });
         }));
         vertx.setTimer(15_000, event -> context.fail("timed out"));
@@ -127,12 +121,11 @@ public class KafkaInputTests {
     @Test
     public void testConsumeAvroMessage(TestContext context) throws Exception {
         final AvroMapper avroMapper = new AvroMapper(Resources.getResource("avro/pojo.avsc"));
-        Pojo user = new Pojo("Test", "#0" + random.nextInt(1_000) , 1, "red");
+        Pojo user = new Pojo("Test", "#0" + random.nextInt(1_000), 1, "red");
 
         // Given
         final int expectedHashCode = user.hashCode();
         final byte[] payload = avroMapper.serialize(user);
-
 
 
         ProducerRecord<String, byte[]> data = new ProducerRecord<>(topic, payload);
@@ -155,11 +148,12 @@ public class KafkaInputTests {
             // Then
             vertx.eventBus().<Integer>consumer(EVENT_BUS_ADDRESS, msg -> {
                 final Integer actualHashCode = msg.body();
-                logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
-                context.assertEquals(expectedHashCode, actualHashCode, "Pojo hashcodes do not match");
-
-                async.complete();
-
+                if (actualHashCode.equals(expectedHashCode)) {
+                    async.complete();
+                } else {
+                    logger.info("Pojo hashcodes do not match");
+                    logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
+                }
             });
         }));
         vertx.setTimer(15_000, event -> context.fail("timed out"));
@@ -174,10 +168,10 @@ public class KafkaInputTests {
             config.getJsonObject("Router")
                     .put("zookeeper.connect", "zookeeper.dev:2181")
                     .put("topic", topic)
+                    .put("reply.topic", "replyTopic")
                     .put("group.id", "0")
-                    .put("partition", 0)
-                    .put("seed.brokers", new JsonArray().add("kafka.dev"))
-                    .put("port", 9092);
+                    .put("partitions", 5)
+                    .put("seed.brokers", "kafka.dev:9092");
         } catch (URISyntaxException | IOException e) {
             fail(e.getMessage());
         }

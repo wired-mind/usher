@@ -1,12 +1,14 @@
 package io.cozmic.usher.plugins.kafka.highlevel;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.cozmic.usher.core.InputPlugin;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
-import io.cozmic.usher.plugins.journaling.KafkaOffsets;
 import io.cozmic.usher.plugins.kafka.KafkaMessageStream;
+import io.cozmic.usher.plugins.kafka.KafkaOffsets;
 import io.cozmic.usher.streams.DuplexStream;
 import io.cozmic.usher.streams.NullClosableWriteStream;
 import io.vertx.core.*;
@@ -37,7 +39,8 @@ import java.util.concurrent.ThreadFactory;
 public class KafkaInput implements InputPlugin {
     private final static ThreadFactory FACTORY = new ThreadFactoryBuilder().setNameFormat("kafka-consumer-thread-%d").build();
     private static final Logger logger = LoggerFactory.getLogger(KafkaInput.class.getName());
-    private static final String KEY_REPLY_TOPIC = "reply.topic";
+    private static final String KEY_REPLY_TOPIC = "reply.topic"; // topic to send reply after stream.commit
+    private static final String KEY_SEED_BROKERS = "seed.brokers"; // brokers for offset management
     private KafkaLogListener kafkaLogListener;
     private JsonObject configObj;
     private KafkaConsumerConfig kafkaConsumerConfig;
@@ -78,19 +81,18 @@ public class KafkaInput implements InputPlugin {
     public void init(JsonObject configObj, Vertx vertx) throws UsherInitializationFailedException {
         this.configObj = configObj;
 
+        Preconditions.checkState(configObj.containsKey(KEY_SEED_BROKERS), "No configuration for key " + KEY_SEED_BROKERS);
+
         kafkaConsumerConfig = KafkaConsumerConfig.create(
                 configObj.getString(KafkaConsumerConfig.KEY_GROUP_ID),
                 configObj.getString(KafkaConsumerConfig.KEY_KAFKA_TOPIC),
                 configObj.getString(KafkaConsumerConfig.KEY_ZOOKEEPER),
                 configObj.getString(KafkaConsumerConfig.KEY_ZOOKEEPER_TIMEOUT_MS, "100000"),
-                configObj.getInteger(KafkaConsumerConfig.KEY_PARTITIONS),
-                configObj.getInteger(KafkaConsumerConfig.KEY_MAX_UNACKNOWLEDGED, 100),
-                configObj.getLong(KafkaConsumerConfig.KEY_MAX_UNCOMMITTED_OFFSETS, (long) 1_000),
-                configObj.getLong(KafkaConsumerConfig.KEY_ACK_TIMEOUT_MINUTES, (long) 10));
+                configObj.getInteger(KafkaConsumerConfig.KEY_PARTITIONS));
 
         kafkaProducerConfig = KafkaProducerConfig.create(
                 configObj.getString(KEY_REPLY_TOPIC),
-                configObj.getString(KafkaProducerConfig.KEY_BOOTSTRAP_SERVERS),
+                configObj.getString(KEY_SEED_BROKERS),
                 configObj.getString(KafkaProducerConfig.KEY_KEY_SERIALIZER, "org.apache.kafka.common.serialization.StringSerializer"),
                 configObj.getString(KafkaProducerConfig.KEY_VALUE_SERIALIZER, "org.apache.kafka.common.serialization.ByteArraySerializer")
         );
@@ -104,20 +106,22 @@ public class KafkaInput implements InputPlugin {
         private ConsumerConnector connector;
         private ExecutorService executor = Executors.newSingleThreadExecutor(FACTORY);
         private Handler<KafkaMessageStream> delegate = null;
+        private KafkaOffsets kafkaOffsets;
 
         public KafkaLogListener(Vertx vertx) {
             this.vertx = vertx;
             this.producer = new com.cyberphysical.streamprocessing.KafkaProducer<>(vertx, kafkaProducerConfig.getProperties());
+            List<String> brokers = Splitter.on(",").splitToList(configObj.getString(KEY_SEED_BROKERS));
+            this.kafkaOffsets = new KafkaOffsets(brokers, kafkaConsumerConfig.getGroupId());
         }
 
         public void commit(final TopicAndPartition topicAndPartition, Long offset, Handler<AsyncResult<Void>> asyncResultHandler) {
             vertx.executeBlocking(future -> {
-                // TODO: Get lead broker and port
-                KafkaOffsets kafkaOffsets = new KafkaOffsets("localhost", 9092, kafkaConsumerConfig.getGroupId());
-
                 try {
                     // Commit offset for this topic and partition
                     kafkaOffsets.commitOffset(topicAndPartition, offset);
+
+                    logger.debug(String.format("committed %s at offset: %d", topicAndPartition, offset));
 
                     future.complete();
                 } catch (Exception e) {

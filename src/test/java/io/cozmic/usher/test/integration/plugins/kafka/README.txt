@@ -1,1 +1,0 @@
-Revised integration tests for classes in io.cozmic.usher.plugins.kafka.

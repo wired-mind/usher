@@ -1,4 +1,4 @@
-package io.cozmic.usher.test.integration.plugins.kafka.simple;
+package io.cozmic.usher.test.integration;
 
 import io.cozmic.usher.plugins.kafka.simple.KafkaConsumer;
 import io.vertx.core.buffer.Buffer;

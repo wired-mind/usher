@@ -17,44 +17,32 @@ public class KafkaConsumerConfig {
     public static final String KEY_ZOOKEEPER = "zookeeper.connect";
     public static final String KEY_ZOOKEEPER_TIMEOUT_MS = "zookeeper.connection.timeout.ms";
     public static final String KEY_PARTITIONS = "partitions";
-    public static final String KEY_MAX_UNACKNOWLEDGED = "maxUnacknowledged";
-    public static final String KEY_MAX_UNCOMMITTED_OFFSETS = "maxUncommitted";
-    public static final String KEY_ACK_TIMEOUT_MINUTES = "ackTimeoutMinutes";
 
     private final String groupId;
     private final String kafkaTopic;
     private final String zookeeper;
     private final String zookeeperTimeout;
     private final int partitions;
-    private final int maxUnacknowledged;
-    private final long maxUncommitedOffsets;
-    private final long ackTimeoutMinutes;
 
-    private KafkaConsumerConfig(String groupId, String kafkaTopic, String zookeeper, String zookeeperTimeout, int partitions, int maxUnacknowledged, long maxUncommitedOffsets, long ackTimeoutMinutes) {
+    private KafkaConsumerConfig(String groupId, String kafkaTopic, String zookeeper, String zookeeperTimeout, int partitions) {
         this.groupId = groupId;
         this.kafkaTopic = kafkaTopic;
         this.zookeeper = zookeeper;
         this.partitions = partitions;
         this.zookeeperTimeout = zookeeperTimeout;
-        this.maxUnacknowledged = maxUnacknowledged;
-        this.maxUncommitedOffsets = maxUncommitedOffsets;
-        this.ackTimeoutMinutes = ackTimeoutMinutes;
     }
 
     public static KafkaConsumerConfig create(String groupId,
                                              String kafkaTopic,
                                              String zookeeper,
                                              String zookeeperTimeout,
-                                             int partitions,
-                                             int maxUnacknowledged,
-                                             long maxUncommitedOffsets,
-                                             long ackTimeoutMinutes) throws IllegalArgumentException {
+                                             int partitions) throws IllegalArgumentException {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(groupId), "No configuration for key " + KEY_GROUP_ID);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(kafkaTopic), "No configuration for key " + KEY_KAFKA_TOPIC);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(zookeeper), "No configuration for key " + KEY_ZOOKEEPER);
         Preconditions.checkArgument(partitions > 0, "No configuration for key " + KEY_PARTITIONS);
 
-        return new KafkaConsumerConfig(groupId, kafkaTopic, zookeeper, zookeeperTimeout, partitions, maxUnacknowledged, maxUncommitedOffsets, ackTimeoutMinutes);
+        return new KafkaConsumerConfig(groupId, kafkaTopic, zookeeper, zookeeperTimeout, partitions);
     }
 
     public Properties getProperties() {
@@ -65,9 +53,6 @@ public class KafkaConsumerConfig {
         properties.put(KEY_ZOOKEEPER, getZookeeper());
         properties.put(KEY_PARTITIONS, getPartitions());
         properties.put(KEY_ZOOKEEPER_TIMEOUT_MS, getZookeeperTimeout());
-        properties.put(KEY_MAX_UNACKNOWLEDGED, getMaxUnacknowledged());
-        properties.put(KEY_MAX_UNCOMMITTED_OFFSETS, getMaxUncommitedOffsets());
-        properties.put(KEY_ACK_TIMEOUT_MINUTES, getAckTimeoutMinutes());
 
         return properties;
     }
@@ -90,17 +75,5 @@ public class KafkaConsumerConfig {
 
     public int getPartitions() {
         return partitions;
-    }
-
-    public int getMaxUnacknowledged() {
-        return maxUnacknowledged;
-    }
-
-    public long getMaxUncommitedOffsets() {
-        return maxUncommitedOffsets;
-    }
-
-    public long getAckTimeoutMinutes() {
-        return ackTimeoutMinutes;
     }
 }

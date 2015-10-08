@@ -1,7 +1,7 @@
 package io.cozmic.usher.plugins.kafka.simple;
 
-import io.cozmic.usher.plugins.kafka.offsets.ConsumerOffsetsException;
-import io.cozmic.usher.plugins.kafka.offsets.ConsumerOffsetsStrategy;
+import io.cozmic.usher.plugins.kafka.ConsumerOffsetsException;
+import io.cozmic.usher.plugins.kafka.KafkaOffsets;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -46,7 +46,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     // Mutable fields
     private final List<TopicAndPartition> topicAndPartitions = new CopyOnWriteArrayList<>();
     private SimpleConsumer consumer;
-    private ConsumerOffsetsStrategy offsetsStrategy;
+    private KafkaOffsets offsetsStrategy;
     private List<String> replicaBrokers = new ArrayList<>();
 
     private KafkaConsumerImpl() {
@@ -92,7 +92,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
             String leadBroker = findNewLeader("", topicAndPartition);
             String clientName = CLIENT + "_" + topic + "_" + partition;
 
-            offsetsStrategy = ConsumerOffsetsStrategy.createKafkaOffsetsStrategy(leadBroker, port, groupId);
+            offsetsStrategy = new KafkaOffsets(leadBroker, port, groupId);
             long readOffset = offsetsStrategy.getOffset(topicAndPartition);
 
             int numErrors = 0;
@@ -232,7 +232,7 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     @Override
     public void commit(TopicAndPartition topicAndPartition, Long offset) throws Exception {
         String leadBroker = findNewLeader("", topicAndPartition);
-        offsetsStrategy = ConsumerOffsetsStrategy.createKafkaOffsetsStrategy(leadBroker, port, groupId);
+        offsetsStrategy = new KafkaOffsets(leadBroker, port, groupId);
         logger.info("committing offsets");
         offsetsStrategy.commitOffset(topicAndPartition, offset);
     }

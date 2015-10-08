@@ -1,4 +1,4 @@
-package io.cozmic.usher.plugins.kafka.offsets;
+package io.cozmic.usher.plugins.kafka;
 
 import kafka.common.ErrorMapping;
 
