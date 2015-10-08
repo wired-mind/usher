@@ -52,7 +52,8 @@ public class KafkaConsumerConfig {
         properties.put(KEY_KAFKA_TOPIC, getKafkaTopic());
         properties.put(KEY_ZOOKEEPER, getZookeeper());
         properties.put(KEY_PARTITIONS, getPartitions());
-        properties.put(KEY_ZOOKEEPER_TIMEOUT_MS, getZookeeperTimeout());
+
+        if (getZookeeperTimeout() != null) properties.put(KEY_ZOOKEEPER_TIMEOUT_MS, getZookeeperTimeout());
 
         return properties;
     }

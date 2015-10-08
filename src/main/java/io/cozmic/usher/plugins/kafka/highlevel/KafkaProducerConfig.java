@@ -34,6 +34,8 @@ public class KafkaProducerConfig {
                                              String keySerializer,
                                              String valueSerializer) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(bootstrapServers), "No configuration for key " + KEY_BOOTSTRAP_SERVERS);
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(keySerializer), "No configuration for key " + KEY_KEY_SERIALIZER);
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(valueSerializer), "No configuration for key " + KEY_VALUE_SERIALIZER);
 
         return new KafkaProducerConfig(kafkaTopic, bootstrapServers, keySerializer, valueSerializer);
     }
@@ -41,10 +43,11 @@ public class KafkaProducerConfig {
     public Properties getProperties() {
         Properties properties = new Properties();
 
-        properties.put(KEY_KAFKA_TOPIC, getKafkaTopic());
         properties.put(KEY_BOOTSTRAP_SERVERS, getBootstrapServers());
         properties.put(KEY_KEY_SERIALIZER, getKeySerializer());
         properties.put(KEY_VALUE_SERIALIZER, getValueSerializer());
+
+        if (getKafkaTopic() != null) properties.put(KEY_KAFKA_TOPIC, getKafkaTopic());
 
         return properties;
     }

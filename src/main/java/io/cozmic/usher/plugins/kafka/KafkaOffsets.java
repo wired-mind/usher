@@ -122,7 +122,7 @@ public class KafkaOffsets {
         try {
             channel.send(commitRequest.underlying());
             final OffsetCommitResponse commitResponse = OffsetCommitResponse.readFrom(channel.receive().buffer());
-            // TODO: commitResponse.errors() <=> commitResponse.hasError()?
+
             if (commitResponse.hasError()) {
                 for (Object partitionErrorCode : commitResponse.errors().values()) {
                     final Short errorCode = (Short) partitionErrorCode;
