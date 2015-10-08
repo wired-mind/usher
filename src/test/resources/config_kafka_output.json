@@ -11,13 +11,16 @@
   "KafkaOutput": {
     "encoder": "PayloadEncoder",
     "topic": "mytopic",
+
     "messageMatcher": "#{msg.pluginName == 'Router'}"
   },
   "BufferQueue": {
     "type": "KafkaInput",
     "topic": "mytopic",
+    "partitions": 1,
+    "group.id": "test",
     "zookeeper.connect": "zookeeper.dev:2181",
-    "seed.brokers": ["kafka.dev"]
+    "seed.brokers": "kafka.dev:9092"
   },
   "Filter": {
     "type": "io.cozmic.usher.test.integration.EventBusFilter",
