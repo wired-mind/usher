@@ -91,7 +91,7 @@ public class KafkaInput implements InputPlugin {
                 configObj.getInteger(KafkaConsumerConfig.KEY_PARTITIONS));
 
         kafkaProducerConfig = KafkaProducerConfig.create(
-                configObj.getString(KEY_REPLY_TOPIC),
+                configObj.getString(KEY_REPLY_TOPIC, ""),
                 configObj.getString(KEY_SEED_BROKERS),
                 configObj.getString(KafkaProducerConfig.KEY_KEY_SERIALIZER, "org.apache.kafka.common.serialization.StringSerializer"),
                 configObj.getString(KafkaProducerConfig.KEY_VALUE_SERIALIZER, "org.apache.kafka.common.serialization.ByteArraySerializer")
