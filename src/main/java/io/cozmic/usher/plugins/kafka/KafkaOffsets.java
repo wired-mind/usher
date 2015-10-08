@@ -32,7 +32,7 @@ public class KafkaOffsets {
      */
     private static final AtomicInteger correlationId = new AtomicInteger(0);
     private static final int READ_TIMEOUT_MS = 5_000; // channel read timeout in millis
-    private static final short VERSION_ID = 0; // version 1 and above commit to Kafka, version 0 commits to ZooKeeper
+    private static final short VERSION_ID = 1; // version 1 and above commit to Kafka, version 0 commits to ZooKeeper
     private static final String DEFAULT_COMMIT_METADATA = "";
     private final Object lockObject = new Object();
     private final String groupId;

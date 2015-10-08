@@ -185,6 +185,7 @@ public class KafkaInput implements InputPlugin {
             properties.setProperty("auto.commit.enable", Boolean.FALSE.toString());
             properties.setProperty("auto.offset.reset", "smallest");
             properties.setProperty("queued.max.message.chunks", "1000");
+            properties.setProperty("offsets.storage", "kafka");
 
             return new ConsumerConfig(properties);
         }
@@ -209,7 +210,7 @@ public class KafkaInput implements InputPlugin {
                 // Get message bytes
                 final byte[] bytes = msg.message();
 
-                logger.debug("Consumed " + Buffer.buffer(bytes).toString() + " on thread: " + Thread.currentThread().getName());
+                logger.debug("Consumed " + Buffer.buffer(bytes).toString() + " at offset " + offset + " on thread: " + Thread.currentThread().getName());
 
                 final KafkaMessageStream messageStream = new KafkaMessageStream(
                         Buffer.buffer(bytes),
