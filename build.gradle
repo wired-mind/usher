@@ -1,13 +1,6 @@
 
 buildscript {
-    repositories {
-        maven {
-            credentials {
-                username sonatypeUsername
-                password sonatypePassword
-            }
-            url 'https://nexus.cyberphysicalsystems.io/content/groups/public' }
-        }
+
 }
 
 apply plugin: 'idea'
