@@ -12,7 +12,6 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import kafka.common.TopicAndPartition;
 import kafka.message.MessageAndOffset;
-import org.apache.kafka.clients.producer.RecordMetadata;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -84,10 +83,8 @@ public class KafkaInput implements InputPlugin {
         private static final String KEY_SERIALIZER = "key.serializer";
         private static final String VALUE_SERIALIZER = "value.serializer";
         private static final String CONSUMER_ADDRESS = "io.cozmic.usher.plugins.kafka.KafkaLogListener";
-        private final String replyTopic;
         private final AtomicBoolean isStopped = new AtomicBoolean();
         private boolean responseHandlerShouldCommit; // false (default) - KafkaMessageStream should commit
-        private com.cyberphysical.streamprocessing.KafkaProducer<String, byte[]> kafkaProducer;
         private ConcurrentMap<TopicAndPartition, KafkaConsumer> consumerMap;
         private Handler<KafkaMessageStream> delegate = null;
         private JsonObject configObj;
@@ -96,8 +93,6 @@ public class KafkaInput implements InputPlugin {
         public KafkaLogListener(JsonObject configObj, Vertx vertx) {
             this.configObj = configObj;
             this.vertx = vertx;
-            this.kafkaProducer = new com.cyberphysical.streamprocessing.KafkaProducer<>(vertx, getKafkaProducerProperties());
-            this.replyTopic = configObj.containsKey(REPLY_TOPIC) ? configObj.getString(REPLY_TOPIC) : null;
         }
 
         public void asyncCommit(final TopicAndPartition topicAndPartition, Long offset, Handler<AsyncResult<Void>> asyncResultHandler) {
@@ -121,23 +116,6 @@ public class KafkaInput implements InputPlugin {
                 vertx.eventBus().publish(CONSUMER_ADDRESS, topicAndPartition);
                 asyncResultHandler.handle(Future.succeededFuture());
             });
-        }
-
-        public void asyncSendToReplyTopic(byte[] value, Handler<AsyncResult<Void>> asyncResultHandler) {
-            if (replyTopic != null) {
-                // Send message to optional reply topic.
-                kafkaProducer.send(replyTopic, value, event -> {
-                    if (event.failed()) {
-                        logger.error("Error sending message to reply topic: ", event.cause());
-                        asyncResultHandler.handle(Future.failedFuture(event.cause()));
-                        return;
-                    }
-                    RecordMetadata metadata = event.result();
-                    logger.info(String.format("Sent message: offset: %d, topic: %s, partition: %d",
-                            metadata.offset(), metadata.topic(), metadata.partition()));
-                    asyncResultHandler.handle(Future.succeededFuture());
-                });
-            }
         }
 
         public KafkaLogListener listen(String topic, int partitions, Handler<AsyncResult<KafkaLogListener>> listenHandler) {
@@ -233,8 +211,7 @@ public class KafkaInput implements InputPlugin {
                             Buffer.buffer(bytes),
                             topicAndPartition,
                             messageAndOffset,
-                            this::asyncCommit,
-                            this::asyncSendToReplyTopic);
+                            this::asyncCommit);
 
                     if (responseHandlerShouldCommit) {
                         // Setup pipeline stream handler to handle commit internally
@@ -246,13 +223,6 @@ public class KafkaInput implements InputPlugin {
                             try {
                                 // Commit offset for this topic and partition
                                 consumer.commit(topicAndPartition, messageAndOffset.offset());
-
-                                // Send data to optional reply topic. Note that
-                                // the reply topic is written to if and only if
-                                // the response is handled and the commit succeeded.
-                                asyncSendToReplyTopic(data.getBytes(), event -> {
-                                    // TODO: When event.failed()?
-                                });
 
                                 future.complete(true); // success (responseHandlerDidCommit = true)
                             } catch (Exception e) {

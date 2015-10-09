@@ -22,17 +22,15 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
     private final TopicAndPartition topicAndPartition;
     private final MessageAndOffset messageAndOffset;
     private final KafkaCommitHandler commitHandler;
-    private final KafkaReplyHandler replyHandler;
     private Handler<Buffer> readHandler;
     private boolean isPaused;
     private Handler<Buffer> delegate = null;
     private ConcurrentLinkedQueue<Buffer> readBuffers = new ConcurrentLinkedQueue<>();
 
-    public KafkaMessageStream(Buffer buffer, TopicAndPartition topicAndPartition, MessageAndOffset messageAndOffset, KafkaCommitHandler commitHandler, KafkaReplyHandler replyHandler) {
+    public KafkaMessageStream(Buffer buffer, TopicAndPartition topicAndPartition, MessageAndOffset messageAndOffset, KafkaCommitHandler commitHandler) {
         this.data = buffer;
         this.readBuffers.add(data);
         this.commitHandler = commitHandler;
-        this.replyHandler = replyHandler;
         this.topicAndPartition = topicAndPartition;
         this.messageAndOffset = messageAndOffset;
     }
@@ -55,10 +53,6 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
                 logger.error("Commit failed", asyncResult.cause());
                 return;
             }
-
-            if (replyHandler != null) replyHandler.handle(data.getBytes(), event -> {
-                // TODO: When event.failed()?
-            });
         });
     }
 

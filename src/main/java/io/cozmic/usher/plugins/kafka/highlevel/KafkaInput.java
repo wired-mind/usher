@@ -2,11 +2,10 @@ package io.cozmic.usher.plugins.kafka.highlevel;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.cozmic.usher.core.InputPlugin;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
+import io.cozmic.usher.plugins.kafka.KafkaConsumerConfig;
 import io.cozmic.usher.plugins.kafka.KafkaMessageStream;
 import io.cozmic.usher.plugins.kafka.KafkaOffsets;
 import io.cozmic.usher.streams.DuplexStream;
@@ -22,14 +21,10 @@ import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 import kafka.message.MessageAndOffset;
-import org.apache.kafka.clients.producer.RecordMetadata;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
 /**
  * KafkaInput
@@ -37,14 +32,11 @@ import java.util.concurrent.ThreadFactory;
  * Copyright (c) 2015 All Rights Reserved
  */
 public class KafkaInput implements InputPlugin {
-    private final static ThreadFactory FACTORY = new ThreadFactoryBuilder().setNameFormat("kafka-consumer-thread-%d").build();
     private static final Logger logger = LoggerFactory.getLogger(KafkaInput.class.getName());
-    private static final String KEY_REPLY_TOPIC = "reply.topic"; // topic to send reply after stream.commit
     private static final String KEY_SEED_BROKERS = "seed.brokers"; // brokers for offset management
-    private KafkaLogListener kafkaLogListener;
     private JsonObject configObj;
     private KafkaConsumerConfig kafkaConsumerConfig;
-    private KafkaProducerConfig kafkaProducerConfig;
+    private KafkaLogListener kafkaLogListener;
 
     @Override
     public void run(AsyncResultHandler<Void> startupHandler, Handler<DuplexStream<Buffer, Buffer>> duplexStreamHandler) {
@@ -90,32 +82,22 @@ public class KafkaInput implements InputPlugin {
                 configObj.getString(KafkaConsumerConfig.KEY_ZOOKEEPER_TIMEOUT_MS, "100000"),
                 configObj.getInteger(KafkaConsumerConfig.KEY_PARTITIONS));
 
-        kafkaProducerConfig = KafkaProducerConfig.create(
-                configObj.getString(KEY_REPLY_TOPIC, ""),
-                configObj.getString(KEY_SEED_BROKERS),
-                configObj.getString(KafkaProducerConfig.KEY_KEY_SERIALIZER, "org.apache.kafka.common.serialization.StringSerializer"),
-                configObj.getString(KafkaProducerConfig.KEY_VALUE_SERIALIZER, "org.apache.kafka.common.serialization.ByteArraySerializer")
-        );
-
         kafkaLogListener = new KafkaLogListener(vertx);
     }
 
     private class KafkaLogListener {
-        private final com.cyberphysical.streamprocessing.KafkaProducer<String, byte[]> producer;
         private final Vertx vertx;
+        private final KafkaOffsets kafkaOffsets;
         private ConsumerConnector connector;
-        private ExecutorService executor = Executors.newSingleThreadExecutor(FACTORY);
         private Handler<KafkaMessageStream> delegate = null;
-        private KafkaOffsets kafkaOffsets;
 
         public KafkaLogListener(Vertx vertx) {
             this.vertx = vertx;
-            this.producer = new com.cyberphysical.streamprocessing.KafkaProducer<>(vertx, kafkaProducerConfig.getProperties());
             List<String> brokers = Splitter.on(",").splitToList(configObj.getString(KEY_SEED_BROKERS));
             this.kafkaOffsets = new KafkaOffsets(brokers, kafkaConsumerConfig.getGroupId());
         }
 
-        public void commit(final TopicAndPartition topicAndPartition, Long offset, Handler<AsyncResult<Void>> asyncResultHandler) {
+        public void commit(final TopicAndPartition topicAndPartition, final Long offset, Handler<AsyncResult<Void>> asyncResultHandler) {
             vertx.executeBlocking(future -> {
                 try {
                     // Commit offset for this topic and partition
@@ -132,26 +114,6 @@ public class KafkaInput implements InputPlugin {
                     asyncResultHandler.handle(Future.failedFuture(asyncResult.cause()));
                     return;
                 }
-                asyncResultHandler.handle(Future.succeededFuture());
-            });
-        }
-
-        public void sendToReplyTopic(byte[] value, Handler<AsyncResult<Void>> asyncResultHandler) {
-            String replyTopic = kafkaProducerConfig.getKafkaTopic();
-            if (Strings.isNullOrEmpty(replyTopic)) {
-                asyncResultHandler.handle(Future.succeededFuture()); // reply topic is optional
-                return;
-            }
-            // Send message to reply topic.
-            producer.send(replyTopic, value, event -> {
-                if (event.failed()) {
-                    logger.error("Error sending message to reply topic: ", event.cause());
-                    asyncResultHandler.handle(Future.failedFuture(event.cause()));
-                    return;
-                }
-                RecordMetadata metadata = event.result();
-                logger.debug(String.format("Sent message: offset: %d, topic: %s, partition: %d",
-                        metadata.offset(), metadata.topic(), metadata.partition()));
                 asyncResultHandler.handle(Future.succeededFuture());
             });
         }
@@ -216,8 +178,7 @@ public class KafkaInput implements InputPlugin {
                         Buffer.buffer(bytes),
                         new TopicAndPartition(topic, partition),
                         new MessageAndOffset(new kafka.message.Message(bytes), offset),
-                        this::commit,
-                        this::sendToReplyTopic);
+                        this::commit);
 
                 messageStream.pause();
                 vertx.runOnContext(event -> delegate.handle(messageStream));
@@ -226,13 +187,12 @@ public class KafkaInput implements InputPlugin {
         }
 
         public void stop(AsyncResultHandler<Void> stopHandler) {
-            if (executor != null) {
-                executor.shutdown();
-            }
-            if (connector != null) {
-                connector.shutdown();
-            }
-            stopHandler.handle(Future.succeededFuture());
+            vertx.executeBlocking(future -> {
+                if (connector != null) {
+                    connector.shutdown();
+                }
+                future.complete();
+            }, asyncResult -> stopHandler.handle(Future.succeededFuture()));
         }
     }
 }

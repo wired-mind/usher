@@ -1,4 +1,4 @@
-package io.cozmic.usher.plugins.kafka.highlevel;
+package io.cozmic.usher.plugins.kafka;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
