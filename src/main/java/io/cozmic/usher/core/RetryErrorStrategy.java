@@ -85,8 +85,6 @@ public class RetryErrorStrategy implements ErrorStrategy {
                     retryHandler = retryHandler.withFixedBackoff(retryDelayMillis);
                 }
 
-                retryHandler = retryHandler.withMaxRetries(maxRetries);
-
                 retryHandler.runWithRetry(context -> {
                     final Throwable lastThrowable = context.getLastThrowable();
                     logger.warn("Retry attempt: " + context.getRetryCount(), lastThrowable);
