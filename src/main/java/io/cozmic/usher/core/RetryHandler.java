@@ -50,7 +50,7 @@ public class RetryHandler {
         return fixedDelay;
     }
 
-    public RetryHandler retryOn(Class<Exception> retryOnThrowables) {
+    public RetryHandler retryOn(Class<Throwable> retryOnThrowables) {
         return this.withRetryPolicy(retryPolicy.retryOn(retryOnThrowables));
     }
 

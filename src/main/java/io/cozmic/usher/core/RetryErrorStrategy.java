@@ -70,7 +70,7 @@ public class RetryErrorStrategy implements ErrorStrategy {
             public WriteStream<PipelinePack> write(PipelinePack data) {
                 RetryHandler retryHandler = new RetryHandler(vertx);
                 retryHandler = retryHandler
-                        .retryOn(Exception.class)
+                        .retryOn(Throwable.class)
                         .withUniformJitter();    // add between +/- 100 ms randomly;
                 if (maxRetries == -1) {
                     retryHandler = retryHandler.retryInfinitely();

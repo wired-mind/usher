@@ -29,7 +29,7 @@ public class ErrFilter extends AbstractFilter {
 
         final boolean isErrorMode = retryCount <= repeatErrorCount;
         if (isErrorMode) {
-            getVertx().setTimer(delay, timerId -> writeCompleteFuture.fail(new RuntimeException("Oops, I failed.")));
+            getVertx().setTimer(delay, timerId -> writeCompleteFuture.fail("Oops, I failed."));
             return;
         }
 
