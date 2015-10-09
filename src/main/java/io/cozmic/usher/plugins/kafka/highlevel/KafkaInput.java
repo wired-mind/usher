@@ -79,8 +79,8 @@ public class KafkaInput implements InputPlugin {
                 configObj.getString(KafkaConsumerConfig.KEY_GROUP_ID),
                 configObj.getString(KafkaConsumerConfig.KEY_KAFKA_TOPIC),
                 configObj.getString(KafkaConsumerConfig.KEY_ZOOKEEPER),
-                configObj.getString(KafkaConsumerConfig.KEY_ZOOKEEPER_TIMEOUT_MS, "100000"),
-                configObj.getInteger(KafkaConsumerConfig.KEY_PARTITIONS));
+                configObj.getString(KafkaConsumerConfig.KEY_ZOOKEEPER_TIMEOUT_MS, "120000"),
+                configObj.getInteger(KafkaConsumerConfig.KEY_PARTITIONS, 1));
 
         kafkaLogListener = new KafkaLogListener(vertx);
     }
@@ -166,7 +166,7 @@ public class KafkaInput implements InputPlugin {
 
             while (stream.iterator().hasNext()) {
                 final MessageAndMetadata<byte[], byte[]> msg = stream.iterator().next();
-                final long offset = msg.offset();
+                final long offset = msg.offset() + 1; // todo: figure out +1 error
                 final int partition = msg.partition();
 
                 // Get message bytes
