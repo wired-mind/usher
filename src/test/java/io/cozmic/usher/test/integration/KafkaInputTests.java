@@ -168,7 +168,6 @@ public class KafkaInputTests {
             config.getJsonObject("Router")
                     .put("zookeeper.connect", "zookeeper.dev:2181")
                     .put("topic", topic)
-                    .put("reply.topic", "replyTopic")
                     .put("group.id", "0")
                     .put("partitions", 5)
                     .put("seed.brokers", "kafka.dev:9092");
