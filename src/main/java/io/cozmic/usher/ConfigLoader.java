@@ -66,7 +66,7 @@ public class ConfigLoader {
         this.basePackage = basePackage;
     }
 
-    public JsonObject buildUsherConfig() {
+    public JsonObject buildConfig() {
         //https://github.com/typesafehub/config#standard-behavior
         final String referencePath = Paths.get(basePackage, "reference").toString();
         final String configFilePath = Paths.get(basePackage, configFile).toString();

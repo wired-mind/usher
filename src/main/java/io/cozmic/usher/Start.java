@@ -29,7 +29,7 @@ public class Start extends AbstractVerticle {
     public void start(final Future<Void> startedResult) {
 
         final ConfigLoader configLoader = ConfigLoader.usherDefault(config());
-        final JsonObject finalUsherConfig = configLoader.buildUsherConfig();
+        final JsonObject finalUsherConfig = configLoader.buildConfig();
         final JsonObject globalUsherConfig = finalUsherConfig.getJsonObject("usher", new JsonObject());
 
         vertx.executeBlocking(future -> {
