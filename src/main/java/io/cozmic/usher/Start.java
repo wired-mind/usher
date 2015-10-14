@@ -2,19 +2,14 @@ package io.cozmic.usher;
 
 
 import com.codahale.metrics.*;
-import com.typesafe.config.*;
 import io.cozmic.usher.pipeline.PipelineVerticle;
 import io.vertx.core.*;
-import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.ext.dropwizard.DropwizardMetricsOptions;
 import org.coursera.metrics.datadog.DatadogReporter;
-import org.coursera.metrics.datadog.MetricNameFormatter;
 import org.coursera.metrics.datadog.transport.HttpTransport;
 
 import java.io.IOException;
@@ -32,7 +27,9 @@ public class Start extends AbstractVerticle {
     static Logger logger = LoggerFactory.getLogger(Start.class.getName());
 
     public void start(final Future<Void> startedResult) {
-        final JsonObject finalUsherConfig = buildUsherConfig();
+
+        final ConfigLoader configLoader = ConfigLoader.usherDefault(config());
+        final JsonObject finalUsherConfig = configLoader.buildUsherConfig();
         final JsonObject globalUsherConfig = finalUsherConfig.getJsonObject("usher", new JsonObject());
 
         vertx.executeBlocking(future -> {
@@ -91,45 +88,7 @@ public class Start extends AbstractVerticle {
 
     }
 
-    /**
-     * Provides a "Convention over Configuration" approach to config files for usher.
-     *
-     * Services built with usher can put an application.conf file in the classpath and call it good.
-     * However, they can also use the USHER_ENV environment variable to specify a runtime environment
-     * and load/merge values from other config files.
-     * @return
-     */
-    private JsonObject buildUsherConfig() {
-        //https://github.com/typesafehub/config#standard-behavior
-        final Config refConfig = ConfigFactory.parseResourcesAnySyntax("reference");
-        // Allow overriding of application.conf as the main usher file.
-        final Object overrideUsherConfigFile = config().remove("usherConfigFile");
-        final String usherConfigFile = overrideUsherConfigFile != null ? (String)overrideUsherConfigFile : "application";
-        final Config defaultConfig = ConfigFactory.parseResourcesAnySyntax(usherConfigFile);
 
-        //load a production.conf if any
-        String env = System.getenv("USHER_ENV");
-        if (env == null) {
-            env = "production";
-        }
-        final Config envConfig = ConfigFactory.parseResourcesAnySyntax(String.format("%s.conf", env));
-
-        JsonObject runtimeConfig = config();
-        if (runtimeConfig == null) {
-            runtimeConfig = new JsonObject();
-        }
-
-        final Config runtimeOverrides = ConfigFactory.parseString(runtimeConfig.toString(), ConfigParseOptions.defaults());
-        Config resolvedConfigs;
-        resolvedConfigs = runtimeOverrides
-                .withFallback(envConfig)
-                .withFallback(defaultConfig)
-                .withFallback(refConfig)
-                .resolve();
-
-
-        return new JsonObject(resolvedConfigs.root().render(ConfigRenderOptions.concise()));
-    }
 
     public void startConsoleReporter(MetricRegistry usher) {
         ConsoleReporter consoleReporter = ConsoleReporter.forRegistry(usher)
