@@ -30,11 +30,19 @@ public class ConfigLoader {
         final Object overrideUsherConfigFile = runtimeOverrideConfig.remove("usherConfigFile");
         final String usherConfigFile = overrideUsherConfigFile != null ? (String)overrideUsherConfigFile : "application";
 
-        return new ConfigLoader(runtimeOverrideConfig, usherConfigFile, usherBasePackage);
+        return new ConfigLoader(runtimeOverrideConfig, usherBasePackage, usherConfigFile);
     }
 
 
-    public ConfigLoader(JsonObject runtimeOverrideConfig, String configFile, String basePackage) {
+    public ConfigLoader(JsonObject runtimeOverrideConfig) {
+        this(runtimeOverrideConfig, "");
+    }
+
+    public ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage) {
+        this(runtimeOverrideConfig, basePackage, "application");
+    }
+
+    public ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage, String configFile) {
         this(runtimeOverrideConfig, configFile, basePackage, "USHER_ENV");
     }
 

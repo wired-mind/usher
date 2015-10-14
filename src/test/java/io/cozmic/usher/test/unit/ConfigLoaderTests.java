@@ -27,8 +27,8 @@ public class ConfigLoaderTests {
 
     @Test
     public void canLoadWithPackage() {
-        final ConfigLoader package1Loader = new ConfigLoader(new JsonObject(), "test", "fakePackage");
-        final ConfigLoader package2Loader = new ConfigLoader(new JsonObject(), "test", "fakePackage2");
+        final ConfigLoader package1Loader = new ConfigLoader(new JsonObject(), "fakePackage", "test");
+        final ConfigLoader package2Loader = new ConfigLoader(new JsonObject(), "fakePackage2", "test");
         final JsonObject config = package1Loader.buildUsherConfig();
         final JsonObject config2 = package2Loader.buildUsherConfig();
 
