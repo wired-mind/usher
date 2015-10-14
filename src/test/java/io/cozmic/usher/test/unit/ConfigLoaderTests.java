@@ -27,8 +27,21 @@ public class ConfigLoaderTests {
 
     @Test
     public void canLoadWithPackage() {
-        final ConfigLoader package1Loader = new ConfigLoader(new JsonObject(), "fakePackage", "test");
-        final ConfigLoader package2Loader = new ConfigLoader(new JsonObject(), "fakePackage2", "test");
+        final ConfigLoader package1Loader = new ConfigLoader(new JsonObject()).withBasePackage("fakePackage").withConfigFile("test");
+        final ConfigLoader package2Loader = new ConfigLoader(new JsonObject()).withBasePackage("fakePackage2").withConfigFile("test");
+        final JsonObject config = package1Loader.buildUsherConfig();
+        final JsonObject config2 = package2Loader.buildUsherConfig();
+
+        assertEquals("Foo should equal bar", "bar", config.getString("foo"));
+        assertEquals("Foo should equal bar2", "bar2", config2.getString("foo"));
+        assertEquals("myGlobal should equal Hello", "Hello", config.getString("myGlobal"));
+        assertEquals("myGlobal should equal Hello", "Hello", config2.getString("myGlobal"));
+    }
+
+    @Test
+    public void canLoadWithPackageAndDefaultConf() {
+        final ConfigLoader package1Loader = new ConfigLoader(new JsonObject()).withBasePackage("fakePackage");
+        final ConfigLoader package2Loader = new ConfigLoader(new JsonObject()).withBasePackage("fakePackage2");
         final JsonObject config = package1Loader.buildUsherConfig();
         final JsonObject config2 = package2Loader.buildUsherConfig();
 

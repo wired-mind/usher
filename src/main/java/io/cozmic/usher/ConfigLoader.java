@@ -30,23 +30,36 @@ public class ConfigLoader {
         final Object overrideUsherConfigFile = runtimeOverrideConfig.remove("usherConfigFile");
         final String usherConfigFile = overrideUsherConfigFile != null ? (String)overrideUsherConfigFile : "application";
 
-        return new ConfigLoader(runtimeOverrideConfig, usherBasePackage, usherConfigFile);
+        return new ConfigLoader(runtimeOverrideConfig)
+                .withBasePackage(usherBasePackage)
+                .withConfigFile(usherConfigFile);
     }
 
+    public ConfigLoader withConfigFile(String configFile) {
+        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey);
+    }
+
+    public ConfigLoader withBasePackage(String basePackage) {
+        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey);
+    }
+
+    public ConfigLoader withEnvOverrideKey(String envOverrideKey) {
+        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey);
+    }
 
     public ConfigLoader(JsonObject runtimeOverrideConfig) {
         this(runtimeOverrideConfig, "");
     }
 
-    public ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage) {
+    private ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage) {
         this(runtimeOverrideConfig, basePackage, "application");
     }
 
-    public ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage, String configFile) {
-        this(runtimeOverrideConfig, configFile, basePackage, "USHER_ENV");
+    private ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage, String configFile) {
+        this(runtimeOverrideConfig, basePackage, configFile, "USHER_ENV");
     }
 
-    public ConfigLoader(JsonObject runtimeOverrideConfig, String configFile, String basePackage, String envOverrideKey) {
+    public ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage, String configFile, String envOverrideKey) {
         this.runtimeOverrideConfig = runtimeOverrideConfig;
         this.configFile = configFile;
         this.envOverrideKey = envOverrideKey;
