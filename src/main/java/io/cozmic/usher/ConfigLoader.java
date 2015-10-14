@@ -22,6 +22,7 @@ public class ConfigLoader {
     private String configFile;
     private String envOverrideKey;
     private String basePackage;
+    private boolean useTopLevelReference;
 
     public static ConfigLoader usherDefault(JsonObject runtimeOverrideConfig) {
         // Allow overriding of application.conf as the main usher file.
@@ -32,19 +33,24 @@ public class ConfigLoader {
 
         return new ConfigLoader(runtimeOverrideConfig)
                 .withBasePackage(usherBasePackage)
-                .withConfigFile(usherConfigFile);
+                .withConfigFile(usherConfigFile)
+                .withTopLevelReference();
+    }
+
+    public ConfigLoader withTopLevelReference() {
+        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey, true);
     }
 
     public ConfigLoader withConfigFile(String configFile) {
-        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey);
+        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey, useTopLevelReference);
     }
 
     public ConfigLoader withBasePackage(String basePackage) {
-        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey);
+        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey, useTopLevelReference);
     }
 
     public ConfigLoader withEnvOverrideKey(String envOverrideKey) {
-        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey);
+        return new ConfigLoader(runtimeOverrideConfig, basePackage, configFile, envOverrideKey, useTopLevelReference);
     }
 
     public ConfigLoader(JsonObject runtimeOverrideConfig) {
@@ -56,20 +62,22 @@ public class ConfigLoader {
     }
 
     private ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage, String configFile) {
-        this(runtimeOverrideConfig, basePackage, configFile, "USHER_ENV");
+        this(runtimeOverrideConfig, basePackage, configFile, "USHER_ENV", false);
     }
 
-    public ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage, String configFile, String envOverrideKey) {
+    private ConfigLoader(JsonObject runtimeOverrideConfig, String basePackage, String configFile, String envOverrideKey, boolean useTopLevelReference) {
         this.runtimeOverrideConfig = runtimeOverrideConfig;
         this.configFile = configFile;
         this.envOverrideKey = envOverrideKey;
         this.basePackage = basePackage;
+        this.useTopLevelReference = useTopLevelReference;
     }
 
     public JsonObject buildConfig() {
         //https://github.com/typesafehub/config#standard-behavior
         final String referencePath = Paths.get(basePackage, "reference").toString();
         final String configFilePath = Paths.get(basePackage, configFile).toString();
+
 
         final Config refConfig = ConfigFactory.parseResourcesAnySyntax(referencePath);
         final Config defaultConfig = ConfigFactory.parseResourcesAnySyntax(configFilePath);
@@ -92,8 +100,16 @@ public class ConfigLoader {
         resolvedConfigs = runtimeOverrides
                 .withFallback(envConfig)
                 .withFallback(defaultConfig)
-                .withFallback(refConfig)
-                .resolve();
+                .withFallback(refConfig);
+
+
+
+        if (useTopLevelReference) {
+            Config topLevelRefConfig = ConfigFactory.parseResourcesAnySyntax("reference");
+            resolvedConfigs = resolvedConfigs.withFallback(topLevelRefConfig);
+        }
+
+        resolvedConfigs = resolvedConfigs.resolve();
 
 
         return new JsonObject(resolvedConfigs.root().render(ConfigRenderOptions.concise()));
