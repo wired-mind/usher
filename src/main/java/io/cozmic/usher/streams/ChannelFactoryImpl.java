@@ -71,6 +71,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
             });
 
             inPipeline.exceptionHandler(t -> {
+                logger.error("Error processing the InPipeline. Usually an error splitting or decoding.", t);
                 if (t instanceof PacketParsingException) {
                     PacketParsingException exception = (PacketParsingException)t;
                     PipelinePack data = exception.getPipelinePack();
