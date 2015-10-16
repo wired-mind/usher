@@ -97,7 +97,8 @@ public class ConfigLoader {
 
         final Config runtimeOverrides = ConfigFactory.parseString(runtimeConfig.toString(), ConfigParseOptions.defaults());
         Config resolvedConfigs;
-        resolvedConfigs = runtimeOverrides
+        resolvedConfigs = ConfigFactory.systemProperties()
+                .withFallback(runtimeOverrides)
                 .withFallback(envConfig)
                 .withFallback(defaultConfig)
                 .withFallback(refConfig);
