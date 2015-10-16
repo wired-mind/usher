@@ -1,6 +1,7 @@
 package io.cozmic.usher.pipeline;
 
 import io.cozmic.usher.core.*;
+import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Handler;
@@ -42,7 +43,8 @@ public class InputRunnerImpl implements InputRunner {
             final MessageStream messageStream = new MessageStream(inPipeline, outPipeline);
             messageStream.writeCompleteHandler(pack -> {
                 completePublisher.write("Ok");
-                duplexStream.getWriteCompleteHandler().handle(pack);
+                final Handler<PipelinePack> writeCompleteHandler = duplexStream.getWriteCompleteHandler();
+                if (writeCompleteHandler != null) writeCompleteHandler.handle(pack);
             });
 
             messageStreamHandler.handle(messageStream);
