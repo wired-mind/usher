@@ -47,7 +47,7 @@ public class KafkaInput implements InputPlugin {
             duplexStream
                     .closeHandler(v -> stream.close())
                     .writeCompleteHandler(pack -> {
-                        stream.commit(pack);
+                        stream.commit();
                     });
 
             duplexStreamHandler.handle(duplexStream);
