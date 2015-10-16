@@ -1,4 +1,4 @@
-package io.cozmic.usher.test;
+package io.cozmic.usher.plugins.eventbus;
 
 import io.cozmic.usher.core.InputPlugin;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
@@ -16,11 +16,9 @@ import io.vertx.core.streams.WriteStream;
 /**
  * Created by chuck on 10/7/15.
  * <p>
- * For now just a fake that will make unit testing a little easier. This fake input lets us test
- * filter/output behavior without dealing with real input plugins. This fake uses the event bus
- * and could potentially morph into a real eventbus input plugin.
+ *     This started out as a fake. Making a "legit" eventbus input. Might not be fully baked for non-test uses just yet.
  */
-public class FakeInput implements InputPlugin {
+public class EventBusInput implements InputPlugin {
     private JsonObject configObj;
     private Vertx vertx;
     private MessageConsumer<Buffer> inputConsumer;

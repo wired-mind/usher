@@ -9,7 +9,7 @@
     "port": 2500
   },
   "FakeInput": {
-    "type": "io.cozmic.usher.test.FakeInput",
+    "type": "io.cozmic.usher.plugins.eventbus.EventBusInput",
     "encoder": "PayloadEncoder",
     "input.address": "fake.input",
     "output.address": "fake.output",

@@ -105,6 +105,7 @@ public class StreamMuxImpl implements StreamMux {
                 if (exceptionHandler != null) exceptionHandler.handle(asyncResult.cause());
                 return;
             }
+
             if (writeCompleteHandler != null) writeCompleteHandler.handle(asyncResult.result());
         });
     }

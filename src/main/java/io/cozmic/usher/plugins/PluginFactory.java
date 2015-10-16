@@ -56,7 +56,7 @@ public class PluginFactory {
     public InputRunner createInputRunner(String pluginName, JsonObject inputObj, InputPlugin inputPlugin, InPipelineFactoryImpl inOutParserFactory, OutPipelineFactoryImpl outInFilterFactory) {
         final String expressionVal = inputObj.getString("messageMatcher");
         final MessageMatcher messageMatcher = expressionVal == null ? MessageMatcher.always() : new JuelMatcher(expressionVal);
-        return new InputRunnerImpl(pluginName, inputObj, inputPlugin, messageMatcher, inOutParserFactory, outInFilterFactory);
+        return new InputRunnerImpl(vertx, pluginName, inputObj, inputPlugin, messageMatcher, inOutParserFactory, outInFilterFactory);
     }
 
 
