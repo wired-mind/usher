@@ -42,6 +42,7 @@ public class AvroMapper extends ObjectMapper {
     public AvroMapper(String s, String... more) {
         super(new AvroFactory());
         registerModule(new AvroModule());
+
         Schema schema = new Schema.Parser().parse(s, more);
         avroSchema = new AvroSchema(schema);
     }

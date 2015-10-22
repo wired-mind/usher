@@ -27,7 +27,7 @@ public class AvroEncoder implements EncoderPlugin {
 
     private JsonObject configObj;
     private Vertx vertx;
-    private Class<?> clazz;
+
     private AvroMapper avroMapper;
 
 
@@ -41,15 +41,14 @@ public class AvroEncoder implements EncoderPlugin {
     @Override
     public EncoderPlugin createNew() {
         final AvroEncoder avroEncoder = new AvroEncoder();
-        avroEncoder.init(configObj, vertx, clazz, avroMapper);
+        avroEncoder.init(configObj, vertx, avroMapper);
         return avroEncoder;
     }
 
-    private void init(JsonObject configObj, Vertx vertx, Class<?> clazz, AvroMapper avroMapper) {
+    private void init(JsonObject configObj, Vertx vertx, AvroMapper avroMapper) {
 
         this.configObj = configObj;
         this.vertx = vertx;
-        this.clazz = clazz;
         this.avroMapper = avroMapper;
     }
 
@@ -57,15 +56,12 @@ public class AvroEncoder implements EncoderPlugin {
     public void init(JsonObject configObj, Vertx vertx) throws UsherInitializationFailedException {
         this.configObj = configObj;
         this.vertx = vertx;
-        final String className = configObj.getString("clazz");
         final String schema = configObj.getString("schema");
-        Objects.requireNonNull(className, "clazz is required");
         Objects.requireNonNull(schema, "schema is required");
         try {
-            clazz = Class.forName(className);
             final URL resource = Resources.getResource(schema);
             avroMapper = new AvroMapper(resource.openStream());
-        } catch (ClassNotFoundException | IOException e) {
+        } catch (IOException e) {
             throw new UsherInitializationFailedException("Error initializing avro schema", e);
         }
     }
