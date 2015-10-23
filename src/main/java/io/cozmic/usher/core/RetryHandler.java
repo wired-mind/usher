@@ -5,6 +5,7 @@ import io.cozmic.usher.core.retry.RetryPolicy;
 import io.cozmic.usher.core.retry.backoff.Backoff;
 import io.cozmic.usher.core.retry.backoff.ExponentialDelayBackoff;
 import io.cozmic.usher.core.retry.backoff.FixedIntervalBackoff;
+import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -86,29 +87,29 @@ public class RetryHandler {
         return this.withBackoff(this.backoff.withMaxDelay(maxDelayMillis));
     }
 
-    public void runWithRetry(Handler<AsyncRetryContext> handler, Handler<AsyncResult<Void>> doneHandler) {
+    public void runWithRetry(Handler<AsyncRetryContext> handler, Future<Void> future) {
         final AsyncRetryContext asyncRetryContext = new AsyncRetryContext(retryPolicy);
 
-        doWithRetry(System.currentTimeMillis(), handler, asyncRetryContext, doneHandler);
+        doWithRetry(System.currentTimeMillis(), handler, asyncRetryContext, future);
     }
 
-    private void doWithRetry(long startTime, Handler<AsyncRetryContext> handler, AsyncRetryContext asyncRetryContext, Handler<AsyncResult<Void>> doneHandler) {
+    private void doWithRetry(long startTime, Handler<AsyncRetryContext> handler, AsyncRetryContext asyncRetryContext, Future<Void> future) {
         asyncRetryContext.setHandler(asyncResult -> {
             if (asyncResult.failed()) {
                 final AsyncRetryContext nextRetry = asyncRetryContext.nextRetry(asyncResult.cause());
                 final boolean tryAgain = retryPolicy.shouldContinue(nextRetry);
                 if (!tryAgain) {
-                    doneHandler.handle(Future.failedFuture("Giving up retry."));
+                    future.fail("Giving up retry.");
                     return;
                 }
 
                 vertx.setTimer(calculateNextDelay(System.currentTimeMillis() - startTime, nextRetry, backoff), timerId -> {
-                    doWithRetry(System.currentTimeMillis(), handler, nextRetry, doneHandler);
+                    doWithRetry(System.currentTimeMillis(), handler, nextRetry, future);
                 });
                 return;
             }
 
-            doneHandler.handle(Future.succeededFuture());
+            future.complete();
         });
 
         handler.handle(asyncRetryContext);

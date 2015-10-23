@@ -75,7 +75,7 @@ public abstract class AbstractFilter implements FilterPlugin {
         private boolean paused;
         private Handler<Void> drainHandler;
         private Handler<Throwable> exceptionHandler;
-        private Handler<AsyncResult<Void>> writeCompleteHandler;
+        private Future<Void> writeCompleteFuture;
         private Handler<Void> endHandler;
 
         public FilterStream(MessageInjector messageInjector) {
@@ -95,10 +95,9 @@ public abstract class AbstractFilter implements FilterPlugin {
         }
 
         @Override
-        public AsyncWriteStream<PipelinePack> write(PipelinePack data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+        public AsyncWriteStream<PipelinePack> write(PipelinePack data, Future<Void> future, PipelinePack context) {
 
             try {
-                final Future<Void> future = createFuture(writeCompleteHandler);
                 if (timeout > 0) {
                     vertx.setTimer(timeout, id -> {
                         if (future.isComplete()) return;
@@ -116,7 +115,7 @@ public abstract class AbstractFilter implements FilterPlugin {
                     purgeReadBuffers();
                 }, messageInjector);
             } catch (Throwable throwable) {
-                writeCompleteHandler.handle(Future.failedFuture(throwable));
+                future.fail(throwable);
             }
             return this;
         }
@@ -132,15 +131,9 @@ public abstract class AbstractFilter implements FilterPlugin {
 
         @Override
         public WriteStream<PipelinePack> write(PipelinePack pipelinePack) {
-            Objects.requireNonNull(writeCompleteHandler, "writeCompleteHandler required. This should be set automatically by the MuxRegistration.");
+            Objects.requireNonNull(writeCompleteFuture, "writeCompleteFuture required. This should be set automatically by the MuxRegistration.");
             Objects.requireNonNull(dataHandler, "dataHandler required. This should be set automatically by the MuxRegistration.");
-            return write(pipelinePack, writeCompleteHandler);
-        }
-
-        private Future<Void> createFuture(Handler<AsyncResult<Void>> handler) {
-            final Future<Void> doneFuture = Future.future();
-            doneFuture.setHandler(handler);
-            return doneFuture;
+            return write(pipelinePack, writeCompleteFuture, pipelinePack);
         }
 
         @Override
@@ -201,8 +194,8 @@ public abstract class AbstractFilter implements FilterPlugin {
         }
 
         @Override
-        public OutPipeline writeCompleteHandler(Handler<AsyncResult<Void>> handler) {
-            writeCompleteHandler = handler;
+        public OutPipeline writeCompleteFuture(Future<Void> future) {
+            writeCompleteFuture = future;
             return this;
         }
     }

@@ -13,10 +13,10 @@ import io.vertx.core.json.JsonObject;
 public class NullEncoder implements EncoderPlugin {
     @Override
     public void encode(PipelinePack pipelinePack, Handler<Buffer> bufferHandler) {
-        Buffer answer = null;
+        Buffer answer = pipelinePack.getMsgBytes();
         final Object message = pipelinePack.getMessage();
-        if (message == null || !(message instanceof Buffer)) {
-            answer = pipelinePack.getMsgBytes(); //fallback to messagebytes
+        if (message instanceof Buffer) {
+            answer = (Buffer) message;
         }
         bufferHandler.handle(answer);
     }

@@ -9,7 +9,10 @@ import io.cozmic.usher.core.MessageMatcher;
 import io.cozmic.usher.core.OutputPlugin;
 import io.cozmic.usher.core.OutputRunner;
 import io.cozmic.usher.message.PipelinePack;
-import io.cozmic.usher.pipeline.*;
+import io.cozmic.usher.pipeline.InPipelineFactoryImpl;
+import io.cozmic.usher.pipeline.OutPipelineFactoryImpl;
+import io.cozmic.usher.pipeline.OutputRunnerImpl;
+import io.cozmic.usher.pipeline.StreamMuxImpl;
 import io.cozmic.usher.plugins.PluginLoader;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
 import io.vertx.core.DeploymentOptions;
@@ -63,6 +66,35 @@ public class KafkaOutputTests {
         return new JsonObject(refConfig.resolve().root().render(ConfigRenderOptions.concise()));
     }
 
+
+    @Test
+    public void testCanPublishToDynamicKafkaTopic(TestContext context) throws NoSuchMethodException, IllegalAccessException, InstantiationException, UsherInitializationFailedException, InvocationTargetException, IOException {
+        final StreamMuxImpl streamMux = new StreamMuxImpl(vertx);
+
+        final MessageMatcher messageMatcher = MessageMatcher.always();
+
+
+        final JsonObject config = getReferenceConfig();
+        final JsonObject kakfaConfig = new JsonObject();
+        kakfaConfig.put("topic", "topic_test_#{msg.toString()}");
+        config.put("KafkaOutput", kakfaConfig);
+        final OutputRunnerFactory outputRunnerFactory = new OutputRunnerFactory(vertx, config);
+        final OutputRunner outputRunner = outputRunnerFactory.buildOutputRunner(messageMatcher, "KafkaOutput");
+
+        outputRunner.run(context.asyncAssertSuccess(messageStream -> {
+            streamMux.addStream(messageStream, true);
+
+            final PipelinePack pack = new PipelinePack();
+            pack.setMessage(Buffer.buffer("hi"));
+            final Async async = context.async();
+            streamMux.write(pack, context.asyncAssertSuccess(v -> {
+                streamMux.unregisterAllConsumers();
+                async.complete();
+            }));
+        }));
+
+
+    }
 
     @Test
     public void testCanPublishToKafka(TestContext context) throws NoSuchMethodException, IllegalAccessException, InstantiationException, UsherInitializationFailedException, InvocationTargetException, IOException {
@@ -120,15 +152,16 @@ public class KafkaOutputTests {
     }
 
 
-
     private class OutputRunnerFactory {
         private PluginLoader pluginLoader;
 
         public OutputRunnerFactory(Vertx vertx, JsonObject config) throws UsherInitializationFailedException {
             pluginLoader = new PluginLoader(vertx, config);
         }
+
         /**
          * This might become a handy function. If so we'll extract.
+         *
          * @param messageMatcher
          * @param pluginName
          * @return
@@ -150,6 +183,7 @@ public class KafkaOutputTests {
             return pluginLoader;
         }
     }
+
     public DeploymentOptions buildDeploymentOptions(String configFile) {
         JsonObject config = null;
         try {

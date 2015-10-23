@@ -28,6 +28,7 @@ public class JuelMatcher implements MessageMatcher {
             factory.createValueExpression(runtimeContext, "${msgClassSimpleName}", String.class).setValue(runtimeContext, msg.getClass().getSimpleName());
             factory.createValueExpression(runtimeContext, "${msg}", msg.getClass()).setValue(runtimeContext, msg);
         }
+
         return (boolean) expression.getValue(runtimeContext);
     }
 }

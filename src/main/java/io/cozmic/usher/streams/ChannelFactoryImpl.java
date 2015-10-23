@@ -4,6 +4,7 @@ import io.cozmic.usher.core.*;
 import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.vertx.parsers.PacketParsingException;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.logging.Logger;
@@ -57,6 +58,7 @@ public class ChannelFactoryImpl implements ChannelFactory {
         public FullDuplexMuxChannel(MessageStream messageStream, StreamMux outStreamMux) {
             this.messageStream = messageStream;
             this.outStreamMux = outStreamMux;
+
 
             outStreamMux.writeCompleteHandler(messageStream.getWriteCompleteHandler());
 

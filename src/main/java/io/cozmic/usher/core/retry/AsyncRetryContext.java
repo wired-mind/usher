@@ -1,6 +1,7 @@
 package io.cozmic.usher.core.retry;
 
 
+import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -13,7 +14,7 @@ public class AsyncRetryContext implements RetryContext, Handler<AsyncResult<Void
     private final RetryPolicy retryPolicy;
     private final int retry;
     private final Throwable lastThrowable;
-    private final Future<Void> future;
+    private final Future<PipelinePack> future;
 
     public AsyncRetryContext(RetryPolicy retryPolicy) {
         this(retryPolicy, 0, null);
@@ -49,7 +50,7 @@ public class AsyncRetryContext implements RetryContext, Handler<AsyncResult<Void
         return new AsyncRetryContext(retryPolicy, retry - 1, lastThrowable);
     }
 
-    public void setHandler(Handler<AsyncResult<Void>> handler) {
+    public void setHandler(Handler<AsyncResult<PipelinePack>> handler) {
         future.setHandler(handler);
     }
 

@@ -1,12 +1,11 @@
 package io.cozmic.usher.plugins.kafka;
 
+import de.odysseus.el.util.SimpleContext;
 import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.OutputPlugin;
+import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
-import io.cozmic.usher.streams.AsyncWriteStream;
-import io.cozmic.usher.streams.ClosableWriteStream;
-import io.cozmic.usher.streams.DuplexStream;
-import io.cozmic.usher.streams.NullReadStream;
+import io.cozmic.usher.streams.*;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -14,6 +13,8 @@ import io.vertx.core.streams.WriteStream;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
+import javax.el.ExpressionFactory;
+import javax.el.ValueExpression;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -22,13 +23,16 @@ import java.util.Properties;
  */
 public class KafkaOutput implements OutputPlugin {
     private JsonObject configObj;
+    private static ExpressionFactory factory = ExpressionFactory.newInstance();
+    private SimpleContext context = new SimpleContext();
+    private ValueExpression topicExpression;
     private Vertx vertx;
     private KafkaProducer<byte[], byte[]> producer;
     private String topic;
 
     @Override
     public void run(AsyncResultHandler<DuplexStream<Buffer, Buffer>> duplexStreamAsyncResultHandler) {
-        final KafkaProducerStream kafkaProducerStream = new KafkaProducerStream(vertx, topic);
+        final KafkaProducerStream kafkaProducerStream = new KafkaProducerStream(vertx, topicExpression);
         final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(NullReadStream.getInstance(), kafkaProducerStream);
         duplexStreamAsyncResultHandler.handle(Future.succeededFuture(duplexStream));
     }
@@ -45,6 +49,7 @@ public class KafkaOutput implements OutputPlugin {
         this.vertx = vertx;
         Properties kafkaProducerProps = new Properties();
         topic = configObj.getString("topic", "default");
+        topicExpression = factory.createValueExpression(context, topic, String.class);
         kafkaProducerProps.put("bootstrap.servers", configObj.getString("bootstrap.servers", "kafka.dev:9092"));
         kafkaProducerProps.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
         kafkaProducerProps.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
@@ -56,12 +61,12 @@ public class KafkaOutput implements OutputPlugin {
 
     private class KafkaProducerStream implements ClosableWriteStream<Buffer> {
         private final Vertx vertx;
-        private String topic;
+        private ValueExpression topicExpression;
 
-        public KafkaProducerStream(Vertx vertx, String topic) {
+        public KafkaProducerStream(Vertx vertx, ValueExpression topicExpression) {
 
             this.vertx = vertx;
-            this.topic = topic;
+            this.topicExpression = topicExpression;
         }
 
         @Override
@@ -94,25 +99,31 @@ public class KafkaOutput implements OutputPlugin {
          * Send message to Kafka with async callback on the vertx eventloop.
          *
          * @param data
-         * @param writeCompleteHandler
+         * @param context
          * @return
          */
         @Override
-        public AsyncWriteStream<Buffer> write(Buffer data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+        public AsyncWriteStream<Buffer> write(Buffer data, Future<Void> future, PipelinePack context) {
             Objects.requireNonNull(data, "Must provide data to write to Kafka");
-            ProducerRecord<byte[], byte[]> record = new ProducerRecord<>(topic, data.getBytes());
+            SimpleContext runtimeContext = new SimpleContext();
+            final Object msg = context.getMessage();
+            if (msg != null) {
+                factory.createValueExpression(runtimeContext, "${msg}", msg.getClass()).setValue(runtimeContext, msg);
+            }
+
+            final String dynamicTopic = (String) topicExpression.getValue(runtimeContext);
+            ProducerRecord<byte[], byte[]> record = new ProducerRecord<>(dynamicTopic, data.getBytes());
             try {
                 producer.send(record, (metadata, exception) -> vertx.runOnContext(v -> {
                     if (exception != null) {
-                        writeCompleteHandler.handle(Future.failedFuture(exception));
+                        future.fail(exception);
                         return;
                     }
-                    writeCompleteHandler.handle(Future.succeededFuture());
+                    future.complete();
                 }));
             } catch (Exception ex) {
-                writeCompleteHandler.handle(Future.failedFuture(ex));
+                future.fail(ex);
             }
-
 
             return this;
         }

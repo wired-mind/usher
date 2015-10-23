@@ -16,7 +16,11 @@ import io.vertx.core.Vertx;
 import io.vertx.core.streams.Pump;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
+import io.vertx.rx.java.ObservableFuture;
+import io.vertx.rx.java.RxHelper;
+import rx.Observable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -120,11 +124,27 @@ public class StreamMuxImpl implements StreamMux {
     public StreamMux write(PipelinePack data, Handler<AsyncResult<PipelinePack>> doneHandler) {
         final Iterable<MuxRegistrationImpl> matchingStreams = findMatchingStreams(data);
         final int countOfMatchingStreams = Iterables.size(matchingStreams);
-        final CountDownFutureResult<PipelinePack> doneFuture = new CountDownFutureResult<>(countOfMatchingStreams);
-        doneFuture.setHandler(doneHandler);
-        for (MuxRegistrationImpl demux : matchingStreams) {
-            demux.handle(data, doneFuture);        //TODO: probably want to clone data. not doing it just yet. we'll see
+
+
+
+        if (countOfMatchingStreams == 0) {
+            doneHandler.handle(Future.succeededFuture(data));
+            return this;
         }
+
+        Observable.from(matchingStreams)
+
+                .flatMap(demux -> {
+                    final ObservableFuture<Void> observableFuture = RxHelper.observableFuture();
+                    final Future<Void> future = Future.future();
+                    future.setHandler(observableFuture.toHandler());
+                    demux.handle(data, future);  //TODO: probably want to clone data. not doing it just yet. we'll see
+                    return observableFuture;
+                })
+                .last()
+                .subscribe(v -> {
+                    doneHandler.handle(Future.succeededFuture(data));
+                }, throwable -> doneHandler.handle(Future.failedFuture(throwable)));
 
         return this;
     }
@@ -288,14 +308,8 @@ public class StreamMuxImpl implements StreamMux {
             if (handler != null) handler.handle(data);
         }
 
-        public void handle(PipelinePack data, Future<PipelinePack> doneFuture) {
-            outPipeline.writeCompleteHandler(asyncResult -> {
-                if (asyncResult.failed()) {
-                    doneFuture.fail(asyncResult.cause());
-                    return;
-                }
-                doneFuture.complete(data);
-            });
+        public void handle(PipelinePack data, Future<Void> doneFuture) {
+            outPipeline.writeCompleteFuture(doneFuture);
             handle(data);
         }
     }

@@ -1,5 +1,6 @@
 package io.cozmic.usher.streams;
 
+import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
@@ -51,9 +52,9 @@ public class SocketWriteStream implements AsyncWriteStream<Buffer>, ClosableWrit
     }
 
     @Override
-    public AsyncWriteStream<Buffer> write(Buffer data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+    public AsyncWriteStream<Buffer> write(Buffer data, Future<Void> future, PipelinePack context) {
         innerStream.write(data);
-        if (writeCompleteHandler != null) writeCompleteHandler.handle(Future.succeededFuture());
+        if (future != null) future.complete();
         return this;
     }
 

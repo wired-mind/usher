@@ -1,6 +1,7 @@
 package io.cozmic.usher.plugins.eventbus;
 
 import io.cozmic.usher.core.InputPlugin;
+import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
 import io.cozmic.usher.streams.AsyncWriteStream;
 import io.cozmic.usher.streams.ClosableWriteStream;
@@ -81,9 +82,9 @@ public class EventBusInput implements InputPlugin {
         }
 
         @Override
-        public AsyncWriteStream<Buffer> write(Buffer data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+        public AsyncWriteStream<Buffer> write(Buffer data, Future<Void> future, PipelinePack context) {
             outputPublisher.write(data);
-            if (writeCompleteHandler != null) writeCompleteHandler.handle(Future.succeededFuture());
+            if (future != null) future.complete();
             return this;
         }
 

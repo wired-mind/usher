@@ -1,6 +1,8 @@
 package io.cozmic.usher.streams;
 
+import io.cozmic.usher.message.PipelinePack;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 
@@ -15,7 +17,7 @@ public class NullClosableWriteStream implements ClosableWriteStream<Buffer> {
     }
 
     @Override
-    public ClosableWriteStream<Buffer> write(Buffer data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+    public ClosableWriteStream<Buffer> write(Buffer data, Future<Void> future, PipelinePack context) {
         return this;
     }
 

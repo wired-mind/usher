@@ -3,12 +3,14 @@ package io.cozmic.usher.core;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.AsyncWriteStream;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.streams.WriteStream;
+
 
 /**
  * Created by chuck on 10/7/15.
@@ -38,7 +40,7 @@ public class RetryErrorStrategy implements ErrorStrategy {
         return new OutPipeline() {
 
 
-            private Handler<AsyncResult<Void>> writeCompleteHandler;
+            private Future<Void> writeCompleteFuture;
 
             @Override
             public void stop(WriteStreamPool pool) {
@@ -46,8 +48,8 @@ public class RetryErrorStrategy implements ErrorStrategy {
             }
 
             @Override
-            public OutPipeline writeCompleteHandler(Handler<AsyncResult<Void>> handler) {
-                writeCompleteHandler = handler;
+            public OutPipeline writeCompleteFuture(Future<Void> future) {
+                writeCompleteFuture = future;
                 return this;
             }
 
@@ -57,9 +59,11 @@ public class RetryErrorStrategy implements ErrorStrategy {
             }
 
             @Override
-            public AsyncWriteStream<PipelinePack> write(PipelinePack data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+            public AsyncWriteStream<PipelinePack> write(PipelinePack data, Future<Void> future, PipelinePack context) {
                 throw new UnsupportedOperationException();
             }
+
+
 
             @Override
             public WriteStream<PipelinePack> exceptionHandler(Handler<Throwable> handler) {
@@ -91,8 +95,10 @@ public class RetryErrorStrategy implements ErrorStrategy {
 
 
                     data.setRetryContext(context);
-                    outPipeline.write(data, context);
-                }, writeCompleteHandler::handle);
+                    final Future<Void> retryAttemptFuture = Future.future();
+                    retryAttemptFuture.setHandler(context);
+                    outPipeline.write(data, retryAttemptFuture, data);
+                }, writeCompleteFuture);
 
 
 

@@ -4,6 +4,7 @@ import io.cozmic.usher.core.*;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.ClosableWriteStream;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -20,7 +21,7 @@ public class DefaultOutPipeline implements OutPipeline {
     private final EncoderPlugin encoderPlugin;
     private final FrameEncoderPlugin frameEncoderPlugin;
     private Handler<Throwable> exceptionHandler;
-    private Handler<AsyncResult<Void>> writeCompleteHandler;
+    private Future<Void> writeCompleteFuture;
 
     public DefaultOutPipeline(ClosableWriteStream<Buffer> writeStream, JsonObject config, EncoderPlugin encoderPlugin, FrameEncoderPlugin frameEncoderPlugin) {
         this.innerWriteStream = writeStream;
@@ -43,7 +44,7 @@ public class DefaultOutPipeline implements OutPipeline {
         try {
             encoderPlugin.encode(pack, encoded -> {
                 frameEncoderPlugin.encode(encoded, framed -> {
-                    innerWriteStream.write(framed, writeCompleteHandler);
+                    innerWriteStream.write(framed, writeCompleteFuture, pack);
                 });
             });
         } catch (IOException e) {
@@ -78,13 +79,13 @@ public class DefaultOutPipeline implements OutPipeline {
     }
 
     @Override
-    public OutPipeline writeCompleteHandler(Handler<AsyncResult<Void>> handler) {
-        writeCompleteHandler = handler;
+    public OutPipeline writeCompleteFuture(Future<Void> future) {
+        writeCompleteFuture = future;
         return this;
     }
 
     @Override
-    public OutPipeline write(PipelinePack data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+    public OutPipeline write(PipelinePack data, Future<Void> future, PipelinePack context) {
         throw new UnsupportedOperationException();
     }
 

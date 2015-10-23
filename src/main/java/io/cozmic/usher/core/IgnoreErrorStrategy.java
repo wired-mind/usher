@@ -26,7 +26,7 @@ public class IgnoreErrorStrategy implements ErrorStrategy {
         return new OutPipeline() {
 
 
-            private Handler<AsyncResult<Void>> writeCompleteHandler;
+            private Future<Void> writeCompleteFuture;
 
             @Override
             public void stop(WriteStreamPool pool) {
@@ -34,8 +34,8 @@ public class IgnoreErrorStrategy implements ErrorStrategy {
             }
 
             @Override
-            public OutPipeline writeCompleteHandler(Handler<AsyncResult<Void>> handler) {
-                writeCompleteHandler = handler;
+            public OutPipeline writeCompleteFuture(Future<Void> future) {
+                writeCompleteFuture = future;
                 return this;
             }
 
@@ -45,7 +45,7 @@ public class IgnoreErrorStrategy implements ErrorStrategy {
             }
 
             @Override
-            public AsyncWriteStream<PipelinePack> write(PipelinePack data, Handler<AsyncResult<Void>> writeCompleteHandler) {
+            public AsyncWriteStream<PipelinePack> write(PipelinePack data, Future<Void> future, PipelinePack context) {
                 throw new UnsupportedOperationException();
             }
 
@@ -56,13 +56,16 @@ public class IgnoreErrorStrategy implements ErrorStrategy {
 
             @Override
             public WriteStream<PipelinePack> write(PipelinePack data) {
-                outPipeline.write(data, asyncResult -> {
+                final Future<Void> ignoringFuture = Future.future();
+                ignoringFuture.setHandler(asyncResult -> {
                     if (asyncResult.failed()) {
                         logger.warn("[IgnoreErrorStrategy] - Ignoring error.", asyncResult.cause());
                     }
 
-                    writeCompleteHandler.handle(Future.succeededFuture());
+                    writeCompleteFuture.complete();
                 });
+
+                outPipeline.write(data, ignoringFuture, data);
                 return this;
             }
 
