@@ -12,7 +12,7 @@
     "encoder": "PayloadEncoder",
     "topic": "mytopic",
 
-    "messageMatcher": "#{msg.pluginName == 'Router'}"
+    "messageMatcher": "#{pack.message.pluginName == 'Router'}"
   },
   "BufferQueue": {
     "type": "KafkaInput",
@@ -24,7 +24,7 @@
   },
   "Filter": {
     "type": "io.cozmic.usher.test.integration.EventBusFilter",
-    "messageMatcher": "#{msg.pluginName == 'BufferQueue'}"
+    "messageMatcher": "#{pack.message.pluginName == 'BufferQueue'}"
   },
 
   "PayloadEncoder": {}

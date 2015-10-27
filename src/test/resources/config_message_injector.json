@@ -11,11 +11,11 @@
   },
   "InjectingBackend": {
     "type": "io.cozmic.usher.test.localintegration.InjectionFilter",
-    "messageMatcher": "#{(msgClassSimpleName == 'Message' && msg.localPort == 2500) || (msgClassSimpleName == 'String' && msg == 'MatchBoth')}"
+    "messageMatcher": "#{(pack.message.getClass().getSimpleName() == 'Message' && pack.message.localPort == 2500) || (pack.message.getClass().getSimpleName() == 'String' && pack.message == 'MatchBoth')}"
   },
   "Filter": {
     "type": "io.cozmic.usher.test.integration.EventBusFilter",
-    "messageMatcher": "#{msgClassSimpleName == 'String'}"
+    "messageMatcher": "#{pack.message.getClass().getSimpleName() == 'String'}"
   },
   "PayloadEncoder": {}
 }

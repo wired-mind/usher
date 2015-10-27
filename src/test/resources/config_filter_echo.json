@@ -13,7 +13,7 @@
     "errorStrategy": {
       "type": "retry"
     },
-    "messageMatcher": "#{msg.localPort == 2500}"
+    "messageMatcher": "#{pack.message.localPort == 2500}"
   },
   "PayloadEncoder": {}
 }

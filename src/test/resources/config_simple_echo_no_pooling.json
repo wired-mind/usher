@@ -15,7 +15,7 @@
     "port": 9193,
     "minIdle": -1,
     "encoder": "PayloadEncoder",
-    "messageMatcher": "#{msg.localPort == 2500}",
+    "messageMatcher": "#{pack.message.localPort == 2500}",
     "reconnectAttempts": -1,
     "reconnectInterval": 3000
   },

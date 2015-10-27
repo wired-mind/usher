@@ -209,7 +209,7 @@ public class SplitterTests {
     }
 
     private JsonObject buildOutput() {
-        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193).put("encoder", "PayloadEncoder").put("messageMatcher", "#{msg.localPort == 2500}");
+        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193).put("encoder", "PayloadEncoder").put("messageMatcher", "#{pack.message.localPort == 2500}");
     }
 
     private JsonObject buildTokenSplitter(String delimiter) {

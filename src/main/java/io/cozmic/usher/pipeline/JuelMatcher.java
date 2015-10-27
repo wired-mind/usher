@@ -23,12 +23,7 @@ public class JuelMatcher implements MessageMatcher {
     @Override
     public boolean matches(PipelinePack pipelinePack) {
         SimpleContext runtimeContext = new SimpleContext();
-        final Object msg = pipelinePack.getMessage();
-        if (msg != null) {
-            factory.createValueExpression(runtimeContext, "${msgClassSimpleName}", String.class).setValue(runtimeContext, msg.getClass().getSimpleName());
-            factory.createValueExpression(runtimeContext, "${msg}", msg.getClass()).setValue(runtimeContext, msg);
-        }
-
+        factory.createValueExpression(runtimeContext, "${pack}", PipelinePack.class).setValue(runtimeContext, pipelinePack);
         return (boolean) expression.getValue(runtimeContext);
     }
 }

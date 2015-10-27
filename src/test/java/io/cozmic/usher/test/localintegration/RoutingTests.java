@@ -149,10 +149,10 @@ public class RoutingTests {
 
 
     private JsonObject buildFooOutput(int inputFilterPort) {
-        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9192).put("encoder", "PayloadEncoder").put("messageMatcher", String.format("#{msg.localPort == %s}", inputFilterPort));
+        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9192).put("encoder", "PayloadEncoder").put("messageMatcher", String.format("#{pack.message.localPort == %s}", inputFilterPort));
     }
     private JsonObject buildBarOutput(int inputFilterPort) {
-        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193).put("encoder", "PayloadEncoder").put("messageMatcher", String.format("#{msg.localPort == %s}", inputFilterPort));
+        return new JsonObject().put("type", "TcpOutput").put("host", "localhost").put("port", 9193).put("encoder", "PayloadEncoder").put("messageMatcher", String.format("#{pack.message.localPort == %s}", inputFilterPort));
     }
 
 
