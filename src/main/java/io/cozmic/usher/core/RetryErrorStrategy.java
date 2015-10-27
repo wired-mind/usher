@@ -91,8 +91,9 @@ public class RetryErrorStrategy implements ErrorStrategy {
 
                 retryHandler.runWithRetry(context -> {
                     final Throwable lastThrowable = context.getLastThrowable();
-                    logger.warn("Retry attempt: " + context.getRetryCount(), lastThrowable);
-
+                    if (context.getRetryCount() > 0) {
+                        logger.warn("Retry attempt: " + context.getRetryCount(), lastThrowable);
+                    }
 
                     data.setRetryContext(context);
                     final Future<Void> retryAttemptFuture = Future.future();

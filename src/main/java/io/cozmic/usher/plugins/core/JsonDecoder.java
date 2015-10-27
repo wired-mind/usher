@@ -11,6 +11,7 @@ import io.vertx.core.json.JsonObject;
  * Created by chuck on 7/9/15.
  */
 public class JsonDecoder implements DecoderPlugin {
+
     private JsonObject configObj;
     private Vertx vertx;
 
@@ -32,7 +33,6 @@ public class JsonDecoder implements DecoderPlugin {
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
-
         this.configObj = configObj;
         this.vertx = vertx;
     }

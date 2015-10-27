@@ -17,7 +17,6 @@ public class PacketSplitter implements SplitterPlugin {
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
-
         this.configObj = configObj;
         this.vertx = vertx;
 

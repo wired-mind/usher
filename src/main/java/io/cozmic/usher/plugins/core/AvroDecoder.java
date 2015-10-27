@@ -6,7 +6,6 @@ import java.util.Objects;
 
 import com.google.common.io.Resources;
 import io.cozmic.usher.core.AvroMapper;
-import org.apache.avro.Schema;
 
 import io.cozmic.usher.core.DecoderPlugin;
 import io.cozmic.usher.message.PipelinePack;
@@ -16,10 +15,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.dataformat.avro.AvroSchema;
 
 /**
  * Decode serialized data to GenericRecord.
