@@ -30,12 +30,14 @@ public abstract class AbstractFilter implements FilterPlugin {
         Future<Void> startFuture = Future.future();
         startFuture.setHandler(result -> {
             if (result.failed()) {
-                messageStreamAsyncResultHandler.handle(Future.failedFuture(result.cause()));
+                vertx.runOnContext(v->messageStreamAsyncResultHandler.handle(Future.failedFuture(result.cause())));
+
                 return;
             }
 
             final FilterStream filterStream = new FilterStream(messageInjector);
-            messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(filterStream, filterStream)));
+            vertx.runOnContext(v->messageStreamAsyncResultHandler.handle(Future.succeededFuture(new MessageStream(filterStream, filterStream))));
+
         });
         start(startFuture);
     }
