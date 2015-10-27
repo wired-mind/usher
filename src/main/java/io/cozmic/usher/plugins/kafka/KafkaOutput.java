@@ -5,8 +5,14 @@ import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.OutputPlugin;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
-import io.cozmic.usher.streams.*;
-import io.vertx.core.*;
+import io.cozmic.usher.streams.AsyncWriteStream;
+import io.cozmic.usher.streams.ClosableWriteStream;
+import io.cozmic.usher.streams.DuplexStream;
+import io.cozmic.usher.streams.NullReadStream;
+import io.vertx.core.AsyncResultHandler;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.WriteStream;
@@ -109,17 +115,27 @@ public class KafkaOutput implements OutputPlugin {
             factory.createValueExpression(runtimeContext, "${pack}", PipelinePack.class).setValue(runtimeContext, context);
             final String dynamicTopic = (String) topicExpression.getValue(runtimeContext);
             ProducerRecord<byte[], byte[]> record = new ProducerRecord<>(dynamicTopic, data.getBytes());
-            try {
-                producer.send(record, (metadata, exception) -> vertx.runOnContext(v -> {
-                    if (exception != null) {
-                        future.fail(exception);
-                        return;
-                    }
-                    future.complete();
-                }));
-            } catch (Exception ex) {
-                future.fail(ex);
-            }
+            vertx.executeBlocking(blockFuture -> {
+                try {
+                    producer.send(record, (metadata, exception) -> {
+                        if (exception != null) {
+                            blockFuture.fail(exception);
+                            return;
+                        }
+                        blockFuture.complete();
+                    });
+                } catch (Exception ex) {
+                    blockFuture.fail(ex);
+                }
+            }, false, asyncResult -> {
+                if (asyncResult.failed()) {
+                    future.fail(asyncResult.cause());
+                    return;
+                }
+
+                future.complete();
+            });
+
 
             return this;
         }
