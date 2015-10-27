@@ -15,9 +15,12 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import io.vertx.rx.java.ObservableFuture;
+import io.vertx.rx.java.RxHelper;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
+import rx.Observable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +46,7 @@ public class KafkaInput implements InputPlugin {
             final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(stream, NullClosableWriteStream.getInstance());
 
             duplexStream
-                    .closeHandler(future -> stream.close())
+                    .closeHandler(v -> stream.close())
                     .writeCompleteHandler(stream::commit);
 
             duplexStreamHandler.handle(duplexStream);
@@ -94,7 +97,6 @@ public class KafkaInput implements InputPlugin {
             this.vertx = vertx;
             this.numberOfThreads = numberOfThreads;
         }
-
 
 
         public KafkaLogListener listen(Handler<AsyncResult<KafkaLogListener>> listenHandler) {
@@ -151,15 +153,32 @@ public class KafkaInput implements InputPlugin {
         }
 
 
-
         public void stop(AsyncResultHandler<Void> stopHandler) {
-            vertx.executeBlocking(future -> {
-                kafkaMessageStreams.forEach(KafkaMessageStream::close);
-                if (connector != null) {
-                    connector.shutdown();
-                }
-                future.complete();
-            }, asyncResult -> stopHandler.handle(Future.succeededFuture()));
+
+            Observable.from(kafkaMessageStreams)
+                    .flatMap(KafkaMessageStream -> {
+                        final ObservableFuture<Void> stopFuture = RxHelper.observableFuture();
+                        KafkaMessageStream.stopProcessing(stopFuture.toHandler());
+                        return stopFuture;
+                    })
+                    .last()
+                    .flatMap(v -> {
+                        final ObservableFuture<Void> connStop = RxHelper.observableFuture();
+                        vertx.executeBlocking(future -> {
+                            try {
+                                if (connector != null) {
+                                    connector.shutdown();
+                                }
+                                future.complete();
+                            } catch (Throwable throwable) {
+                                future.fail(throwable);
+                            }
+                        }, connStop.toHandler());
+                        return connStop;
+                    })
+                    .subscribe(v -> stopHandler.handle(Future.succeededFuture()), throwable -> stopHandler.handle(Future.failedFuture(throwable)));
+
+
         }
     }
 }

@@ -97,12 +97,19 @@ public class KafkaInputTests {
             // Then
             vertx.eventBus().<Integer>consumer(EVENT_BUS_ADDRESS, msg -> {
                 final Integer actualHashCode = msg.body();
-                if (actualHashCode.equals(expectedHashCode)) {
-                    async.complete();
-                } else {
+                if (!actualHashCode.equals(expectedHashCode)) {
+                    context.fail("Pojo hashcodes do not match");
+                    logger.info("Pojo hashcodes do not match");
                     logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
                 }
             });
+
+
+            vertx.eventBus().<Integer>consumer("Router_complete", msg -> {
+                async.complete();
+            });
+
+
         }));
         vertx.setTimer(15_000, event -> context.fail("timed out"));
     }
@@ -141,7 +148,6 @@ public class KafkaInputTests {
             });
 
             vertx.eventBus().<Integer>consumer("Router_complete", msg -> {
-                logger.info("Stop stupid test");
                 async.complete();
 
             });

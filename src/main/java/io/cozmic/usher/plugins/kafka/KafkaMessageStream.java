@@ -28,6 +28,7 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
     private Handler<Void> endHandler;
     private Handler<Throwable> exceptionHandler;
     private MessageAndMetadata<byte[], byte[]> currentMessage;
+    private boolean stopped;
 
 
     public KafkaMessageStream(Vertx vertx, Context context, String topic, KafkaStream<byte[], byte[]> stream, KafkaOffsets kafkaOffsets) {
@@ -40,7 +41,7 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
         vertx.executeBlocking(future -> {
             logger.info("[Worker] Starting in " + Thread.currentThread().getName());
             try {
-                while (stream.iterator().hasNext()) {
+                while (!stopped && stream.iterator().hasNext()) {
                     final MessageAndMetadata<byte[], byte[]> msg = stream.iterator().next();
                     readBuffers.add(msg);
                     context.runOnContext(v->purgeReadBuffers());
@@ -70,6 +71,28 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
         //TODO: Add dead letter queue feature
         commit(WriteCompleteFuture.future(null));
     }
+
+    public void stopProcessing(Handler<AsyncResult<Void>> stopHandler) {
+        stopped = true;
+        if (readBuffers.size() == 0) {
+            stopHandler.handle(Future.succeededFuture());
+            return;
+        }
+        doWaitOnStop(stopHandler);
+    }
+
+    private void doWaitOnStop(Handler<AsyncResult<Void>> stopHandler) {
+        logger.info("Waiting to finish processing messages in " + topic);
+        vertx.setTimer(1000, timerId -> {
+            if (readBuffers.size() == 0) {
+                stopHandler.handle(Future.succeededFuture());
+                return;
+            }
+
+            doWaitOnStop(stopHandler);
+        });
+    }
+
 
     public void commit(WriteCompleteFuture future) {
 
@@ -106,10 +129,6 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
 
 
     }
-
-
-
-
 
     synchronized void purgeReadBuffers() {
         while (!readBuffers.isEmpty() && !isPaused && this.currentMessage == null) {
