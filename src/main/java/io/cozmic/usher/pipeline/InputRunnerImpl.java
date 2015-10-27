@@ -3,6 +3,7 @@ package io.cozmic.usher.pipeline;
 import io.cozmic.usher.core.*;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
+import io.cozmic.usher.streams.WriteCompleteFuture;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -41,10 +42,24 @@ public class InputRunnerImpl implements InputRunner {
             InPipeline inPipeline = inOutParserFactory.createDefaultInPipeline(pluginName, duplexStream);
             final OutPipeline outPipeline = outInFilterFactory.createDefaultOutPipeline(pluginName, inputObj, duplexStream.getWriteStream());
             final MessageStream messageStream = new MessageStream(inPipeline, outPipeline);
-            messageStream.writeCompleteHandler(pack -> {
-                completePublisher.write("Ok");
-                final Handler<PipelinePack> writeCompleteHandler = duplexStream.getWriteCompleteHandler();
-                if (writeCompleteHandler != null) writeCompleteHandler.handle(pack);
+            //This code has gotten a little confusing. Really it's here just for a hook to enable unit tests to know
+            //when a stream is completely done.
+            messageStream.writeCompleteHandler(writeCompleteFuture -> {
+                final Handler<WriteCompleteFuture> writeCompleteHandler = duplexStream.getWriteCompleteHandler();
+                if (writeCompleteHandler != null) {
+                    final WriteCompleteFuture<Void> interceptFuture = WriteCompleteFuture.future(writeCompleteFuture.getPipelinePack());
+                    interceptFuture.setHandler(commitDone -> {
+                        if (commitDone.failed()) {
+                            completePublisher.write("Commit failed");
+                            writeCompleteFuture.fail(commitDone.cause());
+                            return;
+                        }
+                        completePublisher.write("Ok");
+                        writeCompleteFuture.complete();
+
+                    });
+                    writeCompleteHandler.handle(interceptFuture);
+                }
             });
 
             messageStreamHandler.handle(messageStream);

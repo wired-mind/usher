@@ -17,7 +17,7 @@ public class DuplexStream<R, W> {
 
     private Handler<PipelinePack> packDecorator;
     private Handler<Void> closeHandler;
-    private Handler<PipelinePack> writeCompleteHandler;
+    private Handler<WriteCompleteFuture> writeCompleteHandler;
 
 
     public DuplexStream(ReadStream<R> readStream, ClosableWriteStream<W> writeStream) {
@@ -67,11 +67,11 @@ public class DuplexStream<R, W> {
     }
 
 
-    public Handler<PipelinePack> getWriteCompleteHandler() {
+    public Handler<WriteCompleteFuture> getWriteCompleteHandler() {
         return writeCompleteHandler;
     }
 
-    public void writeCompleteHandler(Handler<PipelinePack> writeCompleteHandler) {
+    public void writeCompleteHandler(Handler<WriteCompleteFuture> writeCompleteHandler) {
         this.writeCompleteHandler = writeCompleteHandler;
     }
 

@@ -6,8 +6,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 
-import java.util.Objects;
-
 /**
  * Simple usher 1.0 compatible for right now.
  * We can create slightly more sophisticated frames when needed (https://hekad.readthedocs.org/en/v0.9.2/message/index.html)
@@ -21,7 +19,6 @@ public class UsherV1FrameEncoder implements FrameEncoderPlugin {
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
-
         this.configObj = configObj;
         this.vertx = vertx;
     }

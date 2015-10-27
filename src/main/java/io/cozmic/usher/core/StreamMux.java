@@ -3,6 +3,7 @@ package io.cozmic.usher.core;
 import io.cozmic.usher.message.Message;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
+import io.cozmic.usher.streams.WriteCompleteFuture;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.streams.ReadStream;
@@ -36,5 +37,5 @@ public interface StreamMux extends WriteStream<PipelinePack>, ReadStream<Pipelin
      */
     StreamMux write(PipelinePack pack, Handler<AsyncResult<PipelinePack>> doneHandler);
 
-    StreamMux writeCompleteHandler(Handler<PipelinePack> writeCompleteHandler);
+    StreamMux writeCompleteHandler(Handler<WriteCompleteFuture> writeCompleteHandler);
 }

@@ -3,16 +3,18 @@ package io.cozmic.usher.pipeline;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.cozmic.usher.core.CountDownFutureResult;
 import io.cozmic.usher.core.MuxRegistration;
 import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.StreamMux;
 import io.cozmic.usher.message.PipelinePack;
 import io.cozmic.usher.streams.MessageStream;
+import io.cozmic.usher.streams.WriteCompleteFuture;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.streams.Pump;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
@@ -20,7 +22,6 @@ import io.vertx.rx.java.ObservableFuture;
 import io.vertx.rx.java.RxHelper;
 import rx.Observable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -28,7 +29,7 @@ import java.util.Objects;
  * Created by chuck on 7/3/15.
  */
 public class StreamMuxImpl implements StreamMux {
-
+    private static final Logger logger = LoggerFactory.getLogger(StreamMuxImpl.class.getName());
     private final Vertx vertx;
     private List<MuxRegistrationImpl> demuxes = Lists.newCopyOnWriteArrayList();
     private Handler<Void> drainHandler;
@@ -36,7 +37,7 @@ public class StreamMuxImpl implements StreamMux {
     private boolean muxPaused;
     private Handler<Void> endHandler;
     private Handler<Throwable> exceptionHandler;
-    private Handler<PipelinePack> writeCompleteHandler;
+    private Handler<WriteCompleteFuture> writeCompleteHandler;
 
     public StreamMuxImpl(Vertx vertx) {
         this.vertx = vertx;
@@ -110,7 +111,17 @@ public class StreamMuxImpl implements StreamMux {
                 return;
             }
 
-            if (writeCompleteHandler != null) writeCompleteHandler.handle(asyncResult.result());
+            if (writeCompleteHandler != null) {
+                final WriteCompleteFuture<Void> future = WriteCompleteFuture.future(asyncResult.result());
+                future.setHandler(commitDone -> {
+                    if (commitDone.failed()) {
+                        logger.warn("StreamMux - Error during commit. Really nothing we can do here. The producer should retry " +
+                                "if it is 'reliable'.");
+                    }
+                    logger.debug("StreamMux - The exchange is complete now.");
+                });
+                writeCompleteHandler.handle(future);
+            }
         });
     }
 
@@ -150,7 +161,7 @@ public class StreamMuxImpl implements StreamMux {
     }
 
     @Override
-    public StreamMux writeCompleteHandler(Handler<PipelinePack> writeCompleteHandler) {
+    public StreamMux writeCompleteHandler(Handler<WriteCompleteFuture> writeCompleteHandler) {
         this.writeCompleteHandler = writeCompleteHandler;
         return this;
     }
