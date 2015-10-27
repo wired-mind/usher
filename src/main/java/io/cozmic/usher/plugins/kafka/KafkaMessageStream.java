@@ -1,13 +1,14 @@
 package io.cozmic.usher.plugins.kafka;
 
-import io.cozmic.usher.message.PipelinePack;
-import io.vertx.core.Handler;
+import io.cozmic.usher.streams.WriteCompleteFuture;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.streams.ReadStream;
 import kafka.common.TopicAndPartition;
-import kafka.message.MessageAndOffset;
+import kafka.consumer.KafkaStream;
+import kafka.message.MessageAndMetadata;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -18,27 +19,45 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class KafkaMessageStream implements ReadStream<Buffer> {
     private static final Logger logger = LoggerFactory.getLogger(KafkaMessageStream.class.getName());
-    private final Buffer data;
-    private final TopicAndPartition topicAndPartition;
-    private final MessageAndOffset messageAndOffset;
-    private final KafkaCommitHandler commitHandler;
+    private final Vertx vertx;
+    private final String topic;
+    private final KafkaOffsets kafkaOffsets;
     private Handler<Buffer> readHandler;
     private boolean isPaused;
-    private Handler<Buffer> delegate = null;
-    private ConcurrentLinkedQueue<Buffer> readBuffers = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<MessageAndMetadata<byte[], byte[]>> readBuffers = new ConcurrentLinkedQueue<>();
+    private Handler<Void> endHandler;
+    private Handler<Throwable> exceptionHandler;
+    private MessageAndMetadata<byte[], byte[]> currentMessage;
 
-    public KafkaMessageStream(Buffer buffer, TopicAndPartition topicAndPartition, MessageAndOffset messageAndOffset, KafkaCommitHandler commitHandler) {
-        this.data = buffer;
-        this.readBuffers.add(data);
-        this.commitHandler = commitHandler;
-        this.topicAndPartition = topicAndPartition;
-        this.messageAndOffset = messageAndOffset;
+
+    public KafkaMessageStream(Vertx vertx, Context context, String topic, KafkaStream<byte[], byte[]> stream, KafkaOffsets kafkaOffsets) {
+        this.vertx = vertx;
+
+        this.topic = topic;
+        this.kafkaOffsets = kafkaOffsets;
+
+
+        vertx.executeBlocking(future -> {
+            logger.info("[Worker] Starting in " + Thread.currentThread().getName());
+            try {
+                while (stream.iterator().hasNext()) {
+                    final MessageAndMetadata<byte[], byte[]> msg = stream.iterator().next();
+                    readBuffers.add(msg);
+                    context.runOnContext(v->purgeReadBuffers());
+                }
+            } catch (Throwable throwable) {
+                future.fail(throwable);
+            }
+        }, false, asyncResult -> {
+            if (asyncResult.failed()) {
+                if (exceptionHandler != null) exceptionHandler.handle(asyncResult.cause());
+                return;
+            }
+            if (endHandler != null) endHandler.handle(null);
+        });
+
     }
 
-    public KafkaMessageStream responseHandler(Handler<Buffer> delegate) {
-        this.delegate = delegate;
-        return this;
-    }
 
     public void close() {
         logger.info("KafkaMessageStream - Close requested. Kafka streams don't actually close. Instead this is " +
@@ -49,32 +68,64 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
                 "explicitly setup error strategies that will ensure processing.");
 
         //TODO: Add dead letter queue feature
-        commit();
+        commit(WriteCompleteFuture.future(null));
     }
 
-    public void commit() {
-        if (commitHandler == null) {
-            return;
-        }
-        commitHandler.handle(topicAndPartition, messageAndOffset.offset(), asyncResult -> {
+    public void commit(WriteCompleteFuture future) {
+
+        final long offset = this.currentMessage.offset() + 1;
+
+        final int partition = this.currentMessage.partition();
+        final TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
+
+
+        logger.debug("Consumed: from " + topic + " at offset " + offset + " on thread: " + Thread.currentThread().getName());
+
+
+        vertx.executeBlocking(offsetFuture -> {
+            try {
+
+                // Commit offset for this topic and partition
+                kafkaOffsets.commitOffset(topicAndPartition, offset);
+
+                logger.debug(String.format("committed %s at offset: %d", topicAndPartition, offset));
+
+                offsetFuture.complete();
+            } catch (Exception e) {
+                offsetFuture.fail(e);
+            }
+        }, false, asyncResult -> {
             if (asyncResult.failed()) {
-                logger.error("Commit failed", asyncResult.cause());
+                future.fail(asyncResult.cause());
                 return;
             }
+            this.currentMessage = null;
+            purgeReadBuffers();
+            future.complete();
         });
+
+
     }
 
-    protected void purgeReadBuffers() {
-        while (!readBuffers.isEmpty() && !isPaused) {
-            final Buffer nextPack = readBuffers.poll();
-            if (nextPack != null) {
-                if (readHandler != null) readHandler.handle(nextPack);
+
+
+
+
+    synchronized void purgeReadBuffers() {
+        while (!readBuffers.isEmpty() && !isPaused && this.currentMessage == null) {
+            final MessageAndMetadata<byte[], byte[]> msg = readBuffers.poll();
+            if (msg != null) {
+                if (readHandler != null) {
+                    this.currentMessage = msg;
+                    readHandler.handle(Buffer.buffer(msg.message()));
+                }
             }
         }
     }
 
     @Override
     public KafkaMessageStream exceptionHandler(Handler<Throwable> handler) {
+        exceptionHandler = handler;
         return this;
     }
 
@@ -102,6 +153,7 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
 
     @Override
     public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
+        this.endHandler = endHandler;
         return this;
     }
 }

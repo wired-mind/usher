@@ -15,13 +15,11 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import kafka.common.TopicAndPartition;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.message.MessageAndMetadata;
-import kafka.message.MessageAndOffset;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -80,51 +78,53 @@ public class KafkaInput implements InputPlugin {
                 configObj.getString(KafkaConsumerConfig.KEY_ZOOKEEPER_TIMEOUT_MS, "120000"),
                 configObj.getInteger(KafkaConsumerConfig.KEY_PARTITIONS, 1));
 
-        kafkaLogListener = new KafkaLogListener(vertx);
+        kafkaLogListener = new KafkaLogListener(vertx, configObj.getInteger("numberOfThreads", 10));
     }
 
     private class KafkaLogListener {
         private final Vertx vertx;
-        private final KafkaOffsets kafkaOffsets;
+
+
         private ConsumerConnector connector;
         private Handler<KafkaMessageStream> delegate = null;
+        private ArrayList<KafkaMessageStream> kafkaMessageStreams = new ArrayList<>();
+        private int numberOfThreads;
 
-        public KafkaLogListener(Vertx vertx) {
+        public KafkaLogListener(Vertx vertx, int numberOfThreads) {
             this.vertx = vertx;
-            List<String> brokers = Splitter.on(",").splitToList(configObj.getString(KEY_SEED_BROKERS));
-            this.kafkaOffsets = new KafkaOffsets(brokers, kafkaConsumerConfig.getGroupId());
+            this.numberOfThreads = numberOfThreads;
         }
 
-        public void commit(final TopicAndPartition topicAndPartition, final Long offset, Handler<AsyncResult<Void>> asyncResultHandler) {
+
+
+        public KafkaLogListener listen(Handler<AsyncResult<KafkaLogListener>> listenHandler) {
+            final Context context = vertx.getOrCreateContext();
+
             vertx.executeBlocking(future -> {
                 try {
-                    // Commit offset for this topic and partition
-                    kafkaOffsets.commitOffset(topicAndPartition, offset);
+                    connector = kafka.consumer.Consumer.createJavaConsumerConnector(createConsumerConfig());
 
-                    logger.debug(String.format("committed %s at offset: %d", topicAndPartition, offset));
+                    final String topic = kafkaConsumerConfig.getKafkaTopic();
+                    final Map<String, List<KafkaStream<byte[], byte[]>>> messageStreams = connector.createMessageStreams(ImmutableMap.of(topic, numberOfThreads));
+                    final List<KafkaStream<byte[], byte[]>> topicStreams = messageStreams.get(topic);
+
+
+                    topicStreams.forEach(stream -> {
+                        List<String> brokers = Splitter.on(",").splitToList(configObj.getString(KEY_SEED_BROKERS));
+
+                        KafkaOffsets kafkaOffsets = new KafkaOffsets(brokers, kafkaConsumerConfig.getGroupId());
+
+                        final KafkaMessageStream messageStream = new KafkaMessageStream(vertx, context, topic, stream, kafkaOffsets);
+                        kafkaMessageStreams.add(messageStream);
+                        context.runOnContext(v -> delegate.handle(messageStream));
+                    });
+
 
                     future.complete();
                 } catch (Exception e) {
                     future.fail(e);
                 }
             }, false, asyncResult -> {
-                if (asyncResult.failed()) {
-                    asyncResultHandler.handle(Future.failedFuture(asyncResult.cause()));
-                    return;
-                }
-                asyncResultHandler.handle(Future.succeededFuture());
-            });
-        }
-
-        public KafkaLogListener listen(Handler<AsyncResult<KafkaLogListener>> listenHandler) {
-            vertx.executeBlocking(future -> {
-                try {
-                    run(kafkaConsumerConfig.getPartitions());
-                    future.complete();
-                } catch (Exception e) {
-                    future.fail(e);
-                }
-            }, asyncResult -> {
                 if (asyncResult.failed()) {
                     listenHandler.handle(Future.failedFuture(asyncResult.cause()));
                     return;
@@ -150,42 +150,11 @@ public class KafkaInput implements InputPlugin {
             return new ConsumerConfig(properties);
         }
 
-        private void run(int numberOfThreads) {
-            connector = kafka.consumer.Consumer.createJavaConsumerConnector(createConsumerConfig());
-            final String topic = kafkaConsumerConfig.getKafkaTopic();
-            final Map<String, List<KafkaStream<byte[], byte[]>>> messageStreams = connector.createMessageStreams(ImmutableMap.of(topic, numberOfThreads));
-            final List<KafkaStream<byte[], byte[]>> topicStreams = messageStreams.get(topic);
 
-            topicStreams.forEach(stream -> vertx.executeBlocking(future -> read(topic, stream), false, null));
-        }
-
-        private void read(final String topic, final KafkaStream<byte[], byte[]> stream) {
-            logger.debug("[Worker] Starting in " + Thread.currentThread().getName());
-
-            while (stream.iterator().hasNext()) {
-                final MessageAndMetadata<byte[], byte[]> msg = stream.iterator().next();
-                final long offset = msg.offset() + 1; // todo: figure out +1 error
-                final int partition = msg.partition();
-
-                // Get message bytes
-                final byte[] bytes = msg.message();
-
-                logger.debug("Consumed " + Buffer.buffer(bytes).toString() + " at offset " + offset + " on thread: " + Thread.currentThread().getName());
-
-                final KafkaMessageStream messageStream = new KafkaMessageStream(
-                        Buffer.buffer(bytes),
-                        new TopicAndPartition(topic, partition),
-                        new MessageAndOffset(new kafka.message.Message(bytes), offset),
-                        this::commit);
-
-                messageStream.pause();
-                vertx.runOnContext(event -> delegate.handle(messageStream));
-            }
-            logger.debug("Shutting down Thread: " + Thread.currentThread().getName());
-        }
 
         public void stop(AsyncResultHandler<Void> stopHandler) {
             vertx.executeBlocking(future -> {
+                kafkaMessageStreams.forEach(KafkaMessageStream::close);
                 if (connector != null) {
                     connector.shutdown();
                 }

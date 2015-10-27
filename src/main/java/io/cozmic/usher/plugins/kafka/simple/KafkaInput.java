@@ -106,7 +106,7 @@ public class KafkaInput implements InputPlugin {
                 } catch (Exception e) {
                     future.fail(e); // failure
                 }
-            }, false, asyncResult -> {
+            }, true, asyncResult -> {
                 if (asyncResult.failed()) {
                     asyncResultHandler.handle(Future.failedFuture(asyncResult.cause()));
                     return;
@@ -205,32 +205,16 @@ public class KafkaInput implements InputPlugin {
                     byte[] bytes = new byte[payload.limit()];
                     payload.get(bytes);
 
-                    KafkaMessageStream messageStream = new KafkaMessageStream(
-                            Buffer.buffer(bytes),
-                            topicAndPartition,
-                            messageAndOffset,
-                            this::asyncCommit);
+//                    KafkaMessageStream messageStream = null;
+//                    new KafkaMessageStream(
+//                            Buffer.buffer(bytes),
+//                            topicAndPartition,
+//                            messageAndOffset,
+//                            this::asyncCommit);
 
-                    if (responseHandlerShouldCommit) {
-                        // Setup pipeline stream handler to handle commit internally
-                        messageStream.responseHandler(data -> {
-                            if (future.failed()) {
-                                // Future may have been set to failed after timeout
-                                return;
-                            }
-                            try {
-                                // Commit offset for this topic and partition
-                                consumer.commit(topicAndPartition, messageAndOffset.offset());
 
-                                future.complete(true); // success (responseHandlerDidCommit = true)
-                            } catch (Exception e) {
-                                future.fail(e); // failure (Nothing committed or sent to the reply topic)
-                            }
-                        });
-                    }
 
-                    messageStream.pause();
-                    delegate.handle(messageStream);
+//                    delegate.handle(messageStream);
 
                     if (!responseHandlerShouldCommit) {
                         future.complete(false); // success (responseHandlerDidCommit = false)

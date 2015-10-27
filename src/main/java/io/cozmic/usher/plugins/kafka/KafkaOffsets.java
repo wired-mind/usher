@@ -22,26 +22,29 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Copyright (c) 2015 All Rights Reserved
  */
 public class KafkaOffsets {
-    private static final String CLIENT = KafkaOffsets.class.getSimpleName();
+
     /*
-     * CorrelationId - This is a user-supplied integer. It will be passed back
-     * in the response by the server, unmodified. It is useful for matching request
-     * and response between the client and server.
-     *
-     * See https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
-     */
+         * CorrelationId - This is a user-supplied integer. It will be passed back
+         * in the response by the server, unmodified. It is useful for matching request
+         * and response between the client and server.
+         *
+         * See https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
+         */
     private static final AtomicInteger correlationId = new AtomicInteger(0);
     private static final int READ_TIMEOUT_MS = 5_000; // channel read timeout in millis
     private static final short VERSION_ID = 1; // version 1 and above commit to Kafka, version 0 commits to ZooKeeper
     private static final String DEFAULT_COMMIT_METADATA = "";
+    public static final String DEFAULT_CLIENT_NAME = KafkaOffsets.class.getSimpleName();
     private final Object lockObject = new Object();
     private final String groupId;
     private final List<String> brokers;
+    private final String clientName;
     private BlockingChannel channel;
 
     private KafkaOffsets() {
         this.groupId = null;
         this.brokers = null;
+        this.clientName = KafkaOffsets.class.getSimpleName();
     }
 
     @Deprecated
@@ -49,11 +52,17 @@ public class KafkaOffsets {
         this.groupId = groupId;
         this.brokers = new ArrayList<>();
         this.brokers.add(String.format("%s:%d", host, port));
+        this.clientName = KafkaOffsets.class.getSimpleName();
     }
 
     public KafkaOffsets(List<String> brokers, String groupId) {
+        this(brokers, groupId, DEFAULT_CLIENT_NAME);
+    }
+
+    public KafkaOffsets(List<String> brokers, String groupId, String clientName) {
         this.groupId = groupId;
         this.brokers = brokers;
+        this.clientName = clientName;
     }
 
     private void connectToOffsetManager() throws ConsumerOffsetsException {
@@ -74,7 +83,7 @@ public class KafkaOffsets {
                 try {
                     channel.connect();
 
-                    channel.send(new ConsumerMetadataRequest(groupId, ConsumerMetadataRequest.CurrentVersion(), correlationId.getAndIncrement(), CLIENT));
+                    channel.send(new ConsumerMetadataRequest(groupId, ConsumerMetadataRequest.CurrentVersion(), correlationId.getAndIncrement(), clientName));
                     final ConsumerMetadataResponse metadataResponse = ConsumerMetadataResponse.readFrom(channel.receive().buffer());
 
                     if (metadataResponse.errorCode() == ErrorMapping.NoError()) {
@@ -121,7 +130,7 @@ public class KafkaOffsets {
                 groupId,
                 requestInfo,
                 correlationId.getAndIncrement(),
-                CLIENT,
+                clientName,
                 VERSION_ID);
         try {
             channel.send(commitRequest.underlying());
@@ -168,8 +177,8 @@ public class KafkaOffsets {
                 groupId,
                 partitions,
                 VERSION_ID,
-                correlationId.getAndIncrement(),
-                CLIENT + "_" + topicAndPartition.topic() + "_" + topicAndPartition.partition());
+                correlationId.incrementAndGet(),
+                clientName + "_" + topicAndPartition.topic() + "_" + topicAndPartition.partition());
         try {
             channel.send(fetchRequest.underlying());
             final OffsetFetchResponse fetchResponse = OffsetFetchResponse.readFrom(channel.receive().buffer());

@@ -50,9 +50,7 @@ public class KafkaInputTests {
     public void before(TestContext context) {
         vertx = Vertx.vertx();
 
-        vertx.deployVerticle("", new DeploymentOptions().setWorker(true).setInstances(5), asyncResult -> {
-            //
-        });
+
 
         Properties kafkaProducerProps = new Properties();
         kafkaProducerProps.put("bootstrap.servers", "kafka.dev:9092");
@@ -64,15 +62,9 @@ public class KafkaInputTests {
 
     @After
     public void after(TestContext context) {
-        final Async async = context.async();
+
         producer.close();
-        vertx.close(res -> {
-            if (res.failed()) {
-                context.fail(res.cause());
-                return;
-            }
-            async.complete();
-        });
+        vertx.close(context.asyncAssertSuccess());
     }
 
     /**
@@ -132,8 +124,27 @@ public class KafkaInputTests {
 
         final DeploymentOptions options = buildDeploymentOptions("/config_journaling_input.json");
 
+        final Async async = context.async();
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
-            final Async async = context.async();
+
+
+            // Then
+
+
+            vertx.eventBus().<Integer>consumer(EVENT_BUS_ADDRESS, msg -> {
+                final Integer actualHashCode = msg.body();
+                if (!actualHashCode.equals(expectedHashCode)) {
+                    context.fail("Pojo hashcodes do not match");
+                    logger.info("Pojo hashcodes do not match");
+                    logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
+                }
+            });
+
+            vertx.eventBus().<Integer>consumer("Router_complete", msg -> {
+                logger.info("Stop stupid test");
+                async.complete();
+
+            });
 
             // When - publish to kafka
             vertx.executeBlocking(new Handler<Future<Void>>() {
@@ -145,18 +156,10 @@ public class KafkaInputTests {
                 }
             }, context.asyncAssertSuccess());
 
-            // Then
-            vertx.eventBus().<Integer>consumer(EVENT_BUS_ADDRESS, msg -> {
-                final Integer actualHashCode = msg.body();
-                if (actualHashCode.equals(expectedHashCode)) {
-                    async.complete();
-                } else {
-                    logger.info("Pojo hashcodes do not match");
-                    logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
-                }
-            });
         }));
-        vertx.setTimer(15_000, event -> context.fail("timed out"));
+        vertx.setTimer(15_000, event -> {
+            context.fail("timed out");
+        });
     }
 
     private DeploymentOptions buildDeploymentOptions(String name) {
