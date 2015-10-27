@@ -76,7 +76,7 @@ public class KafkaOutputTests {
 
         final JsonObject config = getReferenceConfig();
         final JsonObject kakfaConfig = new JsonObject();
-        kakfaConfig.put("topic", "topic_test_#{msg.toString()}");
+        kakfaConfig.put("topic", "topic_test_#{pack.message.toString()}");
         config.put("KafkaOutput", kakfaConfig);
         final OutputRunnerFactory outputRunnerFactory = new OutputRunnerFactory(vertx, config);
         final OutputRunner outputRunner = outputRunnerFactory.buildOutputRunner(messageMatcher, "KafkaOutput");
