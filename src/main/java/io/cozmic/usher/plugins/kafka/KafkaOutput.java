@@ -115,26 +115,18 @@ public class KafkaOutput implements OutputPlugin {
             factory.createValueExpression(runtimeContext, "${pack}", PipelinePack.class).setValue(runtimeContext, context);
             final String dynamicTopic = (String) topicExpression.getValue(runtimeContext);
             ProducerRecord<byte[], byte[]> record = new ProducerRecord<>(dynamicTopic, data.getBytes());
-            vertx.executeBlocking(blockFuture -> {
-                try {
-                    producer.send(record, (metadata, exception) -> {
-                        if (exception != null) {
-                            blockFuture.fail(exception);
-                            return;
-                        }
-                        blockFuture.complete();
-                    });
-                } catch (Exception ex) {
-                    blockFuture.fail(ex);
-                }
-            }, false, asyncResult -> {
-                if (asyncResult.failed()) {
-                    future.fail(asyncResult.cause());
-                    return;
-                }
 
-                future.complete();
-            });
+            try {
+                producer.send(record, (metadata, exception) -> vertx.runOnContext(v -> {
+                    if (exception != null) {
+                        future.fail(exception);
+                        return;
+                    }
+                    future.complete();
+                }));
+            } catch (Exception ex) {
+                future.fail(ex);
+            }
 
 
             return this;

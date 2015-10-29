@@ -2,6 +2,8 @@ package io.cozmic.usher.plugins.kafka.simple;
 
 import io.cozmic.usher.plugins.kafka.ConsumerOffsetsException;
 import io.cozmic.usher.plugins.kafka.KafkaOffsets;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -17,6 +19,7 @@ import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
+
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -234,7 +237,11 @@ public class KafkaConsumerImpl implements KafkaConsumer {
         String leadBroker = findNewLeader("", topicAndPartition);
         offsetsStrategy = new KafkaOffsets(leadBroker, port, groupId);
         logger.info("committing offsets");
-        offsetsStrategy.commitOffset(topicAndPartition, offset);
+        offsetsStrategy.commitOffset(topicAndPartition, offset, new Handler<AsyncResult<Void>>() {
+            @Override
+            public void handle(AsyncResult<Void> event) {
+            }
+        });
     }
 
     @Override

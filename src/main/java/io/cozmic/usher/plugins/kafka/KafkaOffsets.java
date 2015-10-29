@@ -1,6 +1,9 @@
 package io.cozmic.usher.plugins.kafka;
 
 import com.google.common.collect.ImmutableMap;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import kafka.api.ConsumerMetadataRequest;
 import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
@@ -36,30 +39,27 @@ public class KafkaOffsets {
     private static final String DEFAULT_COMMIT_METADATA = "";
     public static final String DEFAULT_CLIENT_NAME = KafkaOffsets.class.getSimpleName();
     private final Object lockObject = new Object();
+    private final Vertx vertx;
     private final String groupId;
     private final List<String> brokers;
     private final String clientName;
     private BlockingChannel channel;
 
-    private KafkaOffsets() {
-        this.groupId = null;
-        this.brokers = null;
-        this.clientName = KafkaOffsets.class.getSimpleName();
-    }
-
     @Deprecated
     public KafkaOffsets(String host, int port, String groupId) {
+        this.vertx = null;
         this.groupId = groupId;
         this.brokers = new ArrayList<>();
         this.brokers.add(String.format("%s:%d", host, port));
         this.clientName = KafkaOffsets.class.getSimpleName();
     }
 
-    public KafkaOffsets(List<String> brokers, String groupId) {
-        this(brokers, groupId, DEFAULT_CLIENT_NAME);
+    public KafkaOffsets(Vertx vertx, List<String> brokers, String groupId) {
+        this(vertx, brokers, groupId, DEFAULT_CLIENT_NAME);
     }
 
-    public KafkaOffsets(List<String> brokers, String groupId, String clientName) {
+    public KafkaOffsets(Vertx vertx, List<String> brokers, String groupId, String clientName) {
+        this.vertx = vertx;
         this.groupId = groupId;
         this.brokers = brokers;
         this.clientName = clientName;
@@ -120,7 +120,19 @@ public class KafkaOffsets {
         }
     }
 
-    public void commitOffsets(final Map<TopicAndPartition, Long> offsets) throws ConsumerOffsetsException {
+    public void commitOffsets(final Map<TopicAndPartition, Long> offsets, Handler<AsyncResult<Void>> resultHandler)  {
+        vertx.executeBlocking(offsetFuture -> {
+            try {
+                doCommitOffsets(offsets);
+                offsetFuture.complete();
+            } catch (Throwable t) {
+                offsetFuture.fail(t);
+            }
+        }, true, resultHandler);
+
+    }
+
+    private synchronized void doCommitOffsets(Map<TopicAndPartition, Long> offsets) throws ConsumerOffsetsException {
         connectToOffsetManager();
 
         final long now = System.currentTimeMillis();
@@ -164,8 +176,8 @@ public class KafkaOffsets {
         }
     }
 
-    public void commitOffset(final TopicAndPartition topicAndPartition, final Long offset) throws ConsumerOffsetsException {
-        commitOffsets(ImmutableMap.of(topicAndPartition, offset));
+    public void commitOffset(final TopicAndPartition topicAndPartition, final Long offset, Handler<AsyncResult<Void>> resultHandler) {
+        commitOffsets(ImmutableMap.of(topicAndPartition, offset), resultHandler);
     }
 
     public long getOffset(final TopicAndPartition topicAndPartition) throws ConsumerOffsetsException {
@@ -204,5 +216,19 @@ public class KafkaOffsets {
             throw new ConsumerOffsetsException(t);
             // TODO: Client should retry the commit
         }
+    }
+
+    public void shutdown(Handler<AsyncResult<Void>> stopHandler) {
+        vertx.executeBlocking(future -> {
+            try {
+                if (channel != null) {
+                    channel.disconnect();
+                }
+                future.complete();
+            } catch (Throwable t) {
+                future.fail(t);
+            }
+        }, false, stopHandler);
+
     }
 }

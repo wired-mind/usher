@@ -92,10 +92,13 @@ public class KafkaInput implements InputPlugin {
         private Handler<KafkaMessageStream> delegate = null;
         private ArrayList<KafkaMessageStream> kafkaMessageStreams = new ArrayList<>();
         private int numberOfThreads;
+        private KafkaOffsets kafkaOffsets;
 
         public KafkaLogListener(Vertx vertx, int numberOfThreads) {
             this.vertx = vertx;
             this.numberOfThreads = numberOfThreads;
+            List<String> brokers = Splitter.on(",").splitToList(configObj.getString(KEY_SEED_BROKERS));
+            kafkaOffsets = new KafkaOffsets(vertx, brokers, kafkaConsumerConfig.getGroupId());
         }
 
 
@@ -112,10 +115,6 @@ public class KafkaInput implements InputPlugin {
 
 
                     topicStreams.forEach(stream -> {
-                        List<String> brokers = Splitter.on(",").splitToList(configObj.getString(KEY_SEED_BROKERS));
-
-                        KafkaOffsets kafkaOffsets = new KafkaOffsets(brokers, kafkaConsumerConfig.getGroupId());
-
                         final KafkaMessageStream messageStream = new KafkaMessageStream(vertx, context, topic, stream, kafkaOffsets);
                         kafkaMessageStreams.add(messageStream);
                         context.runOnContext(v -> delegate.handle(messageStream));
@@ -156,13 +155,17 @@ public class KafkaInput implements InputPlugin {
         public void stop(AsyncResultHandler<Void> stopHandler) {
 
             Observable.from(kafkaMessageStreams)
-                    .flatMap(KafkaMessageStream -> {
+                    .flatMap(kafkaMessageStream -> {
                         final ObservableFuture<Void> stopFuture = RxHelper.observableFuture();
-                        KafkaMessageStream.stopProcessing(stopFuture.toHandler());
+                        kafkaMessageStream.stopProcessing(stopFuture.toHandler());
                         return stopFuture;
                     })
                     .last()
                     .flatMap(v -> {
+                        final ObservableFuture<Void> offsetStop = RxHelper.observableFuture();
+                        if (kafkaOffsets != null) {
+                            kafkaOffsets.shutdown(offsetStop.toHandler());
+                        }
                         final ObservableFuture<Void> connStop = RxHelper.observableFuture();
                         vertx.executeBlocking(future -> {
                             try {
@@ -174,9 +177,12 @@ public class KafkaInput implements InputPlugin {
                                 future.fail(throwable);
                             }
                         }, connStop.toHandler());
-                        return connStop;
+                        return connStop.zipWith(offsetStop, (v1, v2) -> null);
                     })
-                    .subscribe(v -> stopHandler.handle(Future.succeededFuture()), throwable -> stopHandler.handle(Future.failedFuture(throwable)));
+                    .subscribe(v -> {
+                        logger.info("[KafkaInput] - Stopped");
+                        stopHandler.handle(Future.succeededFuture());
+                    }, throwable -> stopHandler.handle(Future.failedFuture(throwable)));
 
 
         }

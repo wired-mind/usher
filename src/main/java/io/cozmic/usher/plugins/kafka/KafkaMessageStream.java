@@ -29,7 +29,7 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
     private Handler<Throwable> exceptionHandler;
     private MessageAndMetadata<byte[], byte[]> currentMessage;
     private boolean stopped;
-
+    private Thread consumerThread;
 
     public KafkaMessageStream(Vertx vertx, Context context, String topic, KafkaStream<byte[], byte[]> stream, KafkaOffsets kafkaOffsets) {
         this.vertx = vertx;
@@ -37,26 +37,26 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
         this.topic = topic;
         this.kafkaOffsets = kafkaOffsets;
 
-
-        vertx.executeBlocking(future -> {
-            logger.info("[Worker] Starting in " + Thread.currentThread().getName());
+        Runnable consumerRunnable = () -> {
+            logger.info("[Worker] - " + topic + " Starting in " + Thread.currentThread().getName());
             try {
                 while (!stopped && stream.iterator().hasNext()) {
                     final MessageAndMetadata<byte[], byte[]> msg = stream.iterator().next();
                     readBuffers.add(msg);
                     context.runOnContext(v->purgeReadBuffers());
                 }
+                context.runOnContext(v->purgeReadBuffers());
+                logger.info("[Worker] - " + topic + " Ending in " + Thread.currentThread().getName());
+                if (endHandler != null) context.runOnContext(v -> endHandler.handle(null));
             } catch (Throwable throwable) {
-                future.fail(throwable);
+                logger.error(throwable.getMessage(), throwable);
+                if (exceptionHandler != null) context.runOnContext(v-> exceptionHandler.handle(throwable));
             }
-        }, false, asyncResult -> {
-            if (asyncResult.failed()) {
-                if (exceptionHandler != null) exceptionHandler.handle(asyncResult.cause());
-                return;
-            }
-            if (endHandler != null) endHandler.handle(null);
-        });
 
+        };
+
+        consumerThread = new Thread(consumerRunnable);
+        consumerThread.start();
     }
 
 
@@ -82,7 +82,8 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
     }
 
     private void doWaitOnStop(Handler<AsyncResult<Void>> stopHandler) {
-        logger.info("Waiting to finish processing messages in " + topic);
+        purgeReadBuffers();
+        logger.info("Waiting to finish processing " + readBuffers.size() + " messages in " + topic);
         vertx.setTimer(1000, timerId -> {
             if (readBuffers.size() == 0) {
                 stopHandler.handle(Future.succeededFuture());
@@ -105,28 +106,18 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
         logger.debug("Consumed: from " + topic + " at offset " + offset + " on thread: " + Thread.currentThread().getName());
 
 
-        vertx.executeBlocking(offsetFuture -> {
-            try {
-
-                // Commit offset for this topic and partition
-                kafkaOffsets.commitOffset(topicAndPartition, offset);
-
-                logger.debug(String.format("committed %s at offset: %d", topicAndPartition, offset));
-
-                offsetFuture.complete();
-            } catch (Exception e) {
-                offsetFuture.fail(e);
-            }
-        }, false, asyncResult -> {
+        // Commit offset for this topic and partition
+        kafkaOffsets.commitOffset(topicAndPartition, offset, asyncResult -> {
             if (asyncResult.failed()) {
                 future.fail(asyncResult.cause());
                 return;
             }
+
+            logger.debug(String.format("committed %s at offset: %d", topicAndPartition, offset));
             this.currentMessage = null;
             purgeReadBuffers();
             future.complete();
         });
-
 
     }
 
@@ -136,7 +127,7 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
             if (msg != null) {
                 if (readHandler != null) {
                     this.currentMessage = msg;
-                    readHandler.handle(Buffer.buffer(msg.message()));
+                    vertx.runOnContext(v -> readHandler.handle(Buffer.buffer(msg.message())));
                 }
             }
         }
