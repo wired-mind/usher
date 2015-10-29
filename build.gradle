@@ -10,7 +10,7 @@ apply from: "gradle/maven.gradle"
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-if (!JavaVersion.current().java8Compatible) {                                                                                               R
+if (!JavaVersion.current().java8Compatible) {
     throw new IllegalStateException('''A Haiku:
                                       |  This needs Java 8,
                                       |  You are using something else,
