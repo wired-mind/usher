@@ -111,9 +111,8 @@ public class KafkaOutput implements OutputPlugin {
         @Override
         public AsyncWriteStream<Buffer> write(Buffer data, Future<Void> future, PipelinePack context) {
             Objects.requireNonNull(data, "Must provide data to write to Kafka");
-            SimpleContext runtimeContext = new SimpleContext();
-            factory.createValueExpression(runtimeContext, "${pack}", PipelinePack.class).setValue(runtimeContext, context);
-            final String dynamicTopic = (String) topicExpression.getValue(runtimeContext);
+
+            final String dynamicTopic = (String) topicExpression.getValue(context.getRuntimeContext());
             ProducerRecord<byte[], byte[]> record = new ProducerRecord<>(dynamicTopic, data.getBytes());
 
             try {
