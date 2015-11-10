@@ -10,6 +10,7 @@ import io.cozmic.usher.plugins.kafka.KafkaMessageStream;
 import io.cozmic.usher.plugins.kafka.KafkaOffsets;
 import io.cozmic.usher.streams.DuplexStream;
 import io.cozmic.usher.streams.NullClosableWriteStream;
+import io.cozmic.usher.streams.WriteCompleteFuture;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -42,15 +43,7 @@ public class KafkaInput implements InputPlugin {
     @Override
     public void run(AsyncResultHandler<Void> startupHandler, Handler<DuplexStream<Buffer, Buffer>> duplexStreamHandler) {
 
-        kafkaLogListener.logHandler(stream -> {
-            final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(stream, NullClosableWriteStream.getInstance());
-
-            duplexStream
-                    .closeHandler(v -> stream.close())
-                    .writeCompleteHandler(stream::commit);
-
-            duplexStreamHandler.handle(duplexStream);
-        });
+        kafkaLogListener.logHandler(stream -> doCreateStream(duplexStreamHandler, stream));
 
         kafkaLogListener.listen(asyncResult -> {
             if (asyncResult.failed()) {
@@ -60,6 +53,28 @@ public class KafkaInput implements InputPlugin {
             logger.info("KafkaLogListener started: " + configObj);
             startupHandler.handle(Future.succeededFuture());
         });
+    }
+
+    private void doCreateStream(Handler<DuplexStream<Buffer, Buffer>> duplexStreamHandler, KafkaMessageStream stream) {
+        final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(stream, NullClosableWriteStream.getInstance());
+
+        duplexStream
+                .closeHandler(v -> {
+                    logger.info("KafkaInput - Close requested. Kafka streams don't actually close. Instead this is " +
+                            "interpreted to mean that there was a problem processing the last message. For now we're just going to " +
+                            "commit and abandon that message. However, we plan to add a dead-letter-queue type feature here at " +
+                            "some point. Typically this will only occur when there are decoding errors. It could also happen if an " +
+                            "error strategy is setup that allows the error to bubble back. In most cases though we intend to " +
+                            "explicitly setup error strategies that will ensure processing.");
+
+                    //TODO: Add dead letter queue feature
+                    stream.commit(WriteCompleteFuture.future(null));
+                    logger.info("Restarting channel for stream");
+                    doCreateStream(duplexStreamHandler, stream);
+                })
+                .writeCompleteHandler(stream::commit);
+
+        duplexStreamHandler.handle(duplexStream);
     }
 
     @Override

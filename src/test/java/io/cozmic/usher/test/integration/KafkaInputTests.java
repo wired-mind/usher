@@ -4,7 +4,10 @@ import com.google.common.io.Resources;
 import io.cozmic.usher.Start;
 import io.cozmic.usher.core.AvroMapper;
 import io.cozmic.usher.test.Pojo;
-import io.vertx.core.*;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -49,7 +52,6 @@ public class KafkaInputTests {
     @Before
     public void before(TestContext context) {
         vertx = Vertx.vertx();
-
 
 
         Properties kafkaProducerProps = new Properties();
@@ -166,6 +168,56 @@ public class KafkaInputTests {
         vertx.setTimer(15_000, event -> {
             context.fail("timed out");
         });
+    }
+
+    /**
+     * Purpose of test: ErrFilter is configured to throw an error on the first message, but then start working.
+     * <p>
+     * The Usher FullDuplexMuxChannel is designed to stop and close the input stream if there is an error. With TCP
+     * this closes the socket. Our desired KafkaInput behavior is that the message get sent to a DLQ (not implemented yet)
+     * and that the input restart the stream by creating a new channel. We can test this by sending 2 messages and getting
+     * just the second response since the first will err.
+     *
+     * @param context
+     * @throws Exception
+     */
+    @Test
+    public void testAfterErrorKafkaStreamWillRestart(TestContext context) throws Exception {
+        // Given
+
+        ProducerRecord<String, byte[]> first = new ProducerRecord<>(topic, "first".getBytes());
+        ProducerRecord<String, byte[]> second = new ProducerRecord<>(topic, "second".getBytes());
+
+
+        // When - publish to kafka
+        vertx.executeBlocking(new Handler<Future<Void>>() {
+            @Override
+            public void handle(Future<Void> future) {
+                producer.send(first, (metadata, exception) -> {
+                    future.complete();
+                });
+            }
+        }, context.asyncAssertSuccess());
+
+        vertx.executeBlocking(new Handler<Future<Void>>() {
+            @Override
+            public void handle(Future<Void> future) {
+                producer.send(second, (metadata, exception) -> {
+                    future.complete();
+                });
+            }
+        }, context.asyncAssertSuccess());
+
+
+        final Async async = context.async();
+        vertx.eventBus().<Integer>consumer("Router_complete", msg -> {
+
+            async.complete();
+
+        });
+        final DeploymentOptions options = buildDeploymentOptions("/config_kafka_restart.json");
+        vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess());
+        vertx.setTimer(5_000, event -> context.fail("timed out"));
     }
 
     private DeploymentOptions buildDeploymentOptions(String name) {

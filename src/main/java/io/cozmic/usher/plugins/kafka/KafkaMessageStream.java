@@ -60,18 +60,6 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
     }
 
 
-    public void close() {
-        logger.info("KafkaMessageStream - Close requested. Kafka streams don't actually close. Instead this is " +
-                "interpreted to mean that there was a problem processing the last message. For now we're just going to " +
-                "commit and abandon that message. However, we plan to add a dead-letter-queue type feature here at " +
-                "some point. Typically this will only occur when there are decoding errors. It could also happen if an " +
-                "error strategy is setup that allows the error to bubble back. In most cases though we intend to " +
-                "explicitly setup error strategies that will ensure processing.");
-
-        //TODO: Add dead letter queue feature
-        commit(WriteCompleteFuture.future(null));
-    }
-
     public void stopProcessing(Handler<AsyncResult<Void>> stopHandler) {
         stopped = true;
         if (readBuffers.size() == 0) {
@@ -83,7 +71,7 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
 
     private void doWaitOnStop(Handler<AsyncResult<Void>> stopHandler) {
         purgeReadBuffers();
-        logger.info("Waiting to finish processing " + readBuffers.size() + " messages in " + topic);
+        logger.info("Waiting to finish processing " + readBuffers.size() + " messages in " + topic + ". Paused: " + isPaused + " Current: " + currentMessage);
         vertx.setTimer(1000, timerId -> {
             if (readBuffers.size() == 0) {
                 stopHandler.handle(Future.succeededFuture());

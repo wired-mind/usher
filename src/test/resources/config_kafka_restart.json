@@ -1,0 +1,20 @@
+{
+  "usher": {
+    "pipelineInstances": 1
+  },
+  "Router": {
+    "type": "KafkaInput",
+    "decoder": "ErringDecoder"
+  },
+  "Filter": {
+    "type": "io.cozmic.usher.test.FakeFilter",
+    "messageMatcher": "#{1 == 1}"
+  },
+
+  "ErringDecoder": {
+    "type": "io.cozmic.usher.test.ErringDecoder",
+    "onlyErrWhenMessageIs": "first"
+  }
+
+
+}
