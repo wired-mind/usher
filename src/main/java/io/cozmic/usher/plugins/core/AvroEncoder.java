@@ -34,6 +34,7 @@ public class AvroEncoder implements EncoderPlugin {
     @Override
     public void encode(PipelinePack pipelinePack, Handler<Buffer> bufferHandler) throws IOException {
         final Object record = pipelinePack.getMessage();
+
         final byte[] bytes = avroMapper.serialize(record);
         bufferHandler.handle(Buffer.buffer(bytes));
     }

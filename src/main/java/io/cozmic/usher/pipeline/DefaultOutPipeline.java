@@ -41,10 +41,16 @@ public class DefaultOutPipeline implements OutPipeline {
 
     @Override
     public WriteStream<PipelinePack> write(PipelinePack pack) {
+        return write(pack, writeCompleteFuture, pack);
+    }
+
+
+    @Override
+    public OutPipeline write(PipelinePack pack, Future<Void> future, PipelinePack context) {
         try {
             encoderPlugin.encode(pack, encoded -> {
                 frameEncoderPlugin.encode(encoded, framed -> {
-                    innerWriteStream.write(framed, writeCompleteFuture, pack);
+                    innerWriteStream.write(framed, future, pack);
                 });
             });
         } catch (IOException e) {
@@ -53,7 +59,6 @@ public class DefaultOutPipeline implements OutPipeline {
 
         return this;
     }
-
 
     @Override
     public WriteStream<PipelinePack> setWriteQueueMaxSize(int maxSize) {
@@ -66,12 +71,12 @@ public class DefaultOutPipeline implements OutPipeline {
         return innerWriteStream.writeQueueFull();
     }
 
+
     @Override
     public WriteStream<PipelinePack> drainHandler(Handler<Void> handler) {
         innerWriteStream.drainHandler(handler);
         return this;
     }
-
 
     @Override
     public void stop(WriteStreamPool pool) {
@@ -82,11 +87,6 @@ public class DefaultOutPipeline implements OutPipeline {
     public OutPipeline writeCompleteFuture(Future<Void> future) {
         writeCompleteFuture = future;
         return this;
-    }
-
-    @Override
-    public OutPipeline write(PipelinePack data, Future<Void> future, PipelinePack context) {
-        throw new UnsupportedOperationException();
     }
 
     @Override
