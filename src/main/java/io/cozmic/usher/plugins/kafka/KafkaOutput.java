@@ -29,16 +29,16 @@ import java.util.Properties;
  */
 public class KafkaOutput implements OutputPlugin {
     private JsonObject configObj;
-    private static ExpressionFactory factory = ExpressionFactory.newInstance();
-    private SimpleContext context = new SimpleContext();
-    private ValueExpression topicExpression;
+
     private Vertx vertx;
     private KafkaProducer<byte[], byte[]> producer;
     private String topic;
+    private String key;
+    private RecordFactory recordFactory;
 
     @Override
     public void run(AsyncResultHandler<DuplexStream<Buffer, Buffer>> duplexStreamAsyncResultHandler) {
-        final KafkaProducerStream kafkaProducerStream = new KafkaProducerStream(vertx, topicExpression);
+        final KafkaProducerStream kafkaProducerStream = new KafkaProducerStream(vertx, recordFactory);
         final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(NullReadStream.getInstance(), kafkaProducerStream);
         duplexStreamAsyncResultHandler.handle(Future.succeededFuture(duplexStream));
     }
@@ -55,7 +55,12 @@ public class KafkaOutput implements OutputPlugin {
         this.vertx = vertx;
         Properties kafkaProducerProps = new Properties();
         topic = configObj.getString("topic", "default");
-        topicExpression = factory.createValueExpression(context, topic, String.class);
+        recordFactory = new RoundRobinFactory(topic);
+        key = configObj.getString("key");
+        if (key != null) {
+            recordFactory = new HashKeyFactory(topic, key);
+        }
+
         kafkaProducerProps.put("bootstrap.servers", configObj.getString("bootstrap.servers", "kafka.dev:9092"));
         kafkaProducerProps.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
         kafkaProducerProps.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
@@ -67,12 +72,12 @@ public class KafkaOutput implements OutputPlugin {
 
     private class KafkaProducerStream implements ClosableWriteStream<Buffer> {
         private final Vertx vertx;
-        private ValueExpression topicExpression;
+        private final RecordFactory recordFactory;
 
-        public KafkaProducerStream(Vertx vertx, ValueExpression topicExpression) {
 
+        public KafkaProducerStream(Vertx vertx, RecordFactory recordFactory) {
             this.vertx = vertx;
-            this.topicExpression = topicExpression;
+            this.recordFactory = recordFactory;
         }
 
         @Override
@@ -112,8 +117,7 @@ public class KafkaOutput implements OutputPlugin {
         public AsyncWriteStream<Buffer> write(Buffer data, Future<Void> future, PipelinePack context) {
             Objects.requireNonNull(data, "Must provide data to write to Kafka");
 
-            final String dynamicTopic = (String) topicExpression.getValue(context.getRuntimeContext());
-            ProducerRecord<byte[], byte[]> record = new ProducerRecord<>(dynamicTopic, data.getBytes());
+            ProducerRecord<byte[], byte[]> record = recordFactory.create(data, context);
 
             try {
                 producer.send(record, (metadata, exception) -> vertx.runOnContext(v -> {

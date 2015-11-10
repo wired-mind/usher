@@ -73,3 +73,25 @@ messages to the mux.
 ### TcpOutput
 
 ### KafkaOutput
+
+        KafkaOutput {
+            bootstrap.servers=kafka.dev:9092
+            topic=mytopic
+            key=mykey
+        }
+
+Topic is required. Key is optional.
+
+Both topic and key support expressions. The expression variables available are the PipelinePack. This means that if
+your message is a POJO, i.e. Person. You could dynamically create a topic, e.g.
+
+        topic=#{pack.message.gender}
+
+This would publish the messages to a topic that evaluated to the person's gender.
+
+Similarly you can can make key dynamic (not sure a static key makes much sense anyway).
+
+        key=#{pack.message.lastName}
+
+If key is omitted, then Kafka will use round-robin partitioning. Because usher's KafkaInput plugin is concurrent
+round-robin partitioning can lead to out-of-order messages. So be sure to use a partitioning key accordingly.

@@ -15,6 +15,7 @@ import io.cozmic.usher.pipeline.OutputRunnerImpl;
 import io.cozmic.usher.pipeline.StreamMuxImpl;
 import io.cozmic.usher.plugins.PluginLoader;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
+import io.cozmic.usher.test.Pojo;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -86,6 +87,41 @@ public class KafkaOutputTests {
 
             final PipelinePack pack = new PipelinePack();
             pack.setMessage(Buffer.buffer("hi"));
+            final Async async = context.async();
+            streamMux.write(pack, context.asyncAssertSuccess(v -> {
+                streamMux.unregisterAllConsumers();
+                async.complete();
+            }));
+        }));
+
+
+    }
+
+    @Test
+    public void testCanPublishToKafkaWithKey(TestContext context) throws NoSuchMethodException, IllegalAccessException, InstantiationException, UsherInitializationFailedException, InvocationTargetException, IOException {
+        final StreamMuxImpl streamMux = new StreamMuxImpl(vertx);
+
+        final MessageMatcher messageMatcher = MessageMatcher.always();
+
+
+        final JsonObject config = getReferenceConfig();
+        final JsonObject encoder = new JsonObject();
+        encoder.put("type", "io.cozmic.usher.plugins.core.AvroEncoder");
+        encoder.put("schema", "avro/pojo.avsc");
+        final JsonObject kakfaConfig = new JsonObject();
+        kakfaConfig.put("topic", "topic_test");
+        kakfaConfig.put("encoder", "AvroEncoder");
+        kakfaConfig.put("key", "#{pack.message.name}");
+        config.put("KafkaOutput", kakfaConfig);
+        config.put("AvroEncoder", encoder);
+        final OutputRunnerFactory outputRunnerFactory = new OutputRunnerFactory(vertx, config);
+        final OutputRunner outputRunner = outputRunnerFactory.buildOutputRunner(messageMatcher, "KafkaOutput");
+
+        outputRunner.run(context.asyncAssertSuccess(messageStream -> {
+            streamMux.addStream(messageStream, true);
+
+            final PipelinePack pack = new PipelinePack();
+            pack.setMessage(new Pojo("bob", "phone", 42, "blue"));
             final Async async = context.async();
             streamMux.write(pack, context.asyncAssertSuccess(v -> {
                 streamMux.unregisterAllConsumers();
