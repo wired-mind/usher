@@ -1,9 +1,7 @@
 package io.cozmic.usher.plugins.tcp;
 
-import io.cozmic.usher.core.ObjectPool;
 import io.cozmic.usher.core.WriteStreamPool;
 import io.cozmic.usher.streams.ClosableWriteStream;
-import io.cozmic.usher.streams.SocketWriteStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;

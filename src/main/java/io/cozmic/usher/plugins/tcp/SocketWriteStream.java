@@ -1,6 +1,8 @@
-package io.cozmic.usher.streams;
+package io.cozmic.usher.plugins.tcp;
 
 import io.cozmic.usher.message.PipelinePack;
+import io.cozmic.usher.streams.AsyncWriteStream;
+import io.cozmic.usher.streams.ClosableWriteStream;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;

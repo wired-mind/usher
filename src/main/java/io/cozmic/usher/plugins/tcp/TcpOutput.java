@@ -4,8 +4,8 @@ import io.cozmic.usher.core.OutPipeline;
 import io.cozmic.usher.core.OutputPlugin;
 import io.cozmic.usher.message.Message;
 import io.cozmic.usher.streams.ClosableWriteStream;
-import io.cozmic.usher.streams.SocketWriteStream;
 import io.cozmic.usher.streams.DuplexStream;
+import io.cozmic.usher.streams.NullReadStream;
 import io.vertx.core.AsyncResultHandler;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -24,15 +24,32 @@ public class TcpOutput implements OutputPlugin {
     Logger logger = LoggerFactory.getLogger(TcpOutput.class.getName());
     private SocketPool socketPool;
     private JsonObject configObj;
+    private Boolean keepAlive;
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
         this.configObj = configObj;
         socketPool = new SocketPool(configObj, vertx);
+        keepAlive = configObj.getBoolean("keepAlive", true);
     }
 
     @Override
     public void run(AsyncResultHandler<DuplexStream<Buffer, Buffer>> duplexStreamAsyncResultHandler) {
+        if (keepAlive) {
+            createKeepAliveStream(duplexStreamAsyncResultHandler);
+            return;
+        }
+
+        createStream(duplexStreamAsyncResultHandler);
+    }
+
+    private void createStream(AsyncResultHandler<DuplexStream<Buffer, Buffer>> duplexStreamAsyncResultHandler) {
+        final DelayedSocketStream stream = new DelayedSocketStream(socketPool);
+        final DuplexStream<Buffer, Buffer> duplexStream = new DuplexStream<>(NullReadStream.getInstance(), stream);
+        duplexStreamAsyncResultHandler.handle(Future.succeededFuture(duplexStream));
+    }
+
+    private void createKeepAliveStream(AsyncResultHandler<DuplexStream<Buffer, Buffer>> duplexStreamAsyncResultHandler) {
         socketPool.borrowObject(asyncResult -> {
             if (asyncResult.failed()) {
                 final Throwable cause = asyncResult.cause();
@@ -44,6 +61,7 @@ public class TcpOutput implements OutputPlugin {
             final ClosableWriteStream<Buffer> writeStream = asyncResult.result();
             SocketWriteStream socketWriteStream = (SocketWriteStream) writeStream;
             NetSocket socket = socketWriteStream.getSocket();
+
             final DuplexStream<Buffer, Buffer> duplexStream =
                     new DuplexStream<>(socket, writeStream)
                             .closeHandler(v -> {
@@ -57,7 +75,6 @@ public class TcpOutput implements OutputPlugin {
 
             duplexStreamAsyncResultHandler.handle(Future.succeededFuture(duplexStream));
         });
-
     }
 
     @Override

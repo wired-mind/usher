@@ -72,6 +72,23 @@ messages to the mux.
 
 ### TcpOutput
 
+        TcpOutput {
+           type: "TcpOutput"
+           host: localhost
+           port: 8080
+           useFraming: true
+           splitter: "UsherV1FramingSplitter"
+           encoder: "PayloadEncoder"
+           messageMatcher: "#{1==1}"
+           reconnectAttempts: -1 # means always reconnect
+           reconnectInterval: 3000
+         }
+
+New: keepAlive is true by default. If set to false you will force close the socket after each message is sent. When false
+the socket won't be bi-directional. Any data received by the socket is ignored.
+
+        keepAlive=false
+
 ### KafkaOutput
 
         KafkaOutput {
