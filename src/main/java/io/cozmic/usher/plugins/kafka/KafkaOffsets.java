@@ -4,6 +4,8 @@ import com.google.common.collect.ImmutableMap;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import kafka.api.ConsumerMetadataRequest;
 import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
@@ -33,6 +35,7 @@ public class KafkaOffsets {
          *
          * See https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-Requests
          */
+    private static final Logger logger = LoggerFactory.getLogger(KafkaOffsets.class.getName());
     private static final AtomicInteger correlationId = new AtomicInteger(0);
     private static final int READ_TIMEOUT_MS = 5_000; // channel read timeout in millis
     private static final short VERSION_ID = 1; // version 1 and above commit to Kafka, version 0 commits to ZooKeeper
@@ -224,6 +227,7 @@ public class KafkaOffsets {
                 if (channel != null) {
                     channel.disconnect();
                 }
+
                 future.complete();
             } catch (Throwable t) {
                 future.fail(t);

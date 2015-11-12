@@ -191,7 +191,7 @@ public class KafkaInput implements InputPlugin {
                             } catch (Throwable throwable) {
                                 future.fail(throwable);
                             }
-                        }, connStop.toHandler());
+                        }, false, connStop.toHandler());
                         return connStop.zipWith(offsetStop, (v1, v2) -> null);
                     })
                     .subscribe(v -> {

@@ -48,7 +48,9 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
                 context.runOnContext(v->purgeReadBuffers());
                 logger.info("[Worker] - " + topic + " Ending in " + Thread.currentThread().getName());
                 if (endHandler != null) context.runOnContext(v -> endHandler.handle(null));
-            } catch (Throwable throwable) {
+            }
+            catch (Throwable throwable) {
+
                 logger.error(throwable.getMessage(), throwable);
                 if (exceptionHandler != null) context.runOnContext(v-> exceptionHandler.handle(throwable));
             }
@@ -74,6 +76,7 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
         logger.info("Waiting to finish processing " + readBuffers.size() + " messages in " + topic + ". Paused: " + isPaused + " Current: " + currentMessage);
         vertx.setTimer(1000, timerId -> {
             if (readBuffers.size() == 0) {
+
                 stopHandler.handle(Future.succeededFuture());
                 return;
             }

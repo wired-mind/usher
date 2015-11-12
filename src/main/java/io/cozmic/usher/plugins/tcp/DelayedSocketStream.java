@@ -27,8 +27,8 @@ public class DelayedSocketStream  implements AsyncWriteStream<Buffer>, ClosableW
 
     @Override
     public AsyncWriteStream<Buffer> write(Buffer data, Future<Void> future, PipelinePack pipelinePack) {
-        doWrite(data);
-        if (future != null) future.complete();
+        doWrite(data, future);
+
         return this;
     }
 
@@ -40,19 +40,20 @@ public class DelayedSocketStream  implements AsyncWriteStream<Buffer>, ClosableW
 
     @Override
     public WriteStream<Buffer> write(Buffer data) {
-        doWrite(data);
+        doWrite(data, Future.future());
         return this;
     }
 
-    private void doWrite(Buffer data) {
+    private void doWrite(Buffer data, Future<Void> future) {
         socketPool.borrowObject(asyncResult -> {
             if (asyncResult.failed()) {
-                if (exceptionHandler != null) exceptionHandler.handle(asyncResult.cause());
+                future.fail(asyncResult.cause());
                 return;
             }
             final ClosableWriteStream<Buffer> sock = asyncResult.result();
             sock.write(data);
             socketPool.returnObject(sock);
+            future.complete();
         });
     }
 
