@@ -68,9 +68,19 @@ public class KafkaInput implements InputPlugin {
                             "explicitly setup error strategies that will ensure processing.");
 
                     //TODO: Add dead letter queue feature
-                    stream.commit(WriteCompleteFuture.future(null));
-                    logger.info("Restarting channel for stream");
-                    doCreateStream(duplexStreamHandler, stream);
+                    final WriteCompleteFuture<Void> future = WriteCompleteFuture.future(null);
+                    future.setHandler(committed -> {
+                        if (committed.failed()) {
+                            final Throwable cause = committed.cause();
+                            logger.fatal(cause.getMessage(), cause);
+                            logger.fatal("Cannot commit to Kafka. Refusing to restart stream.");
+                            return;
+                        }
+                        logger.info("Restarting channel for stream");
+                        doCreateStream(duplexStreamHandler, stream);
+                    });
+                    stream.pause();
+                    stream.commit(future);
                 })
                 .writeCompleteHandler(stream::commit);
 

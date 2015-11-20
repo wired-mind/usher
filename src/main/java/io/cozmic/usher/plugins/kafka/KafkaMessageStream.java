@@ -86,7 +86,7 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
     }
 
 
-    public void commit(WriteCompleteFuture future) {
+    public void commit(WriteCompleteFuture<Void> future) {
 
         final long offset = this.currentMessage.offset() + 1;
 
@@ -132,11 +132,11 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
 
     @Override
     public ReadStream<Buffer> handler(Handler<Buffer> handler) {
+        this.readHandler = handler;
         if (handler != null) {
-            this.readHandler = handler;
             purgeReadBuffers();
         }
-        return null;
+        return this;
     }
 
     @Override
