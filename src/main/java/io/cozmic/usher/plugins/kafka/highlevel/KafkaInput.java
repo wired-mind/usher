@@ -140,6 +140,7 @@ public class KafkaInput implements InputPlugin {
 
 
                     topicStreams.forEach(stream -> {
+
                         final KafkaMessageStream messageStream = new KafkaMessageStream(vertx, context, topic, stream, kafkaOffsets);
                         kafkaMessageStreams.add(messageStream);
                         context.runOnContext(v -> delegate.handle(messageStream));
@@ -169,7 +170,7 @@ public class KafkaInput implements InputPlugin {
             final Properties properties = kafkaConsumerConfig.getProperties();
 
             properties.setProperty("auto.commit.enable", Boolean.FALSE.toString());
-            properties.setProperty("auto.offset.reset", "smallest");
+            properties.setProperty("auto.offset.reset", "largest");
             properties.setProperty("queued.max.message.chunks", "1000");
             properties.setProperty("offsets.storage", "kafka");
 
