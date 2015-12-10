@@ -11,6 +11,7 @@ import kafka.consumer.KafkaStream;
 import kafka.message.MessageAndMetadata;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * KafkaMessageStream
@@ -19,6 +20,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class KafkaMessageStream implements ReadStream<Buffer> {
     private static final Logger logger = LoggerFactory.getLogger(KafkaMessageStream.class.getName());
+    public static final long COMMIT_RETRY_ATTEMPTS = 3;
     private final Vertx vertx;
     private final String topic;
     private final KafkaOffsets kafkaOffsets;
@@ -86,8 +88,16 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
     }
 
 
+    /**
+     * Will commit and retry up to 3 times if there is a problem
+     * @param future
+     */
     public void commit(WriteCompleteFuture<Void> future) {
+        AtomicInteger retryCounter = new AtomicInteger();
+        doCommit(future, retryCounter);
+    }
 
+    private void doCommit(WriteCompleteFuture<Void> future, AtomicInteger retryCounter) {
         final long offset = this.currentMessage.offset() + 1;
 
         final int partition = this.currentMessage.partition();
@@ -100,8 +110,20 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
         // Commit offset for this topic and partition
         kafkaOffsets.commitOffset(topicAndPartition, offset, asyncResult -> {
             if (asyncResult.failed()) {
-                future.fail(asyncResult.cause());
+                final Throwable cause = asyncResult.cause();
+                logger.error(cause.getMessage(), cause);
+                final long attempt = retryCounter.incrementAndGet();
+
+                if (attempt > COMMIT_RETRY_ATTEMPTS) {
+                    logger.warn("[KafkaMessageStream] - Commit failed. Retry attempts exhausted.");
+                    future.fail(cause);
+                    return;
+                }
+
+                logger.warn("[KafkaMessageStream] - Commit failed, retry attempt " + attempt);
+                doCommit(future, retryCounter);
                 return;
+
             }
 
             logger.debug(String.format("committed %s at offset: %d", topicAndPartition, offset));
@@ -109,7 +131,6 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
             purgeReadBuffers();
             future.complete();
         });
-
     }
 
     synchronized void purgeReadBuffers() {

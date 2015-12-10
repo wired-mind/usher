@@ -116,7 +116,8 @@ public class StreamMuxImpl implements StreamMux {
                 future.setHandler(commitDone -> {
                     if (commitDone.failed()) {
                         logger.warn("StreamMux - Error during commit. Really nothing we can do here. The producer should retry " +
-                                "if it is 'reliable'.");
+                                "if it is 'reliable'. Invoking the mux exceptionHandler.");
+                        if (exceptionHandler != null) exceptionHandler.handle(asyncResult.cause());
                     }
                     logger.debug("StreamMux - The exchange is complete now.");
                 });

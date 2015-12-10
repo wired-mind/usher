@@ -169,13 +169,11 @@ public class KafkaOffsets {
             if (e.getErrorCode() == ErrorMapping.NotCoordinatorForConsumerCode()
                     || e.getErrorCode() == ErrorMapping.ConsumerCoordinatorNotAvailableCode()) {
                 channel.disconnect();
-                // TODO: Don't throw error but retry the commit (with limited retries)
             }
             throw e;
         } catch (Exception e) {
             channel.disconnect();
             throw new ConsumerOffsetsException(e);
-            // TODO: Client should retry the commit
         }
     }
 

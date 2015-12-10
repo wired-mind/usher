@@ -73,10 +73,8 @@ public class KafkaInput implements InputPlugin {
                         if (committed.failed()) {
                             final Throwable cause = committed.cause();
                             logger.fatal(cause.getMessage(), cause);
-                            logger.fatal("Cannot commit to Kafka. Refusing to restart stream.");
-                            return;
                         }
-                        logger.info("Restarting channel for stream");
+                        logger.info("Restarting channel for stream.");
                         doCreateStream(duplexStreamHandler, stream);
                     });
                     stream.pause();
