@@ -20,7 +20,6 @@ import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
 
-
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -95,7 +94,10 @@ public class KafkaConsumerImpl implements KafkaConsumer {
             String leadBroker = findNewLeader("", topicAndPartition);
             String clientName = CLIENT + "_" + topic + "_" + partition;
 
-            offsetsStrategy = new KafkaOffsets(leadBroker, port, groupId);
+            List<String> brokers = new ArrayList<>();
+            brokers.add(String.format("%s:%d", leadBroker, port));
+
+            offsetsStrategy = new KafkaOffsets(null, brokers, groupId);
             long readOffset = offsetsStrategy.getOffset(topicAndPartition);
 
             int numErrors = 0;
@@ -235,7 +237,9 @@ public class KafkaConsumerImpl implements KafkaConsumer {
     @Override
     public void commit(TopicAndPartition topicAndPartition, Long offset) throws Exception {
         String leadBroker = findNewLeader("", topicAndPartition);
-        offsetsStrategy = new KafkaOffsets(leadBroker, port, groupId);
+        List<String> brokers = new ArrayList<>();
+        brokers.add(String.format("%s:%d", leadBroker, port));
+        offsetsStrategy = new KafkaOffsets(null, brokers, groupId);
         logger.info("committing offsets");
         offsetsStrategy.commitOffset(topicAndPartition, offset, new Handler<AsyncResult<Void>>() {
             @Override
