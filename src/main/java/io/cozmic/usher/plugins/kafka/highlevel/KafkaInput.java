@@ -5,6 +5,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import io.cozmic.usher.core.InputPlugin;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
+import io.cozmic.usher.plugins.kafka.HostAndPort;
 import io.cozmic.usher.plugins.kafka.KafkaConsumerConfig;
 import io.cozmic.usher.plugins.kafka.KafkaMessageStream;
 import io.cozmic.usher.plugins.kafka.KafkaOffsets;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 /**
  * KafkaInput
@@ -120,8 +122,15 @@ public class KafkaInput implements InputPlugin {
         public KafkaLogListener(Vertx vertx, int numberOfThreads) {
             this.vertx = vertx;
             this.numberOfThreads = numberOfThreads;
-            List<String> brokers = Splitter.on(",").splitToList(configObj.getString(KEY_SEED_BROKERS));
+            List<HostAndPort> brokers = Splitter.on(",")
+                    .splitToList(configObj.getString(KEY_SEED_BROKERS))
+                    .stream().map(this::split).collect(Collectors.toList());
             kafkaOffsets = new KafkaOffsets(vertx, brokers, kafkaConsumerConfig.getGroupId());
+        }
+
+        private HostAndPort split(String broker) {
+            String[] strings = broker.split(":");
+            return new HostAndPort(strings[0], Integer.valueOf(strings[1]));
         }
 
 

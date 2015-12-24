@@ -49,6 +49,7 @@ public class EmbeddedKafkaTests {
     private EmbeddedZookeeper zookeeper;
     private EmbeddedKafkaServer kafkaServer;
     private KafkaProducer<String, byte[]> producer;
+    private long timeout = 60_000;
     private Vertx vertx;
 
     @Before
@@ -175,7 +176,7 @@ public class EmbeddedKafkaTests {
             });
 
         }));
-        vertx.setTimer(30_000, event -> context.fail("timed out"));
+        vertx.setTimer(timeout, event -> context.fail("timed out"));
     }
 
     /**
@@ -235,7 +236,7 @@ public class EmbeddedKafkaTests {
             });
 
         }));
-        vertx.setTimer(30_000, event -> context.fail("timed out"));
+        vertx.setTimer(timeout, event -> context.fail("timed out"));
     }
 
     private DeploymentOptions buildDeploymentOptions(String name) {

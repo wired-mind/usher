@@ -43,18 +43,19 @@ public class KafkaOffsets {
     private static final int READ_TIMEOUT_MS = 5_000; // channel read timeout in millis
     private static final short VERSION_ID = 1; // version 1 and above commit to Kafka, version 0 commits to ZooKeeper
     private static final String DEFAULT_COMMIT_METADATA = "";
-    private final Object lockObject = new Object();
+    //private final Object lockObject = new Object();
     private final Vertx vertx;
     private final String groupId;
-    private final List<String> brokers;
+    private final List<HostAndPort> brokers;
     private final String clientName;
     private final AtomicReference<BlockingChannel> channel = new AtomicReference<>();
+    private final ThreadLocal<BlockingChannel> anotherChannel = new ThreadLocal<>();
 
-    public KafkaOffsets(Vertx vertx, List<String> brokers, String groupId) {
+    public KafkaOffsets(Vertx vertx, List<HostAndPort> brokers, String groupId) {
         this(vertx, brokers, groupId, DEFAULT_CLIENT_NAME);
     }
 
-    public KafkaOffsets(Vertx vertx, List<String> brokers, String groupId, String clientName) {
+    public KafkaOffsets(Vertx vertx, List<HostAndPort> brokers, String groupId, String clientName) {
         Preconditions.checkNotNull(vertx, "vertx cannot be null");
         Preconditions.checkArgument(brokers != null && brokers.size() > 0, "one or more brokers must be provided");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(groupId), "must provide a groupId");
@@ -64,16 +65,15 @@ public class KafkaOffsets {
         this.clientName = clientName;
     }
 
-    private void connectToOffsetManager() throws ConsumerOffsetsException {
+    private synchronized void connectToOffsetManager() throws ConsumerOffsetsException {
         if (channel.get() != null && channel.get().isConnected()) {
             return;
         }
-        synchronized (lockObject) {
-            for (final String broker : brokers) {
-                final String[] strings = broker.split(":");
+        //synchronized (lockObject) {
+            for (final HostAndPort broker : brokers) {
 
                 // Create blocking channel with read timeout
-                channel.set(new BlockingChannel(strings[0], Integer.valueOf(strings[1]),
+                channel.set(new BlockingChannel(broker.getHost(), broker.getPort(),
                         BlockingChannel.UseDefaultBufferSize(),
                         BlockingChannel.UseDefaultBufferSize(),
                         READ_TIMEOUT_MS));
@@ -119,7 +119,7 @@ public class KafkaOffsets {
                     // Client should retry query (after backoff)
                 }
             }
-        }
+        //}
     }
 
     public void commitOffsets(final Map<TopicAndPartition, Long> offsets, Handler<AsyncResult<Void>> resultHandler) {
