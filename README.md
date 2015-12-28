@@ -33,6 +33,24 @@ We use [typesafe config](https://github.com/typesafehub/config).
 
 ### KafkaInput
 
+        KafkaInput {
+            type: KafkaInput
+            topic: my-topic
+            "group.id": my-service
+            splitter: KafkaSplitter
+            decoder: MyDecoder
+            "seed.brokers": kafka-1,kafka-2,kafka-3
+            "bootstrap.servers": kafka-1,kafka-2,kafka-3
+            numberOfThreads: 100 #Defaults to 10
+        }
+
+        KafkaSplitter: { "type": "io.cozmic.usher.plugins.core.NullSplitter", "useMessageBytes": true}
+
+
+numberOfThreads - this setting (defaults to 10) controls how many partitions can be processed concurrently. I.e. If there
+are 100 partitions, by default, then each instance of this input would only process 10 out of the 100 partitions. So for
+maximum concurrency you would set numberOfThreads to 100 OR for maximum parallelism you would run 10 instances of usher
+on 10 different machines. Theoretically this is how it works, however, more testing is required to verify proper implementation.
 
 ## Message matcher
 
