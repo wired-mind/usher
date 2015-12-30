@@ -117,7 +117,7 @@ public class EmbeddedKafkaTests {
     }
 
     /**
-     * Test (data x n) -> Kafka -> KafkaInput (w/ leader shutdown at 1/2 n) -> EventBusFilter
+     * Test (data x n) -> Kafka -> KafkaInput (w/ leader shutdown while streaming) -> EventBusFilter
      */
     @Test
     public void shouldConsumeAllMessageWhenLeaderIsChanged(TestContext context) throws Exception {
@@ -127,7 +127,7 @@ public class EmbeddedKafkaTests {
         // Given
         final String expected = "Data 0" + random.nextInt(1_000);
         final int expectedHashCode = expected.hashCode();
-        final int numberOfMessages = 1000;
+        final int numberOfMessages = 2000;
         final ProducerRecord<String, byte[]> data = new ProducerRecord<>(topic, expected.getBytes());
         final Integer leadBrokerAtStart = kafkaServer.leadBroker(topic, 0);
 
@@ -137,7 +137,7 @@ public class EmbeddedKafkaTests {
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
 
             Handler<AsyncResult<Void>> leadBrokerShutdownHandler = event -> {
-                for (int i = 0; i < numberOfMessages / 2; i++) {
+                for (int i = 0; i < numberOfMessages * 3 / 4; i++) {
                     producer.send(data, (metadata, exception) -> {
                         if (exception != null) {
                             context.fail(exception);
@@ -146,8 +146,8 @@ public class EmbeddedKafkaTests {
                 }
             };
 
-            // When - publish to kafka
-            for (int i = 0; i < numberOfMessages / 2; i++) {
+            // When - messages published to kafka
+            for (int i = 0; i < numberOfMessages / 4; i++) {
                 producer.send(data, (metadata, exception) -> {
                     if (exception != null) {
                         context.fail(exception);
@@ -155,23 +155,23 @@ public class EmbeddedKafkaTests {
                 });
             }
 
-            // Then
+            // Then - Should receive all messages, even after lead broker shutdown
             vertx.eventBus().<Integer>consumer(EVENT_BUS_ADDRESS, msg -> {
                 final Integer actualHashCode = msg.body();
                 if (actualHashCode.equals(expectedHashCode)) {
                     counter.incrementAndGet();
                     logger.info("received expected data, counter = " + counter.get());
-                    if (counter.get() == numberOfMessages / 2) {
+                    if (counter.get() == 1) {
+                        // As soon as the first message is received initiate lead broker shutdown
                         kafkaServer.shutdownBroker(leadBrokerAtStart, leadBrokerShutdownHandler);
                     } else if (counter.get() == numberOfMessages) {
+                        // Should be new lead broker
                         Integer newLeadBroker = kafkaServer.leadBroker(topic, 0);
                         context.assertTrue(!newLeadBroker.equals(leadBrokerAtStart));
                         async.complete();
                     }
                 } else {
-                    context.fail("Pojo hashcodes do not match");
-                    logger.info("Pojo hashcodes do not match");
-                    logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
+                    context.fail("msg.body() hashcode does not match");
                 }
             });
 
@@ -180,7 +180,7 @@ public class EmbeddedKafkaTests {
     }
 
     /**
-     * Test (data x n) -> Kafka -> KafkaInput (w/ zk shutdown at 1/2 n) -> EventBusFilter
+     * Test (data x n) -> Kafka -> KafkaInput (w/ zk restart while streaming) -> EventBusFilter
      */
     @Test
     public void shouldConsumeAllMessageWhenZookeeperIsRestarted(TestContext context) throws Exception {
@@ -190,7 +190,7 @@ public class EmbeddedKafkaTests {
         // Given
         final String expected = "Data 0" + random.nextInt(1_000);
         final int expectedHashCode = expected.hashCode();
-        final int numberOfMessages = 1000;
+        final int numberOfMessages = 2000;
         final ProducerRecord<String, byte[]> data = new ProducerRecord<>(topic, expected.getBytes());
 
         context.assertTrue(numberOfMessages % 2 == 0, "numberOfMessages should be an even number");
@@ -199,7 +199,7 @@ public class EmbeddedKafkaTests {
         vertx.deployVerticle(Start.class.getName(), options, context.asyncAssertSuccess(deploymentID -> {
 
             Handler<AsyncResult<Void>> zookeeperRestartHandler = event -> {
-                for (int i = 0; i < numberOfMessages / 2; i++) {
+                for (int i = 0; i < numberOfMessages * 3 / 4; i++) {
                     producer.send(data, (metadata, exception) -> {
                         if (exception != null) {
                             context.fail(exception);
@@ -208,8 +208,8 @@ public class EmbeddedKafkaTests {
                 }
             };
 
-            // When - publish to kafka
-            for (int i = 0; i < numberOfMessages / 2; i++) {
+            // When - messages published to kafka
+            for (int i = 0; i < numberOfMessages / 4; i++) {
                 producer.send(data, (metadata, exception) -> {
                     if (exception != null) {
                         context.fail(exception);
@@ -217,21 +217,20 @@ public class EmbeddedKafkaTests {
                 });
             }
 
-            // Then
+            // Then - Should receive all messages, even after zookeeper restart
             vertx.eventBus().<Integer>consumer(EVENT_BUS_ADDRESS, msg -> {
                 final Integer actualHashCode = msg.body();
                 if (actualHashCode.equals(expectedHashCode)) {
                     counter.incrementAndGet();
                     logger.info("received expected data, counter = " + counter.get());
-                    if (counter.get() == numberOfMessages / 2) {
+                    if (counter.get() == 1) {
+                        // As soon as the first message is received initiate zookeeper restart
                         restartZookeeper(zookeeperRestartHandler);
                     } else if (counter.get() == numberOfMessages) {
                         async.complete();
                     }
                 } else {
-                    context.fail("Pojo hashcodes do not match");
-                    logger.info("Pojo hashcodes do not match");
-                    logger.info("expected: " + expectedHashCode + " actual: " + actualHashCode);
+                    context.fail("msg.body() hashcode does not match");
                 }
             });
 
