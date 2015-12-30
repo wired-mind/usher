@@ -1,5 +1,6 @@
 package io.cozmic.usher.plugins.kafka;
 
+import com.google.common.collect.ImmutableMap;
 import io.cozmic.usher.streams.WriteCompleteFuture;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
@@ -108,7 +109,8 @@ public class KafkaMessageStream implements ReadStream<Buffer> {
 
 
         // Commit offset for this topic and partition
-        kafkaOffsets.commitOffset(topicAndPartition, offset, asyncResult -> {
+        // Note: This can run more efficiently if offsets are batched
+        kafkaOffsets.commitOffsets(ImmutableMap.of(topicAndPartition, offset), asyncResult -> {
             if (asyncResult.failed()) {
                 final Throwable cause = asyncResult.cause();
                 logger.error(cause.getMessage(), cause);

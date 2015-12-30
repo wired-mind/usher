@@ -2,7 +2,6 @@ package io.cozmic.usher.plugins.kafka;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -17,20 +16,20 @@ import kafka.common.TopicAndPartition;
 import kafka.javaapi.*;
 import kafka.network.BlockingChannel;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * KafkaOffsets
+ * KafkaOffsets commits offsets to (and fetches from) a durable Kafka
+ * topic. Commits are regular producer requests (which are inexpensive)
+ * and fetches are fast memory look-ups. This class is thread-safe.
+ * <p>
  * Created by Craig Earley on 9/18/15.
  * Copyright (c) 2015 All Rights Reserved
  */
 public class KafkaOffsets {
-    public static final String DEFAULT_CLIENT_NAME = KafkaOffsets.class.getSimpleName();
+    public static final String CLIENT_NAME = KafkaOffsets.class.getName();
     private static final Logger logger = LoggerFactory.getLogger(KafkaOffsets.class.getName());
     //
     // CorrelationId - This is a user-supplied integer. It will be passed back
@@ -43,99 +42,98 @@ public class KafkaOffsets {
     private static final int READ_TIMEOUT_MS = 5_000; // channel read timeout in millis
     private static final short VERSION_ID = 1; // version 1 and above commit to Kafka, version 0 commits to ZooKeeper
     private static final String DEFAULT_COMMIT_METADATA = "";
-    //private final Object lockObject = new Object();
+    private static CopyOnWriteArrayList<HostAndPort> brokers;
     private final Vertx vertx;
     private final String groupId;
-    private final List<HostAndPort> brokers;
-    private final String clientName;
-    private final AtomicReference<BlockingChannel> channel = new AtomicReference<>();
-    private final ThreadLocal<BlockingChannel> anotherChannel = new ThreadLocal<>();
 
     public KafkaOffsets(Vertx vertx, List<HostAndPort> brokers, String groupId) {
-        this(vertx, brokers, groupId, DEFAULT_CLIENT_NAME);
-    }
-
-    public KafkaOffsets(Vertx vertx, List<HostAndPort> brokers, String groupId, String clientName) {
         Preconditions.checkNotNull(vertx, "vertx cannot be null");
         Preconditions.checkArgument(brokers != null && brokers.size() > 0, "one or more brokers must be provided");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(groupId), "must provide a groupId");
         this.vertx = vertx;
         this.groupId = groupId;
-        this.brokers = brokers;
-        this.clientName = clientName;
+        KafkaOffsets.brokers = new CopyOnWriteArrayList<>(brokers);
     }
 
-    private synchronized void connectToOffsetManager() throws ConsumerOffsetsException {
-        if (channel.get() != null && channel.get().isConnected()) {
-            return;
-        }
-        //synchronized (lockObject) {
-            for (final HostAndPort broker : brokers) {
+    private static BlockingChannel getConnectionToOffsetManager(String groupId) throws ConsumerOffsetsException {
+        BlockingChannel channel = null;
+        for (final HostAndPort broker : brokers) {
 
-                // Create blocking channel with read timeout
-                channel.set(new BlockingChannel(broker.getHost(), broker.getPort(),
-                        BlockingChannel.UseDefaultBufferSize(),
-                        BlockingChannel.UseDefaultBufferSize(),
-                        READ_TIMEOUT_MS));
-                try {
-                    channel.get().connect();
+            // Create blocking channel with read timeout
+            channel = new BlockingChannel(broker.getHost(), broker.getPort(),
+                    BlockingChannel.UseDefaultBufferSize(),
+                    BlockingChannel.UseDefaultBufferSize(),
+                    READ_TIMEOUT_MS);
+            try {
+                channel.connect();
 
-                    channel.get().send(new ConsumerMetadataRequest(groupId, ConsumerMetadataRequest.CurrentVersion(), correlationId.getAndIncrement(), clientName));
-                    final ConsumerMetadataResponse metadataResponse = ConsumerMetadataResponse.readFrom(channel.get().receive().buffer());
+                channel.send(new ConsumerMetadataRequest(groupId, ConsumerMetadataRequest.CurrentVersion(), correlationId.getAndIncrement(), CLIENT_NAME));
+                final ConsumerMetadataResponse metadataResponse = ConsumerMetadataResponse.readFrom(channel.receive().buffer());
 
-                    if (metadataResponse.errorCode() == ErrorMapping.NoError()) {
-                        final Broker offsetManager = metadataResponse.coordinator();
-                        // if the coordinator is different from the above channel's host (and port) then reconnect
-                        if (!(offsetManager.host().equals(channel.get().host())
-                                && offsetManager.port() == channel.get().port())) {
-                            channel.get().disconnect();
-                            channel.set(new BlockingChannel(offsetManager.host(), offsetManager.port(),
-                                    BlockingChannel.UseDefaultBufferSize(),
-                                    BlockingChannel.UseDefaultBufferSize(),
-                                    READ_TIMEOUT_MS));
-                            channel.get().connect();
-                        }
-                        return;
-                    } else {
-                        throw new ConsumerOffsetsException("Error in ConsumerMetadataResponse", metadataResponse.errorCode());
-                    }
-                } catch (ConsumerOffsetsException e) {
-                    if (channel.get().isConnected()) {
-                        channel.get().disconnect();
-                    }
-                    if (brokers.indexOf(broker) < brokers.size() - 1) {
-                        continue;
-                    }
-                    throw e;
-                    // Client should retry (after backoff)
-                } catch (Exception e) {
-                    if (channel.get().isConnected()) {
-                        channel.get().disconnect();
-                    }
-                    if (brokers.indexOf(broker) < brokers.size() - 1) {
-                        continue;
-                    }
-                    throw new ConsumerOffsetsException(e);
-                    // Client should retry query (after backoff)
+                if (metadataResponse.errorCode() != ErrorMapping.NoError()) {
+                    throw new ConsumerOffsetsException("Error in ConsumerMetadataResponse", metadataResponse.errorCode());
                 }
+
+                final Broker offsetManager = metadataResponse.coordinator();
+                // if the coordinator is different from the above channel's host (and port) then reconnect
+                if (!(offsetManager.host().equals(channel.host())
+                        && offsetManager.port() == channel.port())) {
+                    channel.disconnect();
+                    channel = new BlockingChannel(offsetManager.host(), offsetManager.port(),
+                            BlockingChannel.UseDefaultBufferSize(),
+                            BlockingChannel.UseDefaultBufferSize(),
+                            READ_TIMEOUT_MS);
+                    channel.connect();
+                    if (!channel.isConnected()) {
+                        logger.error("not connected!");
+                    }
+                }
+
+                // Make the connected channel's corresponding HostAndPort first
+                // in the brokers list to facilitate future connects
+                HostAndPort coordinator = new HostAndPort(offsetManager.host(), offsetManager.port());
+                int index = brokers.indexOf(coordinator);
+                if (index > 0) {
+                    Collections.rotate(brokers, brokers.size() - index);
+                }
+
+                break;
+            } catch (ConsumerOffsetsException e) {
+                if (channel.isConnected()) {
+                    channel.disconnect();
+                }
+                if (brokers.indexOf(broker) < brokers.size() - 1) {
+                    continue;
+                }
+                throw e;
+                // Client should retry (after backoff)
+            } catch (Exception e) {
+                if (channel.isConnected()) {
+                    channel.disconnect();
+                }
+                if (brokers.indexOf(broker) < brokers.size() - 1) {
+                    continue;
+                }
+                throw new ConsumerOffsetsException(e);
+                // Client should retry query (after backoff)
             }
-        //}
+        }
+        return channel;
     }
 
     public void commitOffsets(final Map<TopicAndPartition, Long> offsets, Handler<AsyncResult<Void>> resultHandler) {
         vertx.executeBlocking(offsetFuture -> {
             try {
-                doCommitOffsets(offsets);
+                commitOffsetsImpl(offsets);
                 offsetFuture.complete();
             } catch (Throwable t) {
                 offsetFuture.fail(t);
             }
-        }, true, resultHandler);
-
+        }, resultHandler);
     }
 
-    private void doCommitOffsets(Map<TopicAndPartition, Long> offsets) throws ConsumerOffsetsException {
-        connectToOffsetManager();
+    private void commitOffsetsImpl(Map<TopicAndPartition, Long> offsets) throws ConsumerOffsetsException {
+        BlockingChannel channel = getConnectionToOffsetManager(groupId);
 
         final long now = System.currentTimeMillis();
         final Map<TopicAndPartition, OffsetAndMetadata> requestInfo = new LinkedHashMap<>();
@@ -144,11 +142,11 @@ public class KafkaOffsets {
                 groupId,
                 requestInfo,
                 correlationId.getAndIncrement(),
-                clientName,
+                CLIENT_NAME,
                 VERSION_ID);
         try {
-            channel.get().send(commitRequest.underlying());
-            final OffsetCommitResponse commitResponse = OffsetCommitResponse.readFrom(channel.get().receive().buffer());
+            channel.send(commitRequest.underlying());
+            final OffsetCommitResponse commitResponse = OffsetCommitResponse.readFrom(channel.receive().buffer());
 
             if (commitResponse.hasError()) {
                 for (Object partitionErrorCode : commitResponse.errors().values()) {
@@ -165,27 +163,18 @@ public class KafkaOffsets {
                 }
             }
         } catch (ConsumerOffsetsException e) {
-            if (e.getErrorCode() == ErrorMapping.NotCoordinatorForConsumerCode()
-                    || e.getErrorCode() == ErrorMapping.ConsumerCoordinatorNotAvailableCode()) {
-                if (channel.get().isConnected()) {
-                    channel.get().disconnect();
-                }
-            }
             throw e;
         } catch (Exception e) {
-            if (channel.get().isConnected()) {
-                channel.get().disconnect();
-            }
             throw new ConsumerOffsetsException(e);
+        } finally {
+            if (channel != null && channel.isConnected()) {
+                channel.disconnect();
+            }
         }
     }
 
-    public void commitOffset(final TopicAndPartition topicAndPartition, final Long offset, Handler<AsyncResult<Void>> resultHandler) {
-        commitOffsets(ImmutableMap.of(topicAndPartition, offset), resultHandler);
-    }
-
-    public long getOffset(final TopicAndPartition topicAndPartition) throws ConsumerOffsetsException {
-        connectToOffsetManager();
+    public long fetchOffset(final TopicAndPartition topicAndPartition) throws ConsumerOffsetsException {
+        BlockingChannel channel = getConnectionToOffsetManager(groupId);
 
         final List<TopicAndPartition> partitions = new ArrayList<>();
         partitions.add(topicAndPartition);
@@ -194,10 +183,10 @@ public class KafkaOffsets {
                 partitions,
                 VERSION_ID,
                 correlationId.incrementAndGet(),
-                clientName + "_" + topicAndPartition.topic() + "_" + topicAndPartition.partition());
+                CLIENT_NAME + "_" + topicAndPartition.topic() + "_" + topicAndPartition.partition());
         try {
-            channel.get().send(fetchRequest.underlying());
-            final OffsetFetchResponse fetchResponse = OffsetFetchResponse.readFrom(channel.get().receive().buffer());
+            channel.send(fetchRequest.underlying());
+            final OffsetFetchResponse fetchResponse = OffsetFetchResponse.readFrom(channel.receive().buffer());
             final OffsetMetadataAndError result = fetchResponse.offsets().get(topicAndPartition);
             final short offsetFetchErrorCode = result.error();
             if (offsetFetchErrorCode == ErrorMapping.NotCoordinatorForConsumerCode()) {
@@ -210,30 +199,14 @@ public class KafkaOffsets {
                 //String retrievedMetadata = result.metadata();
             }
         } catch (ConsumerOffsetsException e) {
-            if (e.getErrorCode() == ErrorMapping.NotCoordinatorForConsumerCode()) {
-                channel.get().disconnect();
-                // Don't throw error but retry the fetch (with limited retries)
-            }
             throw e;
         } catch (Throwable t) {
-            channel.get().disconnect();
             throw new ConsumerOffsetsException(t);
             // Client should retry the commit
-        }
-    }
-
-    public void shutdown(Handler<AsyncResult<Void>> stopHandler) {
-        vertx.executeBlocking(future -> {
-            try {
-                if (channel.get() != null) {
-                    channel.get().disconnect();
-                }
-
-                future.complete();
-            } catch (Throwable t) {
-                future.fail(t);
+        } finally {
+            if (channel != null && channel.isConnected()) {
+                channel.disconnect();
             }
-        }, false, stopHandler);
-
+        }
     }
 }

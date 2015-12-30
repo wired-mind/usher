@@ -1,14 +1,10 @@
-package io.cozmic.usher.plugins.kafka.highlevel;
+package io.cozmic.usher.plugins.kafka;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import io.cozmic.usher.core.InputPlugin;
 import io.cozmic.usher.plugins.core.UsherInitializationFailedException;
-import io.cozmic.usher.plugins.kafka.HostAndPort;
-import io.cozmic.usher.plugins.kafka.KafkaConsumerConfig;
-import io.cozmic.usher.plugins.kafka.KafkaMessageStream;
-import io.cozmic.usher.plugins.kafka.KafkaOffsets;
 import io.cozmic.usher.streams.DuplexStream;
 import io.cozmic.usher.streams.NullClosableWriteStream;
 import io.cozmic.usher.streams.WriteCompleteFuture;
@@ -195,10 +191,6 @@ public class KafkaInput implements InputPlugin {
                     })
                     .last()
                     .flatMap(v -> {
-                        final ObservableFuture<Void> offsetStop = RxHelper.observableFuture();
-                        if (kafkaOffsets != null) {
-                            kafkaOffsets.shutdown(offsetStop.toHandler());
-                        }
                         final ObservableFuture<Void> connStop = RxHelper.observableFuture();
                         vertx.executeBlocking(future -> {
                             try {
@@ -210,7 +202,7 @@ public class KafkaInput implements InputPlugin {
                                 future.fail(throwable);
                             }
                         }, false, connStop.toHandler());
-                        return connStop.zipWith(offsetStop, (v1, v2) -> null);
+                        return connStop;
                     })
                     .subscribe(v -> {
                         logger.info("[KafkaInput] - Stopped");
