@@ -130,3 +130,26 @@ Similarly you can can make key dynamic (not sure a static key makes much sense a
 
 If key is omitted, then Kafka will use round-robin partitioning. Because usher's KafkaInput plugin is concurrent
 round-robin partitioning can lead to out-of-order messages. So be sure to use a partitioning key accordingly.
+
+## Kafka Integration Notes
+
+### Replication Factor
+
+Note that you must set the Kafka replication factor to a value greater than 1 for failover to work.
+
+### Recommened Usher Version
+
+- Version 1.0.85 is "production stable" at this time (Dec 31, 2015) but this version is only tested with a low volume of traffic.
+- There have been some updates to the KafkaPlugin since 1.0.85 so you should **begin testing with version 1.0.86 or greater before ramping up to higher volumes of data.** 
+
+### Integration Tests
+
+Integration tests are in package *io.cozmic.usher.test.integration* and assume local instances of kafka and zookeeper. We recommend running these in docker containers. (See docker-compose.yml.)
+
+Additionally, integration tests assume that the Kafka and Zookeeper services are running on hosts kafka.dev and zookeeper.dev respectively. If you are running Kafka/Zookeeper locally (containerized or not) you will need to use something like DNSMasq to resolve these host names to your local machine. Usually, such a setup is as simple as adding an address entry to dnsmasq.conf:
+
+	address=/dev/127.0.0.1
+
+This will resolve anything ending with 'dev' to your local machine. So you should be able to ping {service-name}.dev, e.g. kafaka.dev, zookeeper.dev and see that it resolves to 127.0.0.1.
+
+
