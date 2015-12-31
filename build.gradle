@@ -79,6 +79,19 @@ sourceSets {
 }*/
 // End gradle avro plugin
 
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "gradle.plugin.gradle-plugins:jartest:1.0.1"
+    }
+}
+
+apply plugin: "com.github.hauner.jarTest"
+
 test {
     exclude 'io.cozmic.usher.test.integration.plugins.kafka/KafkaInputTests'
     exclude 'io.cozmic.usher.test.integration.plugins.kafka.simple/KafkaConsumerTests'
