@@ -92,6 +92,12 @@ buildscript {
 
 apply plugin: "com.github.hauner.jarTest"
 
+artifacts {
+    archives jar
+    archives sourcesJar
+    archives jarTest
+}
+
 test {
     exclude 'io.cozmic.usher.test.integration.plugins.kafka/KafkaInputTests'
     exclude 'io.cozmic.usher.test.integration.plugins.kafka.simple/KafkaConsumerTests'
