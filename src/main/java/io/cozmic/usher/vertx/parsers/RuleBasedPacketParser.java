@@ -31,8 +31,6 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
         return new RuleBasedPacketParser(config, output);
     }
 
-
-
     private RuleBasedPacketParser(JsonObject config, final Handler<Buffer> output) {
         this.outputHandler = output;
 
