@@ -30,7 +30,7 @@ public class PacketSplitter implements SplitterPlugin {
 
     @Override
     public void findRecord(Buffer buffer, Handler<Buffer> bufferHandler) {
-    	logger.info("Raw Buffer: " + Hex.encodeHex(buffer.getBytes()).toString());
+    	logger.info("Raw Buffer: " + new String(Hex.encodeHex(buffer.getBytes())));
         packetParser.setOutput(bufferHandler);
         packetParser.handle(buffer);
     }
