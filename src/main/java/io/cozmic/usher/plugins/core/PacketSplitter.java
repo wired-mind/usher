@@ -18,7 +18,7 @@ public class PacketSplitter implements SplitterPlugin {
     private JsonObject configObj;
     private Vertx vertx;
     private RuleBasedPacketParser packetParser;
-    private Logger logger = LoggerFactory.getLogger(this.getClass().getName());
+    private Logger logger = LoggerFactory.getLogger(PacketSplitter.class.getName());
 
     @Override
     public void init(JsonObject configObj, Vertx vertx) {
@@ -37,6 +37,7 @@ public class PacketSplitter implements SplitterPlugin {
 
     @Override
     public SplitterPlugin createNew() {
+    	logger.info("Creating new PacketSplitter");
         final PacketSplitter packetSplitter = new PacketSplitter();
         packetSplitter.init(configObj, vertx);
         return packetSplitter;
