@@ -23,6 +23,9 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
     protected RecordParser innerParser;
     private Rule currentRule;
     private Buffer buff;
+    private int fullBufferLength;
+    private int parsedBufferLength;
+    private List<Buffer> parsedRecords = new ArrayList<Buffer>();
 
 
     public static RuleBasedPacketParser fromConfig(JsonObject config, Handler<Buffer> output) {
@@ -44,15 +47,27 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
                 buff.appendBuffer(buffer);
             }
             if (currentRule == null) {
-                outputHandler.handle(buff);
-                buff = null;
+        		parsedRecords.add(buff.copy());
+            	parsedBufferLength = parsedBufferLength + buff.length();
+            	if (parsedBufferLength == fullBufferLength) {
+            		parsedRecords.forEach( parsedRecord -> outputHandler.handle(parsedRecord));	
+            		parsedRecords.clear();
+            		parsedBufferLength = 0;
+            	}
+            	buff = null;
                 currentRule = firstRule;
             }
 
             final int nextLength = currentRule.length(buffer);
             if (nextLength == 0) {
-                outputHandler.handle(buff);
-                buff = null;
+        		parsedRecords.add(buff.copy());
+            	parsedBufferLength = parsedBufferLength + buff.length();
+            	if (parsedBufferLength == fullBufferLength) {
+            		parsedRecords.forEach( parsedRecord -> outputHandler.handle(parsedRecord));	
+            		parsedRecords.clear();
+            		parsedBufferLength = 0;
+            	}
+            	buff = null;
                 currentRule = firstRule;
                 innerParser.fixedSizeMode(currentRule.length(null));
                 currentRule = currentRule.nextRule(null);
@@ -68,6 +83,7 @@ public class RuleBasedPacketParser implements Handler<Buffer> {
 
     @Override
     public void handle(Buffer buffer) {
+    	fullBufferLength = buffer.length();
         innerParser.handle(buffer);
     }
 

@@ -37,7 +37,6 @@ public class PacketSplitter implements SplitterPlugin {
 
     @Override
     public SplitterPlugin createNew() {
-    	logger.info("Creating new PacketSplitter");
         final PacketSplitter packetSplitter = new PacketSplitter();
         packetSplitter.init(configObj, vertx);
         return packetSplitter;
